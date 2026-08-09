@@ -97,8 +97,24 @@ Supporting pieces that come along because the above need them: `formability`,
 | `type Rung = 'set' \| ...` | `enum Rung: String, CaseIterable` | |
 | `type GuessResult = {kind:'valid', ...} \| ...` | `enum GuessResult` with associated values | the discriminated union, compiler-enforced |
 | `ReadonlySet<string>` | `Set<String>` (a `let`) | |
-| `Int8Array(26)` letter counts | `[Int8]` of 26, or a fixed-size struct | decide during implementation; note which and why |
+| `Int8Array(26)` letter counts | `[Int8]` of 26, **and** a fixed-size struct | implement both, measure, report the delta |
 | `createEndlessSource` returning a closure | `struct` + `mutating func` **or** `final class` | the interesting decision; see below |
+
+### The letter-counts measurement
+
+`letterCounts` is the hottest loop in the engine: `formableFrom` calls it once
+per candidate word, across 430k words. It is also the one place in this port
+where a value-versus-reference choice has a number attached to it, which makes
+it the best available teaching moment — felt rather than read about.
+
+So both get implemented: a 26-element `[Int8]` (heap-allocated per word, the
+literal translation of `Int8Array`) and a fixed-size value type (stack, no
+allocation). The difference is measured across the full boundary list and
+reported as a concrete figure. It feeds the load measurement that is already
+being taken, so the marginal cost is small.
+
+If implementing both turns out not to be cheap, the fixed-size struct wins by
+default and the delta is reported as unmeasured.
 
 `createEndlessSource` is deliberately left open. In TypeScript it is a closure
 capturing a mutable cursor. Swift offers two idiomatic answers with genuinely
@@ -166,6 +182,14 @@ touching the web repo, emits `Fixtures/oracle.json`:
 
 Swift tests assert against the fixture. This turns both named risks from
 "a check" into "a claim with evidence behind it".
+
+**Contingency — watch this one.** The oracle is the best idea in the spec and
+it is also a Node script, a JSON schema, and cross-language assertions. That is
+infrastructure, not Swift, and this is a Swift experiment. If it starts eating
+the session, cut it to `dayIndex` only and hand-check `seededPermutation` and
+`cycleOrder` against a handful of known values instead. `dayIndex` is where the
+real divergence risk lives; the PRNG is deterministic and easy to spot-check.
+If that cut is made, say so in the report.
 
 ### The PRNG hazard
 
@@ -294,9 +318,16 @@ The report is a deliverable, not an afterthought. It covers:
   - The share result, which could leak the daily answer until a discriminated
     union made it a compile error (`shareResult.ts`: `DailyShareResult` has no
     source-word affordance at all; `EndlessShareResult` has `showSourceWord`).
+- **The inverse: where Swift's strictness cost time without buying safety.**
+  Optional unwrapping on things that cannot be nil, exhaustive switches over
+  enums that will never grow, compiler fights over something TypeScript waved
+  through, ceremony that protected nothing. Without this half the report can
+  only conclude in one direction, and the actual question is whether Antoine
+  *wants* to write Swift. The friction is half the answer.
 - Whether the Swift `dayIndex` matches the web for the same instant, per the
-  oracle.
-- The dictionary load number, in release mode.
+  oracle — and whether the oracle was cut down to `dayIndex` only.
+- The dictionary load number, in release mode, and the `[Int8]`-vs-fixed-size
+  delta.
 - An honest read on whether continuing to a full port is worth it.
 
 ## Done looks like
