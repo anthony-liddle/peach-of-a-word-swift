@@ -17,6 +17,7 @@
 		D0A498839A7369142292482D /* PeachMinimalApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEBA05907CBA1E79B5A0F219 /* PeachMinimalApp.swift */; };
 		D79ED1BBF137BF3935060C26 /* Data in Resources */ = {isa = PBXBuildFile; fileRef = 282695D12B85BF209B7BB32A /* Data */; };
 		DFA14BE2234710FABDDE1C26 /* Nunito.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 731146D17EF810DAE185E230 /* Nunito.ttf */; };
+		EE77EAC4A83C81B8E2910773 /* UserDefaultsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF37E5CAFF930BC36B41A7CC /* UserDefaultsStore.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -29,6 +30,7 @@
 		976142F0A7032B2D976C5A6D /* GameModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameModel.swift; sourceTree = "<group>"; };
 		9F25F94C16B3325A38E7E667 /* Fredoka.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Fredoka.ttf; sourceTree = "<group>"; };
 		ABAC440104036A7BD2D52E7A /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		AF37E5CAFF930BC36B41A7CC /* UserDefaultsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserDefaultsStore.swift; sourceTree = "<group>"; };
 		D3A7FCC1C5EE85FA94EDF6B0 /* PeachMinimal.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = PeachMinimal.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		ECE1BF706A7C6A3689E81BDE /* OFL-Fredoka.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = "OFL-Fredoka.txt"; sourceTree = "<group>"; };
 		FEBA05907CBA1E79B5A0F219 /* PeachMinimalApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PeachMinimalApp.swift; sourceTree = "<group>"; };
@@ -54,6 +56,7 @@
 				976142F0A7032B2D976C5A6D /* GameModel.swift */,
 				ABAC440104036A7BD2D52E7A /* Info.plist */,
 				FEBA05907CBA1E79B5A0F219 /* PeachMinimalApp.swift */,
+				AF37E5CAFF930BC36B41A7CC /* UserDefaultsStore.swift */,
 				3C9035FABD3D0134712EF089 /* Fonts */,
 			);
 			path = App;
@@ -180,6 +183,7 @@
 				06E2B7E0A952CA5A24A95AAA /* CuteTheme.swift in Sources */,
 				42B2F660A623FD3CA87344E5 /* GameModel.swift in Sources */,
 				D0A498839A7369142292482D /* PeachMinimalApp.swift in Sources */,
+				EE77EAC4A83C81B8E2910773 /* UserDefaultsStore.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

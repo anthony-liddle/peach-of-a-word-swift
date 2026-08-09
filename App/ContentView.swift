@@ -8,13 +8,26 @@ private let cuteTierNames = [
 ]
 
 struct ContentView: View {
+    /// Fill the board on appear, for judging the visual work. Previews do not
+    /// receive launch arguments, so the `-seedBoard` hook is unreachable from
+    /// the canvas and this is how a preview gets a played board.
+    private let debugSeed: String?
+
     /// `@State` owns the model for the lifetime of the view.
     ///
     /// The name is misleading coming from React: this is not `useState`. It is
     /// closer to a ref that SwiftUI keeps alive across re-renders, and with
     /// `@Observable` it is also how the view subscribes to changes. A `let`
     /// here would work for reading but the view would never update.
-    @State private var model = GameModel()
+    @State private var model: GameModel
+
+    /// `storage` is injectable so a preview does not scribble on the real
+    /// UserDefaults every time the canvas re-renders.
+    init(debugSeed: String? = nil,
+         storage: GameStorage = GameStorage(store: UserDefaultsStore())) {
+        self.debugSeed = debugSeed
+        _model = State(initialValue: GameModel(storage: storage))
+    }
 
     var body: some View {
         ZStack {
@@ -38,7 +51,12 @@ struct ContentView: View {
         // `.task` runs when the view appears and is cancelled automatically if
         // it disappears. It is the SwiftUI answer to useEffect with an empty
         // dependency array, minus the cleanup function.
-        .task { await model.load() }
+        .task {
+            await model.load()
+            #if DEBUG
+            if let debugSeed { model.seedBoard(debugSeed) }
+            #endif
+        }
     }
 
     /// The whole surface scrolls.
@@ -403,6 +421,17 @@ private struct MessageLine: View {
     }
 }
 
-#Preview("Cute play surface") {
-    ContentView()
+#Preview("Empty board") {
+    ContentView(storage: GameStorage(store: InMemoryStore()))
+}
+
+#Preview("Played board, near completion") {
+    // The state the tier meter and the found list are most worth judging
+    // against. In-memory storage so the canvas never touches real saved
+    // progress.
+    ContentView(debugSeed: "almost", storage: GameStorage(store: InMemoryStore()))
+}
+
+#Preview("Played board, mid game") {
+    ContentView(debugSeed: "24", storage: GameStorage(store: InMemoryStore()))
 }

@@ -40,6 +40,38 @@ final class GameModel {
     private(set) var feedback: Feedback = .none
     private(set) var loadMilliseconds: Double = 0
 
+    /// The persisted streak, as of the day this session loaded.
+    private(set) var streak: Int = 0
+
+    /// Local persistence. Injected so previews and tests can hand in an
+    /// in-memory store instead of touching real UserDefaults.
+    private let storage: GameStorage
+
+    /// The day this board belongs to, in `storageEpoch` days.
+    ///
+    /// Captured once at load and then used for every save. It is deliberately
+    /// NOT recomputed at write time: if midnight passes while the app is open,
+    /// the board on screen is still yesterday's, and its words must be saved
+    /// under yesterday's key rather than leaking into today.
+    private var storageDayIndex: Int?
+
+    /// How many times progress has been written this session.
+    ///
+    /// Exists to prove a property rather than to implement one: taps, delete,
+    /// clear and shuffle must not write. The plist modification time cannot show
+    /// this, because cfprefsd batches UserDefaults writes to disk, so the count
+    /// is taken at the point of the call instead.
+    private(set) var saveCount = 0
+
+    /// The streak is recorded at most once per session, matching the web's ref
+    /// guard, so reaching the rank and then finding more words does not
+    /// repeatedly rewrite it.
+    private var streakRecordedThisSession = false
+
+    init(storage: GameStorage = GameStorage(store: UserDefaultsStore())) {
+        self.storage = storage
+    }
+
     /// Bound directly to the debug text field, so this one is `var`. Tapping is
     /// the primary path; this stays only because it makes headless testing of
     /// arbitrary strings possible.
@@ -135,7 +167,18 @@ final class GameModel {
             // answer is not sitting in alphabetical order on screen.
             tiles = p.letters.enumerated().map { Tile(id: $0.offset, letter: String($0.element)) }
             rackOrder = tiles.map(\.id).shuffled()
+
+            // Progress and the streak are keyed off storageEpoch, which never
+            // moves, NOT off dailyEpoch, which a calendar regeneration can
+            // re-anchor. Keying on the daily epoch would renumber every stored
+            // day and cost a streak. See StorageEpochTests.
+            let day = dayIndex(Date(), epoch: storageEpoch, timeZone: .current)
+            storageDayIndex = day
+            found = storage.loadDayProgress(dayIndex: day, sourceWord: p.sourceWord)
+            streak = storage.currentStreak(todayIndex: day)
+
             phase = .ready
+            writeDebugState()
             runLaunchArguments()
         case .failure(let error):
             phase = .failed(String(describing: error))
@@ -154,6 +197,7 @@ final class GameModel {
     /// either. `UserDefaults` reads `-key value` launch arguments for free,
     /// which is the standard trick for this.
     private func runLaunchArguments() {
+        #if DEBUG
         // `-guesses a,b,c` goes through the typed path, so arbitrary strings
         // (including ones the rack cannot spell) can still be tested.
         if let raw = UserDefaults.standard.string(forKey: "guesses") {
@@ -173,6 +217,10 @@ final class GameModel {
                 submit()
             }
         }
+        // `-seedBoard almost` or `-seedBoard 24`.
+        if let spec = UserDefaults.standard.string(forKey: "seedBoard") {
+            seedBoard(spec)
+        }
         // `-tapTiles 4,1,6` places those rack POSITIONS, exercising `addTile`
         // itself rather than the letter lookup, and leaves the result on the
         // stick without submitting. Positions, not ids, so a caller does not
@@ -185,7 +233,79 @@ final class GameModel {
                 }
             }
         }
+        #endif
     }
+
+    #if DEBUG
+    /// Fill the board with a realistic set of finds, for judging the visual
+    /// work without playing a game by hand first.
+    ///
+    /// The next work is the found list, the rarity colours and the tier meter,
+    /// and none of that can be judged against a board holding three words. The
+    /// preview loop is about three seconds; replaying a board by hand is
+    /// minutes, and that asymmetry is the reason this exists.
+    ///
+    /// Two specs, because they answer different questions:
+    ///
+    ///   `almost`  every set word but one, plus a third of each off-page rung.
+    ///             The most interesting state for the tier meter: high, with the
+    ///             completion crown still out of reach.
+    ///   `<count>` roughly that many words, spread across the four bands in
+    ///             proportion to their sizes, so the rarity mix looks like real
+    ///             play rather than one colour repeated.
+    ///
+    /// Deliberately deterministic (bands are sorted, picks are strided) so two
+    /// screenshots of the same spec are comparable. Random picks would make
+    /// every visual diff noisy.
+    ///
+    /// It writes through `foundDidChange`, the same path a real find takes, so
+    /// seeding exercises persistence rather than bypassing it. That makes this
+    /// a live check of the thing it sits next to, and means it cannot drift into
+    /// a second way of writing saved state.
+    ///
+    /// `#if DEBUG` compiles it out of Release, so it is unreachable in any build
+    /// that ships. It is also therefore unavailable on the device builds, which
+    /// are Release.
+    func seedBoard(_ spec: String) {
+        guard let puzzle else { return }
+
+        /// Every nth word of a sorted band, so the choice is stable.
+        func stride(_ band: Set<String>, keeping fraction: Int) -> [String] {
+            let sorted = band.sorted()
+            guard fraction > 1 else { return sorted }
+            return sorted.enumerated().compactMap { $0.offset % fraction == 0 ? $0.element : nil }
+        }
+
+        var picks: [String]
+        if spec == "almost" {
+            // All but one set word: the meter sits just under the crown.
+            picks = puzzle.commonWords.sorted().dropLast().map { $0 }
+            picks += stride(puzzle.uncommonWords, keeping: 3)
+            picks += stride(puzzle.rareWords, keeping: 3)
+            picks += stride(puzzle.mythicWords, keeping: 3)
+        } else if let target = Int(spec), target > 0 {
+            // Spread proportionally across the bands so the rarity mix looks
+            // like real play rather than one colour repeated.
+            let bands = [puzzle.commonWords, puzzle.uncommonWords,
+                         puzzle.rareWords, puzzle.mythicWords]
+            let total = bands.reduce(0) { $0 + $1.count }
+            guard total > 0 else { return }
+            picks = bands.flatMap { band -> [String] in
+                let share = max(1, Int((Double(band.count) / Double(total) * Double(target)).rounded()))
+                return Array(band.sorted().prefix(share))
+            }
+            picks = Array(picks.prefix(target))
+        } else {
+            return
+        }
+
+        // Newest first, matching how a real find lands.
+        for word in picks where !found.contains(word) {
+            found.insert(word, at: 0)
+        }
+        foundDidChange()
+    }
+    #endif
 
     // MARK: Tile actions
 
@@ -249,6 +369,44 @@ final class GameModel {
         return validateGuess(word, puzzle: puzzle, found: Set(found))
     }
 
+    /// Everything that runs after `found` changes.
+    ///
+    /// This is the ONLY place progress is written, and it is reached only from a
+    /// successful find. Tile taps, delete, clear and shuffle all mutate
+    /// `composing`, never `found`, so none of them touches the disk. That is the
+    /// same split the web version arrived at after a per-tap synchronous write
+    /// caused input lag: key persistence on durable state, never on the
+    /// keystroke path.
+    private func foundDidChange() {
+        guard let puzzle, let day = storageDayIndex else { return }
+        saveCount += 1
+        storage.saveDayProgress(dayIndex: day, sourceWord: puzzle.sourceWord, found: found)
+
+        let standing = computeTier(found: Set(found), puzzle: puzzle)
+        if standing.index >= streakTierIndex && !streakRecordedThisSession {
+            streakRecordedThisSession = true
+            storage.recordDailyCleared(dayIndex: day)
+            streak = storage.currentStreak(todayIndex: day)
+        }
+        writeDebugState()
+    }
+
+    /// A small JSON dump beside load_ms.txt, so relaunch and rollover checks can
+    /// be scripted with `simctl get_app_container` rather than read off a
+    /// screenshot. Debug builds only.
+    private func writeDebugState() {
+        #if DEBUG
+        guard let docs = try? FileManager.default.url(
+            for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create: true
+        ) else { return }
+        let payload = """
+        {"storageDay":\(storageDayIndex ?? -1),"found":\(found.count),"streak":\(streak),"saves":\(saveCount)}
+        """
+        try? payload.write(to: docs.appendingPathComponent("state.json"),
+                           atomically: true, encoding: .utf8)
+        #endif
+    }
+
     private func resolve(_ result: GuessResult?) {
         guard let result else { return }
 
@@ -260,6 +418,7 @@ final class GameModel {
         case .valid(let word, let score, let rung, _):
             found.insert(word, at: 0)
             feedback = .accepted(word: word, points: score, rung: rung)
+            foundDidChange()
         case .tooShort:
             feedback = .rejected("Too short. Three letters or more.")
         case .notAWord:
