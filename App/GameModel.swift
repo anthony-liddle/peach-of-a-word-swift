@@ -40,8 +40,47 @@ final class GameModel {
     private(set) var feedback: Feedback = .none
     private(set) var loadMilliseconds: Double = 0
 
-    /// Bound directly to the text field, so this one is `var`.
+    /// Bound directly to the debug text field, so this one is `var`. Tapping is
+    /// the primary path; this stays only because it makes headless testing of
+    /// arbitrary strings possible.
     var guess: String = ""
+
+    // MARK: Composition
+    //
+    // Ported from the web version's `useGame.ts`, and the shape is the whole
+    // point: composition is a list of tile IDs, never letters.
+    //
+    //   tiles      id -> letter, built once from the sorted rack
+    //   rackOrder  the ids in display order, which is all Shuffle touches
+    //   composing  the ids placed so far, in the order they were placed
+    //
+    // This is what makes duplicate letters work. `motorway` has two separate
+    // `o` tiles; tapping one must consume that specific tile and leave the other
+    // available. A letter-keyed model would either consume both or lose track of
+    // which remained.
+    //
+    // It also makes Shuffle correct for free: reordering `rackOrder` cannot
+    // disturb `composing`, because they refer to each other only by id.
+
+    struct Tile: Identifiable, Sendable {
+        let id: Int
+        let letter: String
+    }
+
+    private(set) var tiles: [Tile] = []
+    private(set) var rackOrder: [Int] = []
+    private(set) var composing: [Int] = []
+
+    /// The word currently on the stick.
+    var composedWord: String {
+        composing.compactMap { id in tiles.first { $0.id == id }?.letter }.joined()
+    }
+
+    /// True if this specific tile is already placed. The web version derives the
+    /// same thing with `state.composing.includes(id)` on every render.
+    func isPlaced(_ id: Int) -> Bool {
+        composing.contains(id)
+    }
 
     /// The current standing, recomputed from scratch on every access.
     ///
@@ -91,8 +130,13 @@ final class GameModel {
         switch built {
         case .success(let p):
             puzzle = p
+            // Tile ids are indices into the sorted rack, matching the web
+            // version's `tilesFor`. The initial rack order is shuffled so the
+            // answer is not sitting in alphabetical order on screen.
+            tiles = p.letters.enumerated().map { Tile(id: $0.offset, letter: String($0.element)) }
+            rackOrder = tiles.map(\.id).shuffled()
             phase = .ready
-            submitLaunchArgumentGuesses()
+            runLaunchArguments()
         case .failure(let error):
             phase = .failed(String(describing: error))
         case nil:
@@ -109,17 +153,104 @@ final class GameModel {
     /// accessibility permissions granted. A launch argument was faster than
     /// either. `UserDefaults` reads `-key value` launch arguments for free,
     /// which is the standard trick for this.
-    private func submitLaunchArgumentGuesses() {
-        guard let raw = UserDefaults.standard.string(forKey: "guesses") else { return }
-        for word in raw.split(separator: ",") {
-            guess = String(word)
-            submit()
+    private func runLaunchArguments() {
+        // `-guesses a,b,c` goes through the typed path, so arbitrary strings
+        // (including ones the rack cannot spell) can still be tested.
+        if let raw = UserDefaults.standard.string(forKey: "guesses") {
+            for word in raw.split(separator: ",") {
+                guess = String(word)
+                submitTyped()
+            }
+        }
+        // `-tapWords motorway,tram` goes through the TILE path: each letter is
+        // resolved to a specific unused tile id and placed, exactly as tapping
+        // would. This is what verifies duplicate-letter handling headlessly,
+        // since `motorway` needs two distinct `o` tiles.
+        if let raw = UserDefaults.standard.string(forKey: "tapWords") {
+            for word in raw.split(separator: ",") {
+                clear()
+                for letter in word { addLetter(String(letter)) }
+                submit()
+            }
+        }
+        // `-tapTiles 4,1,6` places those rack POSITIONS, exercising `addTile`
+        // itself rather than the letter lookup, and leaves the result on the
+        // stick without submitting. Positions, not ids, so a caller does not
+        // need to know the internal numbering.
+        if let raw = UserDefaults.standard.string(forKey: "tapTiles") {
+            clear()
+            for token in raw.split(separator: ",") {
+                if let position = Int(token), rackOrder.indices.contains(position) {
+                    addTile(rackOrder[position])
+                }
+            }
         }
     }
 
+    // MARK: Tile actions
+
+    /// Place a specific tile. A tile already on the stick is ignored, matching
+    /// the web reducer's `ADD_TILE` guard.
+    func addTile(_ id: Int) {
+        guard !composing.contains(id) else { return }
+        composing.append(id)
+    }
+
+    /// Place the first unused tile bearing this letter, in rack order.
+    ///
+    /// The keyboard path in the web version, kept here for the tap-driven test
+    /// hook. "First unused in rack order" is what makes typing `oo` consume two
+    /// different tiles rather than failing on the second.
+    func addLetter(_ letter: String) {
+        guard let id = rackOrder.first(where: { id in
+            tiles.first { $0.id == id }?.letter == letter && !composing.contains(id)
+        }) else { return }
+        composing.append(id)
+    }
+
+    /// Remove the last placed tile, returning it to the rack.
+    func removeLast() {
+        guard !composing.isEmpty else { return }
+        composing.removeLast()
+    }
+
+    /// Empty the stick.
+    func clear() {
+        composing.removeAll()
+    }
+
+    /// Reorder the rack for display.
+    ///
+    /// Note what this deliberately does not touch: `composing`. Because both
+    /// lists hold ids, shuffling the display order cannot disturb a composition
+    /// in progress. That correctness falls out of the id-based model rather than
+    /// needing to be arranged.
+    func shuffleRack() {
+        rackOrder.shuffle()
+    }
+
+    /// Submit whatever is on the stick.
     func submit() {
-        guard let puzzle else { return }
-        let result = validateGuess(guess, puzzle: puzzle, found: Set(found))
+        resolve(attempt(composedWord))
+        // The web version clears the stick on every outcome, valid or not, so a
+        // rejected word does not have to be picked apart by hand.
+        clear()
+    }
+
+    /// Submit the debug text field. Tapping is the primary path; this is kept
+    /// only for headless testing of strings the rack cannot spell.
+    func submitTyped() {
+        resolve(attempt(guess))
+        guess = ""
+    }
+
+    private func attempt(_ word: String) -> GuessResult? {
+        guard let puzzle else { return nil }
+        return validateGuess(word, puzzle: puzzle, found: Set(found))
+    }
+
+    private func resolve(_ result: GuessResult?) {
+        guard let result else { return }
 
         // An exhaustive switch over the engine's enum. Adding a case to
         // GuessResult would fail to compile here rather than silently falling
@@ -129,7 +260,6 @@ final class GameModel {
         case .valid(let word, let score, let rung, _):
             found.insert(word, at: 0)
             feedback = .accepted(word: word, points: score, rung: rung)
-            guess = ""
         case .tooShort:
             feedback = .rejected("Too short. Three letters or more.")
         case .notAWord:
