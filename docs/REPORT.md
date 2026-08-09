@@ -1299,6 +1299,7 @@ All three checks the brief asked for, plus one it did not.
 | Check | Result |
 |---|---|
 | Find words, force-quit, relaunch | `found:4` before, `found:4` after |
+| Same, **on the iPhone by hand** | Confirmed: words still there after a swipe-away |
 | Only yesterday stored, launch today | `{"storageDay":220,"found":0,"streak":5}` |
 | Eight tile taps | `saves:0` |
 | One real find | `saves:1` |
