@@ -1995,7 +1995,11 @@ git commit -m "feat: port the seeded shuffle and append-only calendar generator"
 
 No web counterpart — this is new infrastructure. It turns "does Swift match the web?" from a judgement into a measurement.
 
-**If this task starts eating the session, cut it to `dayIndex` only** and rely on the hardcoded PRNG values already in Task 10 for `seededPermutation`. `dayIndex` is where the real divergence risk lives; the PRNG is deterministic and already spot-checked. **Say in the report if that cut is made.**
+**CUT APPLIED, 2026-08-09.** The contingency condition fired: the deliverable moved from "is Swift legible" to "could this ship", the reader is skimming, and this is the one task that is Node infrastructure rather than Swift. The oracle is therefore **`dayIndex` only**.
+
+`seededPermutation`, `cycleOrder`, and `seedForCycle` are instead covered by Node-verified values hardcoded directly in the Swift tests (Task 10 already carries `[9,19,7,…]`, the 50/123 prefix, `[4,3,0,2,1]`, and `[2654435761, 1013904226, 3668339987, 145972072]`; Task 13 adds `cycleOrder` cases the same way). That is weaker than a generated fixture in one specific respect — it does not regenerate if the TypeScript changes — and no weaker at all for catching a wrong port today, which is what the risk actually is.
+
+`dayIndex` keeps the generator because it is where cross-language divergence genuinely lives and the only place with no hardcoded coverage. **Task 16 must report this cut.**
 
 **Files:**
 - Create: `tools/generate-oracle.mjs`
