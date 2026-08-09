@@ -59,6 +59,17 @@ list. Every link was checked for a 200 before it went in.
 | Generic constraints (`<R: RandomSource>`) | Load-bearing in `EndlessSource`: storing the generator as a constrained generic rather than a closure is what preserves value semantics. Also the source of the "viral generic" friction. | [Swift book: Generics](https://docs.swift.org/swift-book/documentation/the-swift-programming-language/generics/) |
 | `ContinuousClock` | A monotonic clock that cannot go backwards if the system clock is adjusted mid-measurement. `Date.now()` can. | [ContinuousClock reference](https://developer.apple.com/documentation/swift/continuousclock) |
 
+### Part two: the SwiftUI app
+
+| Concept | Why it has no TypeScript analogue | Link |
+|---|---|---|
+| `@Observable` | A macro that rewrites a class so SwiftUI re-renders when a property changes. Tracking is automatic and per-property: a view only re-renders for properties it actually read. React makes you declare dependencies; this infers them. | [Observation framework](https://developer.apple.com/documentation/observation) · [`@Observable`](https://developer.apple.com/documentation/observation/observable()) · [Migrating from ObservableObject](https://developer.apple.com/documentation/swiftui/migrating-from-the-observable-object-protocol-to-the-observable-macro) |
+| `@State` | Not `useState`. It owns a value across re-renders, closer to a ref, and with `@Observable` it is also the subscription. A plain `let` compiles and silently never updates. | [State](https://developer.apple.com/documentation/swiftui/state) · [Managing model data](https://developer.apple.com/documentation/swiftui/managing-model-data-in-your-app) |
+| `@MainActor` and `nonisolated` | Compile-time thread affinity. `@MainActor` on the model makes background mutation impossible by construction; `nonisolated` is the explicit opt-out for the file loading. JS has one thread and needs neither. | [MainActor](https://developer.apple.com/documentation/swift/mainactor) · [Strict concurrency](https://developer.apple.com/documentation/swift/updating-an-app-to-use-strict-concurrency) |
+| `.task { }` | Runs an async job when a view appears, cancelled automatically on disappear. Roughly `useEffect` with an empty dependency array, minus the cleanup return. | [View](https://developer.apple.com/documentation/swiftui/view) |
+| `@main struct App` | Replaces the AppDelegate lifecycle entirely. No main.swift, no UIApplicationMain, no storyboard. | [App protocol](https://developer.apple.com/documentation/swiftui/app) |
+| XcodeGen | Not Swift, but load-bearing: SwiftPM cannot produce an app bundle and there is no `xcodebuild -create`, so an app target means an `.xcodeproj`. Generating it from a small YAML file beats hand-writing pbxproj. | [XcodeGen](https://github.com/yonaskolb/XcodeGen) |
+
 ## Writer's column — the agent's experience of writing it
 
 **On "elapsed":** wall-clock between commits includes time spent waiting on
@@ -80,6 +91,10 @@ plainly rather than quoting the totals as if they were stopwatch readings.
 | 11–13. Oracle, `dayIndex`, daily | ~25 min | Largest engine task. Two `Calendar` types in scope (`Foundation.Calendar` vs this package's `Calendar.swift`) needed disambiguating. Shell cwd drift cost one failed run. | The oracle. 22 instants, 8 zones, exact match. Also: the `dateComponents` one-liner was expected to diverge on midnight-transition zones and **did not** — there is now a test asserting both agree. |
 | 14. `EndlessSource` | ~12 min | `inout` on every helper, `var` on every holder, and a viral generic parameter — all the price of value semantics, for a property the game never uses. | The generic `RandomSource` making a copy a genuine fork. Nearly shipped a closure-based version that would have quietly shared state. |
 | 15. Measurements | ~20 min | My own `grep -v "^\["` ate the `[Int8]` result line on the first run. Self-inflicted. | 2.5× inline-vs-heap, and the 25× debug/release gap on `LetterCounts` — the strongest possible argument for release-mode benchmarking. |
+| **App: project setup** | ~35 min | Discovering that an app target cannot be made from the terminal at all, then installing XcodeGen. Also two package changes the engine port did not anticipate: an iOS platform floor, and a directory parameter on `readWordList` because `#filePath` does not survive into an app bundle. | Built, installed and launched in the simulator on the first attempt after generation. |
+| **App: model and views** | ~40 min | Almost nothing. The largest surprise was how little there was: 219 lines of model, 124 of view. | `@Observable` needing no dependency declarations. The exhaustive `switch` over `GuessResult` in `submit()` is the engine port's enum paying off in the place it was designed for. |
+| **App: verification** | ~25 min | No supported way to type into a SwiftUI text field from the terminal. AppleScript needed the field focused and did nothing. Added a `-guesses` launch argument instead. Also lost time to `--console-pty` not capturing `print`. | The launch-argument trick via `UserDefaults` is genuinely tidy. |
+| **App: measurement** | ~30 min | **Found a bug in my own timing code**: the whole-seconds and sub-second components were scaled inconsistently, so anything at or above one second was silently underreported. Caught by disbelieving a flat set of numbers, not by a test. | Getting a decided answer on the iOS 26 floor: `InlineArray` is the only thing gating it, and dropping it builds clean at iOS 17 with all 84 tests passing. |
 
 ## Reader's column — Antoine's experience of reading it
 

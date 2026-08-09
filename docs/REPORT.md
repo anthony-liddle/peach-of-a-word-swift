@@ -499,3 +499,331 @@ full port is the cheap version of finding out.
 - **The CC BY-SA position.** Flagged as uncertain, not resolved.
 - **The effort estimates in the shipping table.** The least reliable numbers
   here. They are a shape, not a schedule.
+
+---
+
+# Part two: the smallest possible SwiftUI app
+
+2026-08-09, same day. Written after the engine report above, whose verdict asked
+for exactly this.
+
+Note on style: this section avoids em dashes, per the build prompt. The engine
+sections above predate that instruction and were left as they were, since
+retrofitting them was not asked for and would have eaten the timebox.
+
+## What was built
+
+An iOS app target in this repo, depending on the existing `PeachEngine`
+library. It launches, loads today's daily from the shipped calendar, shows the
+eight rack letters, accepts typed guesses through `validateGuess`, lists found
+words newest first, and shows score and rank from `computeTier`.
+
+Verified end to end in the iOS 26.4 Simulator on an iPhone 17 Pro. Today's rack
+is `AMOORTWY`, which is **motorway**, day 47 of the calendar. Seven guesses
+submitted through a launch argument produced exactly the right outcomes:
+`motorway`, `tram`, `root` and `moray` accepted, `zzz` rejected as not a word,
+`ay` rejected as too short, and a repeated `motorway` rejected as already found.
+`moray` was graded **uncommon** at 6 points, which is 5 for length plus the
+1 point rarity bonus. Score 28 of 65, rank 3 of 5.
+
+Three files, 358 lines of app code: `GameModel.swift` at 219, `ContentView.swift`
+at 124, `PeachMinimalApp.swift` at 15. The built app bundle is 8.4 MB, almost
+all of it the word lists.
+
+Kept out, as specified: theming, audio, animation, persistence, endless mode,
+sharing, the reveal, definitions, the rarity ladder display, completion,
+widgets, icons.
+
+## 1. What does state management look like?
+
+**The reducer did not survive, and did not need to.**
+
+`useGame.ts` is roughly 600 lines. The SwiftUI equivalent is a 219 line
+`@Observable final class GameModel` holding three pieces of state (`phase`,
+`puzzle`, `found`), one bound text property, and a `submit()` method. There is
+no action type, no dispatch, no switch over action kinds, and no reducer
+function.
+
+The reason is not that SwiftUI is more powerful. It is that most of what a React
+reducer exists to do is unnecessary here:
+
+- **Nothing needs to serialise state transitions into values.** React reducers
+  exist partly because you cannot mutate state in place. `@Observable` lets you
+  write `found.insert(word, at: 0)` and the view updates. The action type was
+  scaffolding for an immutability constraint that Swift does not impose.
+- **Dependency tracking is automatic.** `@Observable` tracks which properties a
+  view actually read and re-renders only for those. There is no dependency array
+  to declare and therefore no dependency array to get wrong.
+- **Derived state stays derived.** `standing` is a computed property calling
+  `computeTier` on every access. In the web version the equivalent had to be
+  memoised or recomputed deliberately, and the engine report documents two
+  places where a second copy of a derived fact drifted from the first. Here the
+  cheapest thing to write is also the correct thing.
+
+**The honest caveat.** This app has three pieces of state. `useGame.ts` has
+persistence, two themes, endless mode, a share, a completion celebration, a
+streak, and dev preview hooks. A reducer earns its keep at that size in a way it
+cannot at this one, so this finding is real but small: it says the reducer shape
+is not *required* by SwiftUI, not that it would be wrong at full scale.
+
+What I would say with more confidence: the parts of `useGame.ts` that are
+*bookkeeping about React* would disappear, and the parts that are *game rules*
+are already in `PeachEngine` and would not need writing at all.
+
+## 2. How does the engine package feel to consume from a UI?
+
+**Mostly very well, with one real gap that the engine port created and this
+found.**
+
+What held up:
+
+- **`Sendable` paid off in the place it was designed for.** The dictionary load
+  runs on a detached background task and returns a `Puzzle` across the actor
+  boundary to the main actor. That compiles only because `Puzzle` is `Sendable`,
+  which was declared months before there was a UI. Swift 6 would have rejected
+  it otherwise.
+- **`GuessResult` as an enum with associated values is exactly right at the UI
+  boundary.** `submit()` is a four case exhaustive switch that produces feedback.
+  Adding a case to the engine would fail to compile here rather than silently
+  falling through to a default.
+- **The protocol boundary meant no adapter layer.** `ListDictionary` and
+  `ListWordSource` were built for tests and worked unchanged in the app.
+- **Injecting `TimeZone` into `dayIndex` was vindicated.** The app passes
+  `.current`, which is the app's decision to make. Had the engine reached for
+  `Calendar.current` internally, this would have been invisible rather than
+  chosen.
+
+**The gap: `readWordList` did not survive contact with an app bundle.**
+
+The engine locates its data through `dataDirectory`, derived from `#filePath`,
+which bakes in the absolute path of the repo on the machine that compiled it.
+That is correct for tests and the benchmark, which run from the source tree. It
+is wrong for an app, which has no repo.
+
+**And it fails in the worst possible way.** The iOS Simulator shares the Mac
+filesystem, so the baked path still resolves there. A naive app would have
+worked perfectly in the simulator and failed on the first real device. The fix
+was one default argument (`readWordList(_:in:)` defaulting to the old
+behaviour), so all 84 engine tests pass untouched and the app passes
+`Bundle.main.resourceURL`.
+
+This is worth stating plainly because the engine report claimed the package was
+"designed for this, with protocols at the boundary". That was true of the *word
+sources* and false of the *data loading*, and only building an app surfaced the
+difference.
+
+**One more change the engine port did not anticipate:** the package declared
+`platforms: [.macOS(.v26)]` only, so no iOS target could depend on it at all.
+
+## 3. Where did the time actually go?
+
+About two and a quarter hours, inside the half day budget.
+
+| | |
+|---|---|
+| Project setup: discovering the tooling gap, XcodeGen, the two package changes | ~35 min |
+| Writing the model and the views | ~40 min |
+| Verifying it actually works, headlessly | ~25 min |
+| Measurement, including finding a bug in my own timing code | ~30 min |
+| Writing this section | ~25 min |
+
+**Layout was not the cost.** This is the finding I least expected. SwiftUI
+layout for a rack, a text field, a feedback line and a list took well under half
+an hour and needed no iteration. `VStack`, `HStack`, `List`, and default system
+styling produced something legible on the first build.
+
+**The cost was tooling and verification**, which is to say the parts that are
+not SwiftUI at all. Roughly an hour of the two and a quarter went to getting an
+app target to exist and to proving it worked without a human touching the
+screen.
+
+That said, the layout here is trivial. A rack of eight tappable letter tiles
+with selection state, a progress bar, and a themed word grid would be real work,
+and nothing here tested it.
+
+## 4. What did Xcode add?
+
+**The single most surprising finding of this session: you cannot create an iOS
+app target from the terminal with stock tooling.**
+
+SwiftPM builds libraries, executables and test targets. It cannot produce an app
+bundle. There is no `xcodebuild -create-project`. So an app means an
+`.xcodeproj`, and producing one without opening Xcode means either hand-writing
+the pbxproj format or generating it. I installed XcodeGen (`brew install
+xcodegen`), wrote a 52 line `project.yml`, and committed both that and the
+generated project so the repo opens without the tool.
+
+This is a real fact about what working on a native project looks like. The
+engine half of this experiment ran entirely from a terminal with `swift test`.
+The app half needed a third party code generator on day one to avoid a GUI.
+
+**What was better than expected:**
+
+- The build, install, launch and screenshot loop is fully scriptable and fast.
+  `xcodebuild build`, `simctl install`, `simctl launch`, `simctl io screenshot`.
+  It worked first try and never broke.
+- The simulator is genuinely quick to boot and reliable.
+- Release and Debug configurations are one flag apart, which made the 3.8x
+  performance gap easy to measure.
+
+**What was worse:**
+
+- **There is no supported way to type into a SwiftUI text field from the command
+  line.** `simctl` has no keyboard input. Driving the Simulator through
+  AppleScript required the field to be focused first and silently did nothing. I
+  added a `-guesses word1,word2` launch argument, read via `UserDefaults`, which
+  is a standard trick but is still test-only code in the app to work around a
+  tooling gap.
+- `simctl launch --console-pty` did not reliably capture `print`. I ended up
+  writing the measurement to a file in the app container and reading it with
+  `simctl get_app_container`.
+- **Previews were not evaluated at all.** `#Preview` is in the code and is
+  presumably the main authoring loop for real SwiftUI work, but it requires the
+  Xcode GUI. Everything above was done headlessly, so this report has nothing to
+  say about what is probably the most important part of the SwiftUI experience.
+  That is a genuine hole.
+
+## 5. The dictionary load, on a phone
+
+**Not answered. What was measured is a simulator number, and a simulator number
+is a Mac number wearing iOS frameworks.**
+
+The iOS Simulator runs native arm64 on the host CPU. It does not model a phone's
+processor, storage, memory pressure, or thermal behaviour. These figures are
+useful for the Debug versus Release comparison and useless as a device estimate.
+
+Measured in the iOS 26.4 Simulator on an iPhone 17 Pro, timing the whole of
+`buildTodaysPuzzle` (five word lists, the validation `Set`, the calendar JSON,
+and `createPuzzle`):
+
+| Build | Cold, fresh install | Warm |
+|---|---|---|
+| **Release** | 262 ms | 258, 266, 260 ms |
+| **Debug** | 996 ms | 975, 985, 989 ms |
+
+**Release is what matters: about 260 ms.** For comparison, the Mac release
+benchmark measured 186 ms for the lists and Set, plus 44 ms for `createPuzzle`,
+so roughly 230 ms of equivalent work. The simulator figure is about 13% higher,
+which is consistent with it being the same CPU doing the same work.
+
+Two things worth carrying forward:
+
+- **Debug is 3.8x slower than Release here.** Consistent with the engine
+  report's finding, and another reminder that a number taken from a debug build
+  is not a number.
+- **Cold and warm were indistinguishable.** The engine report flagged that its
+  measurements had a warm file cache and that "a genuine first launch after
+  install will be slower". On this evidence, in the simulator, it is not. That
+  does not settle the question on a device, where storage is genuinely different
+  hardware.
+
+The load runs on a detached background task, so the UI shows a spinner rather
+than blocking. At 260 ms that spinner is barely perceptible.
+
+**An anomaly I could not explain, recorded rather than smoothed over.** The very
+first launch reported 79 ms in a Debug build. Every subsequent Debug run,
+including deliberately cold ones after uninstall and reinstall, reported 975 to
+996 ms. I could not reproduce the 79 ms figure and have no mechanism to offer.
+It is not the timing bug described below, since that only affected durations of
+a second or more. Treat the table above as the reliable data and the 79 ms as
+unexplained.
+
+**A bug in my own measurement, found by disbelief.** My first timing code scaled
+the whole seconds and sub second components of a `Duration` inconsistently, so
+any duration of a second or more was silently underreported. I noticed because a
+set of numbers looked implausibly flat, not because a test caught it. It is
+fixed, and the values in the table were re-measured afterwards. Worth recording
+because it is the second time in this project that a measurement, rather than
+the code being measured, was the thing that was wrong.
+
+## The iOS 26 floor: now a decided question
+
+The engine report called the macOS 26 platform floor "defensible for an
+experiment, plainly disproportionate as a deployment constraint" and left it
+there. Adding an iOS target made it concrete and testable, so I tested it.
+
+`InlineArray` is the **only** thing gating the floor. Swapping `LetterCounts`
+back to a `[Int8]` buffer and lowering the declaration to
+`.macOS(.v14), .iOS(.v17)` builds clean and passes **all 84 tests**.
+
+So the tradeoff is fully specified:
+
+| | iOS 26 floor | iOS 17 floor |
+|---|---|---|
+| `LetterCounts` backing | `InlineArray<26, Int8>` | `[Int8]` |
+| Formability pass over the full list | 16.7 ms | 41.6 ms |
+| Cost | Excludes every device that cannot run iOS 26 | 25 ms, once per puzzle |
+
+**A shipping build should take the iOS 17 floor.** 25 ms on a once per puzzle
+operation is not detectable by a player. An iOS 26 minimum in mid 2026 excludes a
+large share of devices in use, quite possibly including the one phone this is
+being built for.
+
+I have **not** made that change. It would invalidate the measurements above and
+it is a decision to surface rather than take unilaterally. It is a five minute
+change when wanted.
+
+## Accessibility, for free and not for free
+
+Recorded because the brief asked what SwiftUI gives without effort.
+
+**Free:** every control is a real accessibility element. The text field, the
+Submit button, the list rows and the navigation title are all reachable by
+VoiceOver with sensible labels and traits, with no code. Dynamic Type works,
+because the text uses semantic styles (`.title2`, `.subheadline`, `.callout`)
+rather than fixed sizes. Increased contrast and bold text follow the system.
+This is a genuinely large amount of behaviour for nothing.
+
+**Not free:** the rack read as eight unrelated letters, because it is eight
+separate `Text` views. One modifier fixed it:
+
+```swift
+.accessibilityElement(children: .combine)
+.accessibilityLabel("Rack letters: \(model.rackLetters.joined(separator: ", "))")
+```
+
+That is the only accessibility code in the app. The pattern seems to be that
+SwiftUI gets controls right automatically and gets *groupings* wrong until you
+tell it what a group means.
+
+## Verdict: ordinary work, or a wall?
+
+**Ordinary work. Clearly.** Nothing in this session looked like a research
+problem or a fight with the framework.
+
+The evidence for that:
+
+- The layout, which I expected to be the expensive part, was the cheapest.
+- The state model came out at a third the size of the web version's, without
+  needing a reducer.
+- The engine package dropped in with one small change, and the one problem it
+  did have (`#filePath`) was found immediately and fixed in one line.
+- Nothing needed a second attempt except my own measurement code.
+
+**What this does not license.** This app has three pieces of state and no visual
+design. A full rebuild means tappable rack tiles with selection, a two colour
+progress bar, two complete themes, animation, confetti, audio, persistence,
+endless mode, a share card, and a completion celebration. That is a lot of work
+and some of it (theming and animation especially) is the kind that expands to
+fill available time. "Ordinary" means predictable, not small.
+
+**The honest shape of the estimate**, and it is a shape rather than a schedule:
+the game rules are done and tested. The state layer looks like a day, not a week.
+The view layer is where the real time goes, and I would guess several focused
+sessions to something playable and more beyond that to something that looks as
+considered as the web version does.
+
+**Two things to fix before any of that**, both cheap and both found here:
+
+1. Drop `InlineArray` and lower the platform floor to iOS 17. Five minutes,
+   costs 25 ms, and it is the difference between an app Bea can install and one
+   she may not be able to.
+2. Move the word lists into the package properly, or at least make the
+   bundle-relative path the default rather than the `#filePath` one. The current
+   default is a trap that passes in the simulator and fails on a device.
+
+**And one gap in this report worth naming**: everything here was done headlessly
+from a terminal. Xcode previews, which are probably the central authoring
+experience for SwiftUI, were never opened. If SwiftUI has a frustrating side, the
+preview loop is the most likely place for it to live, and this session did not
+look there.

@@ -18,15 +18,32 @@ drifted from the files it describes.
 No UI, no persistence, no audio, no theming, no data pipeline. Those are the
 rewrite half and are explicitly out of scope.
 
-The result of the experiment is [docs/REPORT.md](docs/REPORT.md), written from
-[docs/PORT-LOG.md](docs/PORT-LOG.md).
+There are two parts. **Part one** ported the engine and asked whether Swift was
+workable. **Part two** is the smallest possible SwiftUI app on top of it, which
+asks the question part one deliberately did not: what does working on a native
+project look like, and could this ship?
+
+The result of both is [docs/REPORT.md](docs/REPORT.md), written from
+[docs/PORT-LOG.md](docs/PORT-LOG.md). The port log doubles as a reading list of
+Swift and SwiftUI concepts with no TypeScript equivalent.
+
+![The minimal app running in the simulator](docs/images/minimal-app.png)
 
 ## Running it
 
 ```bash
-swift test                              # the ported suite
+swift test                              # the ported engine suite, 84 tests
 swift run -c release peach-bench        # dictionary load + letter-count timings
+
+# The app. Regenerate the project only if you change project.yml.
+xcodegen generate
+xcodebuild -project PeachMinimal.xcodeproj -scheme PeachMinimal \
+  -configuration Release \
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' build
 ```
+
+The app takes a `-guesses word1,word2` launch argument that submits words at
+startup, so the whole loop can be driven without typing into the simulator.
 
 Release mode matters for the benchmark: debug Swift string and collection work
 is often around 10x slower, and a debug number would argue for a different
