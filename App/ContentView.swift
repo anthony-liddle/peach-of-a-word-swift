@@ -1,6 +1,12 @@
 import SwiftUI
 import PeachEngine
 
+/// The six named ranks, cute skin, from the web repo's `themeCopy.ts`.
+/// The engine owns the ladder structure; these are a skin over the index.
+private let cuteTierNames = [
+    "First Sprout", "Little Bud", "Blossom", "Ripening", "Sweet", "Perfectly Peachy",
+]
+
 struct ContentView: View {
     /// `@State` owns the model for the lifetime of the view.
     ///
@@ -35,107 +41,154 @@ struct ContentView: View {
         .task { await model.load() }
     }
 
+    /// The whole surface scrolls.
+    ///
+    /// At accessibility text sizes the rack alone is taller than the screen, so
+    /// a fixed VStack pushed the masthead off the top. The web page scrolls;
+    /// this should too. Note the found words are a plain LazyVStack rather than
+    /// their own ScrollView, because nesting scroll views inside this one makes
+    /// both behave badly.
     private var game: some View {
-        VStack(spacing: 18) {
-            masthead
-            ComposingStick(word: model.composedWord)
-            TypeCase(model: model)
-            Controls(model: model)
-            feedbackLine
-            foundList
-        }
-        .padding(.horizontal, 18)
-        .padding(.top, 8)
-    }
-
-    private var masthead: some View {
-        VStack(spacing: 2) {
-            Text("Peach of a Word")
-                .font(.system(.title, design: .rounded, weight: .semibold))
-                .foregroundStyle(Cute.ink)
-            if let standing = model.standing {
-                Text("\(standing.score) of \(standing.reachable) points")
-                    .font(.system(.subheadline, design: .rounded))
-                    .foregroundStyle(Cute.inkFaint)
-                    .monospacedDigit()
+        ScrollView {
+            VStack(spacing: 16) {
+                Masthead(standing: model.standing)
+                ComposingStick(word: model.composedWord)
+                TypeCase(model: model)
+                Controls(model: model)
+                MessageLine(feedback: model.feedback)
+                foundList
             }
+            .padding(.horizontal, 18)
+            .padding(.vertical, 8)
         }
-    }
-
-    private var feedbackLine: some View {
-        Group {
-            switch model.feedback {
-            case .none:
-                Text("Pick letters to make a word")
-                    .foregroundStyle(Cute.inkFaint)
-            case .accepted(let word, let points, let rung):
-                Text("\(word), \(points) points" + (rung == .set ? "" : " (\(rung.rawValue))"))
-                    .foregroundStyle(rung == .set ? Cute.accent : Cute.discovery)
-            case .rejected(let message):
-                Text(message).foregroundStyle(Cute.inkFaint)
-            }
-        }
-        .font(.system(.callout, design: .rounded))
-        .frame(maxWidth: .infinity, alignment: .center)
-        // The visible line is decoration; the accessible announcement is the
-        // live region below, so this is not read twice.
-        .accessibilityHidden(true)
     }
 
     private var foundList: some View {
-        ScrollView {
-            LazyVStack(alignment: .leading, spacing: 6) {
-                ForEach(model.found, id: \.self) { word in
-                    Text(word)
-                        .font(.system(.body, design: .rounded))
-                        .foregroundStyle(Cute.inkSoft)
-                }
+        LazyVStack(alignment: .leading, spacing: 6) {
+            ForEach(model.found, id: \.self) { word in
+                Text(word)
+                    .font(CuteFont.body(16))
+                    .foregroundStyle(Cute.inkSoft)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityLabel("Found words, \(model.found.count)")
     }
 }
 
+// MARK: - Masthead
+
+/// Three lines, matching the web wordmark.
+///
+/// The italic pink "Peach" is the most identifying thing about it. Fredoka has
+/// no true italic face; the browser fakes one and SwiftUI will not, so the slant
+/// is applied by hand in `CuteFont.displayOblique`.
+private struct Masthead: View {
+    let standing: TierStanding?
+    // Read so the body re-evaluates when Dynamic Type changes: the oblique
+    // wordmark scales through UIFontMetrics at build time rather than through
+    // `relativeTo:`, so it needs an explicit reason to recompute.
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+    var body: some View {
+        VStack(spacing: 4) {
+            Text("A game about finding words in words")
+                .font(CuteFont.body(11.5, weight: "SemiBold", relativeTo: .caption2))
+                .tracking(4.8)          // 0.42em at 11.5pt
+                .foregroundStyle(Cute.accentDeep)
+                .textCase(.uppercase)
+                .multilineTextAlignment(.center)
+
+            (Text("Peach").font(CuteFont.displayOblique(34))
+                .foregroundColor(Cute.accent)
+             + Text(" of a Word").font(CuteFont.display(34, relativeTo: .largeTitle))
+                .foregroundColor(Cute.ink))
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
+
+            // The subline, with a hairline rule either side.
+            HStack(spacing: 8) {
+                rule
+                Text("Pick the peaches")
+                    .font(CuteFont.body(11.5, relativeTo: .caption2))
+                    .tracking(3.2)      // 0.28em at 11.5pt
+                    .foregroundStyle(Cute.inkFaint)
+                    .textCase(.uppercase)
+                    .fixedSize(horizontal: false, vertical: true)
+                rule
+            }
+
+            if let standing {
+                // The web puts the rank and points in the glossary, which is out
+                // of scope here, so they live under the masthead for now. The
+                // rank NAME is kept rather than dropped: it is the part that
+                // gets reacted to, where a bare point count is not.
+                Text("\(cuteTierNames[min(standing.index, cuteTierNames.count - 1)]) · \(standing.score) points")
+                    .font(CuteFont.body(13, relativeTo: .footnote))
+                    .foregroundStyle(Cute.inkFaint)
+                    .monospacedDigit()
+                    .padding(.top, 2)
+            }
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    private var rule: some View {
+        Rectangle()
+            .fill(Cute.rule)
+            .frame(height: 1)
+            .frame(maxWidth: 56)
+    }
+}
+
+// MARK: - Compose well
+
 /// The stick: the letters placed so far, in order.
 ///
-/// Fixed height so the rack never shifts when the first letter lands, which is
-/// the reason the web version pins it too.
+/// One fixed height for both the empty and filled states, so the rack never
+/// shifts when the first letter lands. That is why the web pins it too.
 private struct ComposingStick: View {
     let word: String
     @ScaledMetric(relativeTo: .title) private var height: CGFloat = 64
 
+    private var shape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: Cute.cardRadius, style: .continuous)
+    }
+
     var body: some View {
-        RoundedRectangle(cornerRadius: Cute.cardRadius)
-            .fill(Cute.paperDeep)
-            .overlay(
-                RoundedRectangle(cornerRadius: Cute.cardRadius)
-                    .stroke(Cute.tileEdge, lineWidth: 1)
-            )
-            .frame(height: height)
-            .cuteDropShadow(Cute.rule, y: 6)
-            .overlay {
-                if word.isEmpty {
-                    Text("Pick letters to make a word")
-                        .font(.system(.subheadline, design: .rounded))
-                        .foregroundStyle(Cute.inkFaint)
-                } else {
-                    HStack(spacing: 5) {
-                        ForEach(Array(word.enumerated()), id: \.offset) { _, letter in
-                            Text(String(letter))
-                                .font(.system(.title, design: .rounded, weight: .semibold))
-                                .foregroundStyle(Cute.ink)
-                        }
+        ZStack {
+            shape.fill(Cute.paperDeep)
+            shape.stroke(Cute.tileEdge, lineWidth: 1)
+
+            if word.isEmpty {
+                Text("Pick letters to make a word")
+                    .font(CuteFont.body(15, relativeTo: .subheadline))
+                    .italic()
+                    .tracking(0.6)
+                    .foregroundStyle(Cute.inkFaint)
+            } else {
+                HStack(spacing: 4) {
+                    ForEach(Array(word.enumerated()), id: \.offset) { _, letter in
+                        Text(String(letter))
+                            .font(CuteFont.display(30, relativeTo: .title))
+                            .foregroundStyle(Cute.ink)
                     }
-                    .padding(.horizontal, 10)
                 }
+                .padding(.horizontal, 10)
+                .lineLimit(1)
+                .minimumScaleFactor(0.5)
             }
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel(word.isEmpty
-                ? "No letters picked yet"
-                : "Picked so far: \(word.map(String.init).joined(separator: " "))")
+        }
+        .frame(height: height)
+        .cuteSlab(shape, color: Cute.rule, y: 6)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(word.isEmpty
+            ? "No letters picked yet"
+            : "Picked so far: \(word.map(String.init).joined(separator: " "))")
     }
 }
+
+// MARK: - Rack
 
 /// The rack. Each tile is a real button; a placed tile is disabled.
 private struct TypeCase: View {
@@ -144,12 +197,12 @@ private struct TypeCase: View {
     // Adaptive columns so the grid reflows when Dynamic Type grows the tiles,
     // rather than hardcoding four across. This is the CSS grid auto-fit
     // equivalent and it is the one place the layout had to think.
-    @ScaledMetric(relativeTo: .largeTitle) private var tileMinWidth: CGFloat = 68
+    @ScaledMetric(relativeTo: .largeTitle) private var tileMinWidth: CGFloat = 70
 
     var body: some View {
         LazyVGrid(
             columns: [GridItem(.adaptive(minimum: tileMinWidth), spacing: 10)],
-            spacing: 10
+            spacing: 12
         ) {
             ForEach(model.rackOrder, id: \.self) { id in
                 if let tile = model.tiles.first(where: { $0.id == id }) {
@@ -171,38 +224,57 @@ private struct TileButton: View {
     let placed: Bool
     let action: () -> Void
 
-    @ScaledMetric(relativeTo: .largeTitle) private var minHeight: CGFloat = 82
+    private var shape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: Cute.tileRadius, style: .continuous)
+    }
+
+    // The web sizes the glyph from the viewport (`clamp(1.75rem, 16vw, 5rem)`),
+    // which lands near 56 percent of tile height at phone width. A GeometryReader
+    // was tried for that and is wrong here: it consumes all offered space rather
+    // than reporting an intrinsic size, so the font came out sized for a box the
+    // tile never actually got and the glyph overflowed at large text sizes.
+    // @ScaledMetric tracks Dynamic Type without depending on layout at all, and
+    // minimumScaleFactor is the backstop for the extreme sizes.
+    @ScaledMetric(relativeTo: .largeTitle) private var glyphSize: CGFloat = 54
 
     var body: some View {
         Button(action: action) {
-            Text(letter)
-                .font(.system(.largeTitle, design: .rounded, weight: .semibold))
-                .foregroundStyle(placed ? Cute.paperEdge : Cute.ink)
-                .frame(maxWidth: .infinity)
-                .frame(minHeight: max(minHeight, Cute.minTapTarget))
-                .background(
-                    RoundedRectangle(cornerRadius: Cute.tileRadius)
-                        .fill(placed ? Cute.paper : Cute.tileFace)
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: Cute.tileRadius)
-                        .stroke(Cute.tileEdge, lineWidth: 1)
-                )
-                // A placed tile loses its shadow, so it visibly sits down into
-                // the rack rather than standing proud of it.
-                .cuteDropShadow(placed ? .clear : Cute.surfaceShadow)
+            ZStack {
+                shape.fill(Cute.tileFace)
+                shape.stroke(Cute.tileEdge, lineWidth: 1)
+                Text(letter)
+                    .font(CuteFont.display(glyphSize))
+                    .foregroundStyle(placed ? Cute.inkFaint : Cute.ink)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.4)
+                    .padding(4)
+            }
+            // Taller than wide. This is most of why they read as tiles rather
+            // than as buttons.
+            .aspectRatio(3.0 / 4.0, contentMode: .fit)
+            .frame(minHeight: Cute.minTapTarget)
         }
         .buttonStyle(.plain)
         .disabled(placed)
+        // A placed tile keeps its face and loses its slab, so it sits down into
+        // the rack. 0.32 is the web's value: dimmed but still legible, which is
+        // the difference between reading as unavailable and reading as absent.
+        .cuteSlab(shape, color: placed ? .clear : Cute.surfaceShadow, y: 5)
+        .opacity(placed ? 0.32 : 1)
         .accessibilityLabel("Letter \(letter)\(placed ? ", already picked" : "")")
     }
 }
 
-/// Two clusters, ordered by how often each action is used.
+// MARK: - Controls
+
+/// Two rows, ordered by how often each action is used.
 ///
-/// The utility pair (Shuffle, Clear) is quiet and set apart; the primary pair
-/// (Delete, then Submit) is prominent and sits in easy thumb reach. **Delete
-/// comes before Submit.** That ordering is not aesthetic: it came from Bea
+/// The **primary pair (Delete, then Pick word) sits on top**, closest to the
+/// rack and the well where the action already is, and the utility pair
+/// (Shuffle, Clear) sits quietly beneath. The eye scans top to bottom and lands
+/// on the most-used actions first.
+///
+/// Delete comes before Submit. That ordering is not aesthetic: it came from Bea
 /// telling Antoine that delete is one of the most-used buttons and was in the
 /// wrong place. Do not reorder it.
 private struct Controls: View {
@@ -213,17 +285,20 @@ private struct Controls: View {
     var body: some View {
         VStack(spacing: 10) {
             HStack(spacing: 10) {
-                PillButton("Shuffle", kind: .utility) { model.shuffleRack() }
-                PillButton("Clear", kind: .utility, disabled: empty) { model.clear() }
-            }
-            HStack(spacing: 10) {
                 PillButton("⌫", kind: .delete, disabled: empty,
                            label: "Delete last letter") { model.removeLast() }
-                    .frame(maxWidth: 110)
+                    // The web gives Submit `flex: 2` against Delete's `flex: 1`.
+                    // Capping Delete is the simple approximation of that ratio
+                    // and holds at phone widths, which is all this targets.
+                    .frame(maxWidth: 116)
                 PillButton("Pick word", kind: .primary,
                            disabled: model.composedWord.count < minWordLength) {
                     model.submit()
                 }
+            }
+            HStack(spacing: 10) {
+                PillButton("Shuffle", kind: .utility) { model.shuffleRack() }
+                PillButton("Clear", kind: .utility, disabled: empty) { model.clear() }
             }
         }
     }
@@ -247,40 +322,87 @@ private struct PillButton: View {
         self.action = action
     }
 
-    private var background: Color {
+    // Disabled controls are muted by colour rather than a dim veil, so the label
+    // stays perceivable. The primary's disabled state is a white pill with a
+    // rule border, NOT a pale fill, which reads as not-yet-active rather than
+    // broken.
+    private var fill: Color {
+        if disabled { return Cute.paperDeep }
+        return kind == .primary ? Cute.accent : Cute.paperDeep
+    }
+
+    private var border: Color {
+        if disabled { return Cute.rule }
         switch kind {
-        case .utility: Cute.paperDeep
-        case .delete: Cute.paperDeep
-        case .primary: Cute.accent
+        case .primary: return Cute.accent
+        case .utility: return Cute.rule
+        case .delete: return Cute.ink
         }
     }
 
     private var foreground: Color {
+        if disabled { return Cute.inkFaint }
         switch kind {
-        case .utility: Cute.inkSoft
-        case .delete: Cute.accentDeep
-        case .primary: .white
+        case .primary: return Cute.paper
+        case .utility: return Cute.inkSoft
+        case .delete: return Cute.ink
         }
     }
 
     var body: some View {
         Button(action: action) {
             Text(title)
-                .font(.system(kind == .utility ? .subheadline : .body,
-                              design: .rounded, weight: .semibold))
+                // 0.875rem uppercase with 0.14em tracking, as the web has it.
+                // The delete glyph runs a little larger (1.05rem) so it does not
+                // read as smaller than the words beside it.
+                .font(kind == .delete
+                      ? CuteFont.body(17, weight: "SemiBold", relativeTo: .body)
+                      : CuteFont.body(14, weight: kind == .primary ? "SemiBold" : "Regular",
+                                      relativeTo: .subheadline))
+                .tracking(kind == .delete ? 0 : 1.96)   // 0.14em at 14pt
+                .textCase(kind == .delete ? nil : .uppercase)
                 .foregroundStyle(foreground)
                 .frame(maxWidth: .infinity)
                 .frame(minHeight: Cute.minTapTarget)
-                .background(Capsule().fill(background))
-                .overlay(Capsule().stroke(Cute.tileEdge, lineWidth: 1))
+                .padding(.vertical, 2)
+                .background(Capsule().fill(fill))
+                .overlay(Capsule().stroke(border, lineWidth: 1))
         }
         .buttonStyle(.plain)
         .disabled(disabled)
-        .opacity(disabled ? 0.45 : 1)
         .accessibilityLabel(label ?? title)
     }
 }
 
-#Preview("Cute rack") {
+// MARK: - Message line
+
+/// The feedback slot. Blank when there is nothing to say.
+///
+/// It previously echoed the compose well's placeholder, so "Pick letters to make
+/// a word" appeared twice on screen. On the web this line only ever carries a
+/// find or a rejection. The height is reserved either way so feedback never
+/// shifts the layout.
+private struct MessageLine: View {
+    let feedback: GameModel.Feedback
+
+    var body: some View {
+        Group {
+            switch feedback {
+            case .none:
+                Text(" ")
+            case .accepted(let word, let points, let rung):
+                Text("\(word), \(points) points" + (rung == .set ? "" : " (\(rung.rawValue))"))
+                    .foregroundStyle(rung == .set ? Cute.accent : Cute.discovery)
+            case .rejected(let message):
+                Text(message).foregroundStyle(Cute.inkFaint)
+            }
+        }
+        .font(CuteFont.body(15, relativeTo: .callout))
+        .frame(maxWidth: .infinity, minHeight: 22)
+        .accessibilityHidden(true)
+    }
+}
+
+#Preview("Cute play surface") {
     ContentView()
 }

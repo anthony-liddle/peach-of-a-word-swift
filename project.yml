@@ -44,6 +44,13 @@ targets:
         UILaunchScreen: {}
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
+        # Bundled fonts must be declared here or they are copied into the app
+        # and silently never registered. Both are variable fonts carrying named
+        # instances (Fredoka-SemiBold, Nunito-SemiBold and so on), which is what
+        # Font.custom looks up by PostScript name.
+        UIAppFonts:
+          - Fredoka.ttf
+          - Nunito.ttf
     settings:
       base:
         GENERATE_INFOPLIST_FILE: NO

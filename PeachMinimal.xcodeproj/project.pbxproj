@@ -11,18 +11,26 @@
 		08C8BE0EB81A0A0913AB7D1E /* PeachEngine in Frameworks */ = {isa = PBXBuildFile; productRef = A0001254A6DD675C2C821B6E /* PeachEngine */; };
 		379F6CDC292C009A15679485 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8EC6A09C5E098AF549CDE802 /* ContentView.swift */; };
 		42B2F660A623FD3CA87344E5 /* GameModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 976142F0A7032B2D976C5A6D /* GameModel.swift */; };
+		6F78BC0D87FDF369266F43C4 /* OFL-Nunito.txt in Resources */ = {isa = PBXBuildFile; fileRef = 0B957806AE7DD1E05FB6F5B2 /* OFL-Nunito.txt */; };
+		7FDBF825CC32EC004534E401 /* Fredoka.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 9F25F94C16B3325A38E7E667 /* Fredoka.ttf */; };
+		C13FAB7ADEB3CEAA9643275C /* OFL-Fredoka.txt in Resources */ = {isa = PBXBuildFile; fileRef = ECE1BF706A7C6A3689E81BDE /* OFL-Fredoka.txt */; };
 		D0A498839A7369142292482D /* PeachMinimalApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEBA05907CBA1E79B5A0F219 /* PeachMinimalApp.swift */; };
 		D79ED1BBF137BF3935060C26 /* Data in Resources */ = {isa = PBXBuildFile; fileRef = 282695D12B85BF209B7BB32A /* Data */; };
+		DFA14BE2234710FABDDE1C26 /* Nunito.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 731146D17EF810DAE185E230 /* Nunito.ttf */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		0B957806AE7DD1E05FB6F5B2 /* OFL-Nunito.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = "OFL-Nunito.txt"; sourceTree = "<group>"; };
 		0FCCD138A67D497CCEB63292 /* CuteTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CuteTheme.swift; sourceTree = "<group>"; };
 		282695D12B85BF209B7BB32A /* Data */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Data; sourceTree = SOURCE_ROOT; };
 		72DE18D6E5A0492A2A8110DC /* peach-of-a-word-swift */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "peach-of-a-word-swift"; path = .; sourceTree = SOURCE_ROOT; };
+		731146D17EF810DAE185E230 /* Nunito.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Nunito.ttf; sourceTree = "<group>"; };
 		8EC6A09C5E098AF549CDE802 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		976142F0A7032B2D976C5A6D /* GameModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameModel.swift; sourceTree = "<group>"; };
+		9F25F94C16B3325A38E7E667 /* Fredoka.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Fredoka.ttf; sourceTree = "<group>"; };
 		ABAC440104036A7BD2D52E7A /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		D3A7FCC1C5EE85FA94EDF6B0 /* PeachMinimal.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = PeachMinimal.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		ECE1BF706A7C6A3689E81BDE /* OFL-Fredoka.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = "OFL-Fredoka.txt"; sourceTree = "<group>"; };
 		FEBA05907CBA1E79B5A0F219 /* PeachMinimalApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PeachMinimalApp.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -46,6 +54,7 @@
 				976142F0A7032B2D976C5A6D /* GameModel.swift */,
 				ABAC440104036A7BD2D52E7A /* Info.plist */,
 				FEBA05907CBA1E79B5A0F219 /* PeachMinimalApp.swift */,
+				3C9035FABD3D0134712EF089 /* Fonts */,
 			);
 			path = App;
 			sourceTree = "<group>";
@@ -56,6 +65,17 @@
 				D3A7FCC1C5EE85FA94EDF6B0 /* PeachMinimal.app */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		3C9035FABD3D0134712EF089 /* Fonts */ = {
+			isa = PBXGroup;
+			children = (
+				9F25F94C16B3325A38E7E667 /* Fredoka.ttf */,
+				731146D17EF810DAE185E230 /* Nunito.ttf */,
+				ECE1BF706A7C6A3689E81BDE /* OFL-Fredoka.txt */,
+				0B957806AE7DD1E05FB6F5B2 /* OFL-Nunito.txt */,
+			);
+			path = Fonts;
 			sourceTree = "<group>";
 		};
 		47F6A7AC98F15B33053E1D66 = {
@@ -142,6 +162,10 @@
 			buildActionMask = 2147483647;
 			files = (
 				D79ED1BBF137BF3935060C26 /* Data in Resources */,
+				7FDBF825CC32EC004534E401 /* Fredoka.ttf in Resources */,
+				DFA14BE2234710FABDDE1C26 /* Nunito.ttf in Resources */,
+				C13FAB7ADEB3CEAA9643275C /* OFL-Fredoka.txt in Resources */,
+				6F78BC0D87FDF369266F43C4 /* OFL-Nunito.txt in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

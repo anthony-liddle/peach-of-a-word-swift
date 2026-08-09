@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// The cute theme, read from the web repo's `src/index.css` custom properties
 /// under `[data-theme='cute']` and expressed in SwiftUI rather than ported as
@@ -9,10 +10,8 @@ import SwiftUI
 /// `0 5px 0 var(--surface-shadow)` produces, reads as the same soft-bubble look
 /// once the radius is right.
 ///
-/// Fonts are owed. The web uses Fredoka for display and Nunito for body. This
-/// uses the system font with `.rounded` design, which is close enough in shape
-/// to read as the same game and costs nothing. Bundling the real faces is a
-/// later pass.
+/// Fonts are the real thing: Fredoka for display and Nunito for body, both
+/// bundled from the Google Fonts repository under the OFL. See `CuteFont`.
 enum Cute {
     // Surfaces
     static let paper = Color(hex: 0xFFF4EE)
@@ -52,6 +51,55 @@ enum Cute {
     static let minTapTarget: CGFloat = 44
 }
 
+/// The two bundled faces, matching `--font-display` and `--font-body`.
+///
+/// Both are variable fonts from the Google Fonts repository, under the OFL
+/// (licences sit beside them in App/Fonts). `Font.custom` looks them up by the
+/// PostScript name of a named instance, which is why these are spelled
+/// "Fredoka-SemiBold" rather than "Fredoka" plus a weight.
+///
+/// `relativeTo:` is what keeps Dynamic Type working with a custom face. Without
+/// it a custom font is a fixed size and stops scaling entirely.
+enum CuteFont {
+    /// Fredoka SemiBold. The wordmark, the tiles, the letters on the stick.
+    static func display(_ size: CGFloat, relativeTo style: Font.TextStyle = .body) -> Font {
+        .custom("Fredoka-SemiBold", size: size, relativeTo: style)
+    }
+
+    /// Fredoka SemiBold, sheared into a synthetic oblique.
+    ///
+    /// The web renders "Peach" in italic Fredoka, but Fredoka has no italic
+    /// face: the browser fakes one by slanting the upright. SwiftUI will not do
+    /// that. Both `Text.italic()` and `Font.italic()` were tried and neither
+    /// changed a glyph, because a custom font with no italic face simply has no
+    /// italic to select.
+    ///
+    /// So the shear is applied by hand through CoreText, which is the same
+    /// thing the browser does. The cost is that a `CTFont`-backed `Font` carries
+    /// no `relativeTo:`, so Dynamic Type has to be applied to the point size
+    /// manually with `UIFontMetrics`.
+    static func displayOblique(
+        _ size: CGFloat,
+        relativeTo style: UIFont.TextStyle = .largeTitle
+    ) -> Font {
+        let scaled = UIFontMetrics(forTextStyle: style).scaledValue(for: size)
+        // c is the horizontal shear term. 0.18 is close to the ~11 degree slant
+        // browsers use for synthetic obliques.
+        var shear = CGAffineTransform(a: 1, b: 0, c: 0.18, d: 1, tx: 0, ty: 0)
+        let upright = CTFontCreateWithName("Fredoka-SemiBold" as CFString, scaled, nil)
+        return Font(CTFontCreateCopyWithAttributes(upright, scaled, &shear, nil))
+    }
+
+    /// Nunito. Everything else.
+    static func body(
+        _ size: CGFloat,
+        weight: String = "Regular",
+        relativeTo style: Font.TextStyle = .body
+    ) -> Font {
+        .custom("Nunito-\(weight)", size: size, relativeTo: style)
+    }
+}
+
 extension Color {
     /// Build a Color from a 24-bit RGB literal, so the CSS hex values can be
     /// copied across unchanged and stay greppable against `src/index.css`.
@@ -67,9 +115,14 @@ extension Color {
 }
 
 extension View {
-    /// The hard offset shadow the cute theme uses everywhere: no blur, straight
-    /// down. CSS writes it `0 5px 0 <colour>`; SwiftUI needs `radius: 0`.
-    func cuteDropShadow(_ color: Color = Cute.surfaceShadow, y: CGFloat = 5) -> some View {
-        shadow(color: color, radius: 0, x: 0, y: y)
+    /// The hard offset shadow the cute theme uses everywhere.
+    ///
+    /// CSS writes `box-shadow: 0 5px 0 <colour>`, which is a flat slab of colour
+    /// sitting directly beneath the shape with no blur and no spread. SwiftUI's
+    /// `.shadow()` always blurs, and `radius: 0` gets closer but still renders a
+    /// soft edge and tints through translucency. The faithful version is an
+    /// offset copy of the same shape drawn behind, which is what this does.
+    func cuteSlab(_ shape: some Shape, color: Color, y: CGFloat) -> some View {
+        background(shape.fill(color).offset(y: y))
     }
 }
