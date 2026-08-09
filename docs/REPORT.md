@@ -500,7 +500,8 @@ full port is the cheap version of finding out.
   The Swift may or may not be readable to someone learning; this run did not
   test that after Task 2, and the verdict above deliberately leans on shipping
   evidence rather than on legibility evidence that was not gathered.
-- **On-device performance.** Every number is macOS on an M3 Pro.
+- **On-device performance.** Was true when written. A later session measured
+  an iPhone 13: 362 ms warm, 403 ms cold. Still one device, one generation.
 - **SwiftUI.** Entirely untouched.
 - **The CC BY-SA position.** Flagged as uncertain, not resolved.
 - **The effort estimates in the shipping table.** The least reliable numbers
@@ -690,6 +691,27 @@ The app half needed a third party code generator on day one to avoid a GUI.
   That is a genuine hole.
 
 ## 5. The dictionary load, on a phone
+
+**Answered, after the fact.** This section originally said "not answered", and
+the simulator numbers below stand as written. A later session ran the app on
+Anthony's iPhone 13 over USB, so there is now a real device figure.
+
+| | iPhone 13 (A15, 2021) | iOS 26.4 Simulator (M3 Pro) |
+|---|---|---|
+| Warm | **362 ms** | 300 ms |
+| Cold, fresh install | **403 ms** | 300 ms |
+
+Warm is the median of five runs with a tight spread. **The phone is about 1.2x
+the simulator, not the 1.5x to 2x guessed below.** Cold and warm genuinely
+differ on device by about 40 ms, which the simulator did not show and which this
+report explicitly flagged as unsettled. Both corrections are small and neither
+changes the conclusion: **ship the plain word lists.** Full detail in
+`docs/MEASUREMENTS.md`.
+
+The original text follows, because the reasoning about why a simulator number is
+not a device number was correct and is worth keeping.
+
+---
 
 **Not answered. What was measured is a simulator number, and a simulator number
 is a Mac number wearing iOS frameworks.**

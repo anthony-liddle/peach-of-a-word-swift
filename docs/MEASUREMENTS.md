@@ -9,7 +9,9 @@ Swift 6.3.3.
 median reported. Debug figures from `swift run peach-bench`.
 **Reproduce:** `swift run -c release peach-bench`
 
-Every figure below is a **macOS** number. See "What this does not measure".
+Sections 1 to 3 are **macOS** numbers. Real device figures, measured on an
+iPhone 13, are in "On a real device" near the end. See also "What this does not
+measure".
 
 > **Two configurations appear in this document.** The engine was first built
 > with `LetterCounts` backed by `InlineArray`, which required iOS 26 and
@@ -139,11 +141,16 @@ The decision this document exists to support, recorded with its cost.
 | App cold start, iOS 26.4 Simulator, Release | 260 ms | **300 ms** |
 | App cold start, iOS 17.5 Simulator, Release | not buildable | **404 ms** |
 
-The iOS 17.5 figure is a single run and should be treated as soft. It is
-included because it is the only evidence that the lower floor actually works,
-and because the older simulator runtime being meaningfully slower on identical
-host hardware is worth knowing. It is still a simulator number, so it is still a
-Mac number, and it still says nothing reliable about a phone.
+| App cold start, iPhone 13, Release | not buildable | **403 ms** |
+
+The iOS 17.5 simulator figure is a single run and should be treated as soft. It
+is included because it is evidence that the lower floor actually works, and
+because the older simulator runtime being meaningfully slower on identical host
+hardware is worth knowing.
+
+The iPhone 13 row is a real device, and is the load-bearing one. The app was
+installed and launched on hardware that **cannot be excluded by this floor**,
+which is the entire point of the change.
 
 `InlineArray` was verified to be the only thing gating the floor: nothing else
 in the package or the app requires anything above iOS 17. The app's own floor is
@@ -159,17 +166,55 @@ for, which would defeat the point of building it.
 Verified by installing and running the app on an **iOS 17.5** simulator
 (iPhone 15 Pro), not merely by building against the lower floor.
 
+## On a real device
+
+**Measured 2026-08-09 on Anthony's iPhone 13 (A15, 2021), Release build,
+installed and launched over USB with `devicectl`.** This is the number every
+earlier version of this document said it did not have.
+
+Timing the whole of `buildTodaysPuzzle`: five word lists, the validation `Set`,
+the calendar JSON, and `createPuzzle`.
+
+| | iPhone 13 | iOS 26.4 Simulator (M3 Pro) | Ratio |
+|---|---|---|---|
+| Warm | **362 ms** | 300 ms | 1.21x |
+| Cold, fresh install | **403 ms** | 300 ms | 1.34x |
+
+Warm is the median of five runs (354.7, 356.7, 361.7, 361.9, 367.3), which is a
+tight spread. Cold is two runs (400.1, 406.9), each after a full uninstall and
+reinstall.
+
+**Two things this settles.**
+
+First, **the phone is only about 1.2x slower than the simulator**, not the
+1.5x to 2x this document previously guessed. The guess was conservative in the
+right direction, but it was a guess, and now it is not.
+
+Second, **cold and warm genuinely differ on device**, by about 40 ms or 11%.
+This document previously reported that they were indistinguishable in the
+simulator and cautioned that this "does not settle the question on a device,
+where storage is genuinely different hardware". That caution was correct. The
+effect is real, small, and does not change anything.
+
+**The conclusion holds, now on evidence rather than inference: ship the plain
+word lists.** 362 ms warm and 403 ms cold, on a five-year-old phone, behind a
+loading indicator, on work that happens once per puzzle. No sorted binary
+format, no SQLite.
+
 ## What this does not measure
 
 Stated plainly, because these numbers will be used to make a shipping decision.
 
-- **Every figure is macOS on an M3 Pro.** An iPhone has a comparable single-core
-  CPU and fast storage, so the same work is plausibly within ~1.5–2× — but that
-  is an inference, not a measurement. **Nothing here has been run on a phone.**
-  Before committing to the plain-list format for a shipped app, run this
-  benchmark on the oldest device actually being targeted.
-- **File cache is warm.** These runs read the same 8 MB repeatedly. A genuine
-  first-launch-after-install read from cold storage will be slower.
+- **Sections 1 to 3 are macOS on an M3 Pro.** They are the right numbers for
+  comparing configurations against each other and the wrong ones for predicting
+  a phone. "On a real device" above now carries the device figures, and the
+  real ratio turned out to be about 1.2x rather than the 1.5x to 2x guessed
+  here originally.
+- **One device, one generation.** The iPhone 13 is a 2021 A15. Anything older
+  than that, and anything memory constrained, remains unmeasured.
+- **First launch after an App Store download** is still unmeasured. The device
+  cold figure above follows a `devicectl` install over USB, which is not the
+  same path as an App Store install and its decompression.
 - **No memory figure.** 427,290 Swift `String`s plus a `Set` is not free in RAM,
   and on a memory-constrained phone that may matter more than the 186 ms. Not
   measured.
