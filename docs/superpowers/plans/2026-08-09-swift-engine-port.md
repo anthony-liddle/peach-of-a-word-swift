@@ -20,7 +20,11 @@ Every task's requirements implicitly include this section.
 - **Swift Testing, not XCTest.** `import Testing`, `@Suite`, `@Test`, `#expect`. `init` replaces `beforeEach`.
 - **Conventional commit messages, written by hand.** Types: feat, fix, docs, style, refactor, test, chore, build, ci, perf, revert. No commitlint, husky, Biome, or dependabot — those are Node conventions and do not apply here.
 - **Commit after every task.** Frequent commits.
-- **Keep a running log** at `docs/PORT-LOG.md` (created in Task 1): append a dated line per task with elapsed time, what was awkward, and what was pleasant. Task 16 is written from this log, so do not skip it — reconstructing timings from memory at the end is exactly the failure this experiment is trying to avoid.
+- **Keep a running log** at `docs/PORT-LOG.md` (created in Task 1). Two kinds of row, and they are not the same kind of evidence:
+  - **Writer's column** — elapsed time, what was awkward to write, what was pleasant. This is the implementer reporting on the implementer.
+  - **Reader's column** — Antoine's reaction on reading the task's diff: did it make sense, did anything need looking up, did it hold interest. **This is the column the experiment actually turns on.** "Was Swift awkward for the agent writing it" is a fact about the agent; "was Swift legible and interesting to Antoine" is the question being asked.
+  - **At every checkpoint, PROMPT for the reader's column explicitly.** Do not leave it to be remembered later; a blank reader's column cannot be reconstructed afterwards, and the report is worth less without it than without the timings.
+- Task 16 is written from this log, so do not skip it — reconstructing at the end is exactly the failure this experiment exists to avoid.
 - **Data snapshot is frozen.** Source commit `475edfc687b6bdce2a1186a80c801ae90bda3e57`, taken 2026-08-09.
 
 ## Naming decisions locked here
@@ -278,9 +282,25 @@ MIT. See [LICENSE](LICENSE).
 One line per task. Feeds docs/REPORT.md. Record honestly, including the parts
 that went badly — the friction is half the answer.
 
-| Task | Elapsed | Awkward | Pleasant |
+## Writer's column — the agent's experience of writing it
+
+| Task | Elapsed | Awkward to write | Pleasant to write |
 |---|---|---|---|
 | 1. Scaffolding | | | |
+
+## Reader's column — Antoine's experience of reading it
+
+The column the experiment turns on. Filled in at each checkpoint, from the
+prompt, not from memory. "Looked up" means: something in the diff that could not
+be understood without going elsewhere.
+
+| Task | Made sense? | Looked up | Held interest? |
+|---|---|---|---|
+| 1. Scaffolding | | | |
+
+## Findings
+
+Things the port surfaced about the web repo. Feeds the report.
 ```
 
 - [ ] **Step 11: Commit**
@@ -3093,7 +3113,19 @@ Four are already in hand from planning; add anything found while porting:
 
 - [ ] **Step 8: Write the verdict**
 
-One honest paragraph: is continuing to a full port worth it? Separate "was this enjoyable" from "was this fast" — they can point in opposite directions, and both matter.
+Three separate answers, not one. They can point in different directions, and
+collapsing them is how an experiment gets misread:
+
+1. **Was it enjoyable to read?** From the reader's column, not the writer's.
+   Did the Swift stay legible, and did it hold interest across sixteen tasks?
+2. **Was it fast?** From the writer's column and the elapsed times. Note where
+   the port ran long and whether that was Swift or the problem.
+3. **Would Antoine want to keep directing Swift work?** The actual decision.
+   Enjoying reading it and wanting to own it are different questions, and a
+   "yes, no, yes" or "yes, yes, no" is a perfectly coherent result — say so
+   plainly if that is what the evidence shows.
+
+Then one paragraph on whether continuing to a full port is worth it.
 
 - [ ] **Step 9: Verify everything passes, then commit**
 
