@@ -1195,3 +1195,149 @@ unaided**, and on three prior sessions it did not. That is worth more than the
 - **Nunito is bundled but barely used.** Most body text is Nunito Regular or
   SemiBold; the web's exact weight mapping per element was not matched.
 - The found list is still a bare column: no rarity colour, no headings, no taps.
+
+---
+
+# Part five: persistence
+
+2026-08-09. The first thing that makes the app usable rather than a demo.
+
+## What the web version does, before writing anything
+
+`src/persistence/storage.ts`, read first:
+
+- **One key**, `eight-letters/v1`, holding **one JSON blob**. Shape:
+  `{version: 1, days: {[dayIndex]: {sourceWord, found[]}}, streak: {count, lastClearedDayIndex}, endless}`.
+- **Pruned to 14 days** on every write, so storage never grows without bound.
+- **Reads fail safe.** A parse error or a version mismatch returns an empty
+  state rather than throwing. Writes are wrapped too, so a mid-session quota
+  failure loses the session's progress rather than crashing play.
+- **A stored day is matched by source word, not just by index.**
+  `loadDayProgress(dayIndex, sourceWord)` returns the words only if the stored
+  `sourceWord` matches. If the calendar is regenerated and a date now serves a
+  different puzzle, yesterday's finds are discarded rather than misattributed.
+- **Writes are keyed on durable state.** The `useEffect` depends on `found`, not
+  on `composing`, with the comment saying exactly why: it "keeps tile taps,
+  backspace, clear, and shuffle off the synchronous disk-write path". That is
+  the per-tap lag bug, already fixed there.
+- **The endless guard** is `stored && data.sourceEntry(stored.sourceWord)`:
+  rehydrate only a word the shipped data still knows, so the reveal cannot break.
+  Endless is out of scope here, but the daily uses the same shape of guard.
+
+## Decisions
+
+### UserDefaults, not a file in Documents
+
+The whole persisted blob is one JSON value holding at most fourteen days. A
+generous day is about 50 found words averaging 8 characters, so roughly 600
+bytes; fourteen of those plus a streak is **under 10 KB**. Even a year kept
+unpruned would be a few hundred KB.
+
+That is comfortably what `UserDefaults` is for, and it brings atomic writes, no
+file coordination, no directory creation, and no partial-write window for free.
+A file would be the right answer if the history were unbounded or large enough
+to want streaming. Choosing it now would mean hand-writing crash-safe file
+replacement for no benefit.
+
+It is worth revisiting if found history is ever kept forever rather than pruned.
+
+### The day does not roll over while the app is open
+
+Matching the web, which builds its daily slice once and never regenerates.
+Swapping the rack under someone's fingers at midnight, discarding whatever they
+had part-composed, would be worse than showing yesterday's puzzle until they next
+open the app.
+
+**The subtlety that needed guarding:** the day index is captured once at load and
+used for every save. It is deliberately *not* recomputed at write time. If
+midnight passes mid-session, the board on screen is still yesterday's, and its
+words must be saved under yesterday's key rather than leaking into today.
+
+### Versioning
+
+A `version` field is written and checked. A blob from a **newer** version starts
+clean, because this build cannot know what it means and guessing would corrupt
+it. A future incompatible format should take a **new key** rather than
+overwriting this one, which is why the key is `peach-of-a-word/v1`.
+
+The part that actually protects the streak is **lenient decoding**. Swift's
+synthesised `Codable` is strict: one missing field throws, and a thrown decode
+here means the whole blob is discarded, streak included. So `PersistedState` has
+a hand-written `init(from:)` where every field is `decodeIfPresent` with a
+default. Adding a field in a future version, or shipping one malformed key,
+cannot now cost Bea her streak. There are tests for both.
+
+### Seeding a played board: `-seedBoard`
+
+Two specs, because they answer different questions:
+
+- `-seedBoard almost` gives every set word but one, plus a third of each off-page
+  rung. Verified: 71 words, top rank, list scrolls. This is the state the tier
+  meter is most worth judging against.
+- `-seedBoard 24` gives roughly that many words spread across the four bands in
+  proportion to their sizes, so the rarity mix looks like real play rather than
+  one colour repeated.
+
+**Deterministic on purpose.** Bands are sorted and picks are strided, so two
+screenshots of the same spec are comparable. Random picks would make every visual
+diff noisy.
+
+**It writes through `foundDidChange`**, the same path a real find takes, so
+seeding exercises persistence rather than bypassing it. That makes it a live
+check of the thing it sits next to, and means it cannot become a second way of
+writing saved state that drifts from the first.
+
+Previews do not receive launch arguments, so `ContentView` also takes a
+`debugSeed` and an injectable store. There are now three previews: empty, mid
+game, and near completion, all on in-memory storage so the canvas never touches
+real saved progress.
+
+## Verification
+
+All three checks the brief asked for, plus one it did not.
+
+| Check | Result |
+|---|---|
+| Find words, force-quit, relaunch | `found:4` before, `found:4` after |
+| Only yesterday stored, launch today | `{"storageDay":220,"found":0,"streak":5}` |
+| Eight tile taps | `saves:0` |
+| One real find | `saves:1` |
+| Three more finds | `saves:3`, streak 5 to 6 |
+
+The later-date check was done by planting yesterday's state directly into the
+app's preference plist rather than moving the clock, since `simctl` cannot set
+the simulator's date. Today started empty and the streak survived, which is the
+behaviour under test either way.
+
+**The write count needed inventing.** The obvious probe, the plist modification
+time, is useless: `cfprefsd` batches `UserDefaults` writes to disk, so the mtime
+stayed flat even across runs that demonstrably persisted. Counting the calls at
+the point they are made is what actually shows that taps do not write.
+
+## Two things I got wrong on the way
+
+**A grep-based check of the Release binary gave a false negative.** Searching for
+`seedBoard` in the Release build returned zero, which looked like proof it had
+been compiled out. But the same search also returned zero for `tapWords`, which
+is not gated and demonstrably works. The behavioural test is the real evidence:
+in a Release build `-tapWords` worked and `-seedBoard` did nothing.
+
+**That exposed an inconsistency worth fixing.** The older `-guesses`,
+`-tapWords` and `-tapTiles` hooks predate this work and were never gated at all,
+so a shipping build carried three ways to inject found words. They are all now
+inside `#if DEBUG` alongside the new one. Verified behaviourally: a Release build
+passed both `-tapWords` and `-seedBoard` starts empty at "First Sprout, 0 points".
+
+This is slightly beyond the brief, which only required the seeding to be
+debug-only. It is flagged rather than folded in silently.
+
+## Owed
+
+- **Endless persistence**, when endless exists. The guard to copy is the web's
+  `data.sourceEntry(stored.sourceWord)` check.
+- **The streak is stored and read but never displayed.** The toolbar is out of
+  scope, so nothing on screen shows it. It is exposed on the model and covered by
+  tests.
+- **No write-failure path.** The web wraps its write in a try/catch for quota
+  errors. `UserDefaults.set` does not throw, so there is nothing to catch, but
+  that also means a failure would be silent.
