@@ -1033,3 +1033,138 @@ UI interaction testing. A real project would reach for XCUITest here.
   allowed.
 - **The found list** is a plain scrolling column with no heading, no rarity
   colour, and no tap targets. Out of scope here and it shows.
+
+---
+
+# Part four: matching the web's cute theme
+
+2026-08-09. A visual pass on the play surface only. No behaviour changes.
+
+## What changed
+
+All values read from `src/index.css` under `[data-theme='cute']` and expressed in
+SwiftUI rather than ported as CSS.
+
+- **Tiles** are now `aspect-ratio: 3 / 4`, 18pt radius, 1pt `--tile-edge` border,
+  with a **hard peach slab** beneath. Glyphs are much larger (54pt base, Fredoka
+  SemiBold, lowercase). Placed tiles sit at `opacity: 0.32` with no slab, which
+  is the web's value.
+- **Controls flipped**: the primary pair (Delete, then Pick word) is now on top,
+  the utility pair (Shuffle, Clear) beneath. Pick word is about twice Delete's
+  width.
+- **Buttons** are uppercase with 0.14em tracking. Pick word is an accent fill
+  when live and a **white pill with a rule border** when not, rather than the
+  washed-out pink that read as broken.
+- **The masthead** is three lines: pink tracked kicker, the wordmark with
+  **"Peach" in pink oblique**, and the "Pick the peaches" subline between two
+  hairline rules.
+- **Fonts are bundled**: Fredoka and Nunito, both variable, from the Google Fonts
+  repository under the OFL, with licences beside them in `App/Fonts`.
+- **Fixed a real bug**: the placeholder rendered twice, once in the compose well
+  and again in the message line. The message line is now the feedback slot only,
+  blank when there is nothing to say, with its height reserved so feedback never
+  shifts the layout.
+- **The score line** kept the tier name: "First Sprout · 19 points". The glossary
+  is out of scope, so it lives under the masthead for now. The name was kept
+  rather than the line dropped because the rank name is the part that gets
+  reacted to, where a bare point count is not.
+
+## Three things SwiftUI would not do
+
+**1. It will not synthesize an italic.** Fredoka has no italic face. A browser
+fakes one by slanting the upright, which is how the web gets its pink italic
+"Peach". Both `Text.italic()` and `Font.italic()` were tried and **neither
+changed a single glyph**: with no italic face there is nothing to select, and
+SwiftUI does not invent one.
+
+The fix was to apply the shear by hand through CoreText, which is what the
+browser is doing anyway:
+
+```swift
+var shear = CGAffineTransform(a: 1, b: 0, c: 0.18, d: 1, tx: 0, ty: 0)
+let upright = CTFontCreateWithName("Fredoka-SemiBold" as CFString, scaled, nil)
+return Font(CTFontCreateCopyWithAttributes(upright, scaled, &shear, nil))
+```
+
+The cost: a `CTFont`-backed `Font` has no `relativeTo:`, so Dynamic Type has to
+be applied to the point size manually with `UIFontMetrics`, and the view needs to
+read `dynamicTypeSize` so it recomputes.
+
+**2. `.shadow()` always blurs.** CSS `box-shadow: 0 5px 0 <colour>` is a flat
+slab with no blur and no spread. `radius: 0` gets close and still renders a soft
+edge. The faithful version is an offset copy of the same shape drawn behind,
+which is a two-line view modifier and looks exactly right.
+
+**3. Bundled fonts need declaring twice.** Copying the files in is not enough;
+without `UIAppFonts` in Info.plist they ship inside the app and are never
+registered, and `Font.custom` silently falls back to the system face with no
+warning. Also, variable fonts are looked up by the PostScript name of a **named
+instance** ("Fredoka-SemiBold"), not by family plus weight.
+
+## A regression I caused and caught
+
+The first attempt sized each tile's glyph from a `GeometryReader`, to track the
+web's viewport-relative `clamp(1.75rem, 16vw, 5rem)`.
+
+**At `accessibility-extra-large` this broke badly**: glyphs overflowed their
+tiles, tiles overlapped each other, and the masthead was pushed off the top of
+the screen. A `GeometryReader` consumes all offered space rather than reporting
+an intrinsic size, so the font was computed against a box the tile never
+actually received.
+
+Two fixes: size the glyph with `@ScaledMetric` (which tracks Dynamic Type without
+depending on layout at all) plus `minimumScaleFactor` as a backstop, and wrap the
+play surface in a `ScrollView`, since at accessibility sizes the rack alone is
+taller than the screen.
+
+Worth recording because the brief said explicitly not to regress this, and the
+only reason it was caught is that the check was actually run rather than assumed.
+Both text sizes were re-verified after the fix.
+
+## Did you open Xcode previews?
+
+**Attempted, partially, and still not usefully answered. This is the fourth
+session running and it remains the biggest unmeasured unknown.**
+
+What happened, in order:
+
+1. Opened `ContentView.swift` in Xcode with `xed`.
+2. Sent Option-Command-Return to toggle the canvas. **Nothing happened.**
+   Synthetic keystrokes to Xcode do not take, the same failure that blocked
+   typing into the text field in part two and tapping a tile in part three.
+3. Discovered that **menu automation does work** where keystrokes do not.
+   Enumerated Xcode's Editor menu and clicked the Canvas item directly.
+4. Tried to screenshot the result, which triggered a **macOS screen-recording
+   permission prompt for the terminal**. That is a system privacy decision, so
+   it was left for a human rather than accepted on their behalf.
+5. Confirmed indirectly that the click landed: the Editor menu item that read
+   "Canvas" now reads "Preview". But every editor menu item is currently
+   disabled, which is consistent with that permission modal still holding focus.
+
+So: the canvas was probably turned on, and it was never seen or used. The visual
+work in this session was done the same way as the previous three, by building to
+the simulator and screenshotting with `simctl`.
+
+**What that loop is actually like**, since it is the honest comparison available:
+roughly 40 seconds from edit to seeing the result, most of it `xcodebuild`. Good
+enough to iterate on colour and spacing, and clearly worse than a canvas that
+re-renders live. Four or five iterations went into the tiles alone, and each one
+cost the better part of a minute.
+
+**The standing pattern is now unmistakable.** Across four sessions, every attempt
+to drive Xcode or iOS UI from a terminal has failed: keystrokes to the simulator,
+AppleScript clicks on the simulator, keystrokes to Xcode. Menu clicking works,
+and screenshotting the desktop needs a permission a human must grant. Whatever
+else Xcode adds to a native project, **it owns the interactive surface**, and an
+agent working headlessly is locked out of the part of SwiftUI development that is
+most likely to be its strength.
+
+## Owed
+
+- **Xcode previews**, still.
+- **The kicker wraps to two lines** at phone width. The web wraps here too, so
+  this may be faithful rather than wrong, but it was not compared side by side
+  against a real screenshot.
+- **Nunito is bundled but barely used.** Most body text is Nunito Regular or
+  SemiBold; the web's exact weight mapping per element was not matched.
+- The found list is still a bare column: no rarity colour, no headings, no taps.
