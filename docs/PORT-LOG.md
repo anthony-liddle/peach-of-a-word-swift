@@ -62,6 +62,7 @@ be understood without going elsewhere.
 | Task | Made sense? | Looked up | Held interest? |
 |---|---|---|---|
 | 1. Scaffolding | Yes — "getting it", wants more time sitting with it, but nothing opaque. | Nothing. Comments carried it. **But**: asked for documentation links from here on, so that the log doubles as a reading list. Acted on — see Reading list above, backfilled for Task 1. | Neutral. It is scaffolding; the engine starts in Task 2. Curious about Task 2. |
+| 2. Config, `Rung`, scoring | | | |
 
 ## Findings
 
