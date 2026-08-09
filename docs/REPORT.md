@@ -5,8 +5,9 @@
 ## What was actually done
 
 The pure engine of Peach of a Word, ported from TypeScript to Swift, tests
-first. 16 source files, 84 tests in 18 suites, all passing. Package builds and
-tests clean on Swift 6.3.3 / macOS 26.
+first. 32 Swift files — 16 in `Sources/PeachEngine`, 1 benchmark, 15 test files
+— carrying 84 tests in 18 suites, all passing. Package builds and tests clean on
+Swift 6.3.3 / macOS 26.
 
 Everything the brief listed is ported: the scoring curve, rarity classification,
 `computeTier`, completion, the calendar lookup with both epochs intact,
@@ -327,12 +328,28 @@ marked **uncertain**.
 | Item | Effort | Notes |
 |---|---|---|
 | Apple Developer Program | **$99/year** + enrolment time | Verified on Apple's comparison page. A free Apple Account can already do on-device testing, but provisioning profiles and App IDs **expire after 7 days** and you are capped at 3 devices — fine for poking at something, useless for "Bea has the game on her phone". |
-| TestFlight internal testing | Low | **Up to 100 internal testers, and internal testing does NOT require Beta App Review.** This is the key fact. Bea as an internal tester means no Apple review stands between a working build and her phone. |
-| TestFlight external testing | Moderate | Up to 10,000 testers, but builds **are** sent for Beta App Review. Not needed to reach one person. |
+| TestFlight internal testing | Low, **with a caveat** | Up to 100 internal testers, and internal testing does **not** require Beta App Review. But internal testers **must be members of your App Store Connect team**, holding an Account Holder, Admin, App Manager, Developer, or Marketing role. So this is adding Bea as a team member, not sending her a link. |
+| TestFlight external testing | Moderate | Up to 10,000 testers, invited by email or public link, and **no team membership required**. But builds **are** sent for Beta App Review, and an internal group must exist first. |
+| Ad hoc distribution | Fiddly | Included in the $99 membership. Needs her device's UDID registered up front, and hands a non-technical recipient an `.ipa` to install. No review, but the worst experience of the three. |
 
-**So the near bar is: $99, an App Store Connect record, and a build that runs.**
-No review, no listing, no privacy policy. That is a genuinely low bar, and it is
-the one that matters for the actual goal.
+**Correction to an earlier draft of this report.** It claimed internal TestFlight
+meant "no Apple review stands between a working build and her phone" and left it
+there. True about the review, incomplete about the setup: internal testing
+requires making Bea an App Store Connect user. That is a modest step — she needs
+an Apple Account and accepts an invite — but it is worth knowing that an App
+Store Connect role grants real access to the developer account. **Marketing** is
+the most limited role that can still be an internal tester, and is the one to
+use if the point is simply "let her play the game".
+
+**So the near bar is: $99, an App Store Connect record, adding Bea to the team
+in a limited role, and a build that runs.** No App Review, no public listing, no
+privacy policy. Still a genuinely low bar — just one step longer than stated
+before.
+
+Sources: [Apple Developer Program comparison](https://developer.apple.com/support/compare-memberships/) ·
+[TestFlight](https://developer.apple.com/testflight/) ·
+[Add internal testers](https://developer.apple.com/help/app-store-connect/test-a-beta-version/add-internal-testers/) ·
+[Invite external testers](https://developer.apple.com/help/app-store-connect/test-a-beta-version/invite-external-testers/)
 
 ## The work between here and a build that runs
 

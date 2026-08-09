@@ -6,8 +6,12 @@ the friction is half the answer.
 Two kinds of row, and they are **not** the same kind of evidence. The writer's
 column is the implementing agent reporting on itself. The reader's column is
 Antoine reporting on reading the diff. "Was Swift awkward for the agent" is a
-fact about the agent; "was Swift legible and interesting to Antoine" is the
-question this experiment exists to answer.
+fact about the agent; "was Swift legible to Antoine" is a different fact.
+
+**The experiment's question changed after Task 2**, from "can I write Swift" to
+"could I ship a native app". The reader's column was the centre of the original
+question and is largely empty for the second — deliberately. See the note above
+that column, and the appendix of `REPORT.md`.
 
 ## Reading list
 
@@ -15,9 +19,11 @@ When a task introduces a Swift concept with no TypeScript equivalent, it gets a
 link here — the Swift book, the API reference, or the evolution proposal,
 whichever actually explains it, not whichever is nearest. Inline comments say
 what the code does; these say where to go to understand why the language works
-that way. By Task 16 this section should stand on its own as a reading list.
+that way.
 
-Every link is checked for a 200 before it goes in.
+Complete as of Task 16: the three tables below cover every Swift concept the
+port used that has no TypeScript equivalent, and stand on their own as a reading
+list. Every link was checked for a 200 before it went in.
 
 ### Task 1
 
