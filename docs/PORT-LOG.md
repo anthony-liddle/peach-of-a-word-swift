@@ -40,6 +40,19 @@ Every link is checked for a 200 before it goes in.
 | `map(\.threshold)` | A key path used as a function. TS writes `.map(t => t.threshold)`; the key path is a first-class value that can be stored and passed. | [KeyPath reference](https://developer.apple.com/documentation/swift/keypath) |
 | `Sendable`, and why globals must be `let` | Swift 6 requires global state to be immutable and safe to share across concurrency domains. TS has no equivalent because it has no compiler-enforced concurrency model. | [Sendable reference](https://developer.apple.com/documentation/swift/sendable) · [Swift book: Concurrency](https://docs.swift.org/swift-book/documentation/the-swift-programming-language/concurrency/) |
 
+### Tasks 3–15
+
+| Concept | Why it has no TypeScript analogue | Link |
+|---|---|---|
+| `some Sequence<String>` | An opaque parameter type. The caller may pass an Array or a Set and the compiler specialises for the concrete type — resolved at compile time, where TS's `Iterable<string>` is a runtime protocol. | [Swift book: Opaque and Boxed Types](https://docs.swift.org/swift-book/documentation/the-swift-programming-language/opaquetypes/) |
+| `&*`, `&+` — wrapping operators | Plain `*` **traps** on overflow. JS silently wraps at 32 bits via `Math.imul`. Porting a PRNG without these is silently wrong. | [Swift book: Advanced Operators](https://docs.swift.org/swift-book/documentation/the-swift-programming-language/advancedoperators/) |
+| `enum EngineError: Error` + `throws` | A closed set of failures the caller can switch over. TS's `throw` produces `unknown`; the message is the only signal. | [Swift book: Error Handling](https://docs.swift.org/swift-book/documentation/the-swift-programming-language/errorhandling/) |
+| `Codable` | Conforming a struct generates its JSON decoder from the stored properties. A shape mismatch is a decode error, not an `undefined` surfacing three lines later. `JSON.parse` returns `any`. | [Codable reference](https://developer.apple.com/documentation/swift/codable) |
+| `Calendar` / `TimeZone` | Swift's `Date` is a **bare instant** with no local accessors at all — no `getFullYear()`. All calendar arithmetic goes through an explicit `Calendar` carrying an explicit `TimeZone`. This is the single biggest shape difference in the port. | [Calendar](https://developer.apple.com/documentation/foundation/calendar) · [TimeZone](https://developer.apple.com/documentation/foundation/timezone) |
+| `inout` | Explicit pass-by-reference for a value type, so a helper can advance the caller's copy. TS objects are references already, so nothing needs marking. | [Swift book: Functions (In-Out Parameters)](https://docs.swift.org/swift-book/documentation/the-swift-programming-language/functions/) |
+| Generic constraints (`<R: RandomSource>`) | Load-bearing in `EndlessSource`: storing the generator as a constrained generic rather than a closure is what preserves value semantics. Also the source of the "viral generic" friction. | [Swift book: Generics](https://docs.swift.org/swift-book/documentation/the-swift-programming-language/generics/) |
+| `ContinuousClock` | A monotonic clock that cannot go backwards if the system clock is adjusted mid-measurement. `Date.now()` can. | [ContinuousClock reference](https://developer.apple.com/documentation/swift/continuousclock) |
+
 ## Writer's column — the agent's experience of writing it
 
 **On "elapsed":** wall-clock between commits includes time spent waiting on
@@ -52,6 +65,15 @@ plainly rather than quoting the totals as if they were stopwatch readings.
 |---|---|---|---|
 | 1. Scaffolding | ~20 min, of which maybe 4 was Swift | Nothing in the Swift itself. The time went to verifying the snapshot rather than writing code — and to the `wc -l` off-by-one, which was a real (small) prediction miss. | `InlineArray` forcing `swift-tools-version: 6.2` was already known from the planning spike, so the package built first try. Swift Testing's `arguments:` turned five near-identical count assertions into one parameterised test. |
 | 2. Config, `Rung`, scoring | ~8 min, nearly all Swift | Honestly nothing. This is the easiest possible task: pure functions over integers, no state, no concurrency, no Foundation. If Swift were going to feel hostile it would not be here. Worth saying so plainly rather than manufacturing friction. | `case 8...` is the standout. The TypeScript wrote `SCORE_BY_LENGTH[length] ?? (length > 8 ? 15 : 0)` — a lookup with a fallback expression — and never tested the fallback. As a `switch` the above-8 case is *visibly a case*, and writing it made not testing it feel like an omission. The language nudged toward the test. `switch`-as-expression also removed six `return`s. |
+| 3. Formability, both shapes | ~10 min | Nothing. `InlineArray` was already de-risked in planning. | Writing the two representations side by side made the value/reference distinction concrete before the measurement existed to prove it. |
+| 4. Types + classification | ~10 min | `Dictionary` is taken by the stdlib → `ValidationDictionary`. Trivial rename, but a tax structural typing never charges. | `Set` algebra reads better than the TS spread-and-filter. |
+| 5. `createPuzzle` + list sources | ~12 min | Nothing. | `subtracting`/`union` replaced `[...set].filter(...)` in three places. |
+| 6–7. `computeTier`, `isComplete` | ~15 min | `tiers[index + 1]` traps rather than returning `undefined`, so the bound needed an explicit check. Safer, more verbose. | Writing `isComplete` as one function after finding it inlined twice in the web UI. The whole deviation took four lines. |
+| 8–9. `validateGuess`, eligibility | ~12 min | **The one genuine compile error of the run**: `normalizeGuess` needed a `String.UnicodeScalarView` round-trip to filter characters. TS's `.replace(/[^a-z]/g,'')` is one call; the Swift is three type conversions deep. | `GuessResult` as an enum with associated values. `score` simply does not exist on a `.tooShort`. |
+| 10. Shuffle + calendar | ~10 min | `&*` vs `*` — wrapping must be asked for by name. Known from planning, so no cost here; would have been a trap otherwise. | PRNG matched Node bit-for-bit first try. |
+| 11–13. Oracle, `dayIndex`, daily | ~25 min | Largest engine task. Two `Calendar` types in scope (`Foundation.Calendar` vs this package's `Calendar.swift`) needed disambiguating. Shell cwd drift cost one failed run. | The oracle. 22 instants, 8 zones, exact match. Also: the `dateComponents` one-liner was expected to diverge on midnight-transition zones and **did not** — there is now a test asserting both agree. |
+| 14. `EndlessSource` | ~12 min | `inout` on every helper, `var` on every holder, and a viral generic parameter — all the price of value semantics, for a property the game never uses. | The generic `RandomSource` making a copy a genuine fork. Nearly shipped a closure-based version that would have quietly shared state. |
+| 15. Measurements | ~20 min | My own `grep -v "^\["` ate the `[Int8]` result line on the first run. Self-inflicted. | 2.5× inline-vs-heap, and the 25× debug/release gap on `LetterCounts` — the strongest possible argument for release-mode benchmarking. |
 
 ## Reader's column — Antoine's experience of reading it
 
@@ -69,7 +91,8 @@ quietly claim legibility evidence it never gathered.
 | Task | Made sense? | Looked up | Held interest? |
 |---|---|---|---|
 | 1. Scaffolding | Yes — "getting it", wants more time sitting with it, but nothing opaque. | Nothing. Comments carried it. **But**: asked for documentation links from here on, so that the log doubles as a reading list. Acted on — see Reading list above, backfilled for Task 1. | Neutral. It is scaffolding; the engine starts in Task 2. Curious about Task 2. |
-| 2. Config, `Rung`, scoring | | | |
+| 2. Config, `Rung`, scoring | — | — | Not recorded: the question shifted before this checkpoint was answered. |
+| 3–15 | **Not gathered.** Skimmed by explicit choice. | — | — |
 
 ## Findings
 
