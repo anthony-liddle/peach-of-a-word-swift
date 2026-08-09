@@ -55,9 +55,16 @@ plainly rather than quoting the totals as if they were stopwatch readings.
 
 ## Reader's column — Antoine's experience of reading it
 
-The column the experiment turns on. Filled in at each checkpoint, from the
-prompt, not from memory. "Looked up" means: something in the diff that could not
-be understood without going elsewhere.
+Filled in at each checkpoint, from the prompt, not from memory. "Looked up"
+means: something in the diff that could not be understood without going
+elsewhere.
+
+**This column stops being the centre of the experiment after Task 2.** At that
+point the question shifted from "can I write Swift myself" to "what does working
+on a native Swift project look like, and could I ship something". Tasks 3
+through 15 were therefore **skimmed rather than read closely, by explicit
+choice** — not because attention lapsed. Recorded here so the report cannot
+quietly claim legibility evidence it never gathered.
 
 | Task | Made sense? | Looked up | Held interest? |
 |---|---|---|---|

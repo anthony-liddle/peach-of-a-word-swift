@@ -3112,23 +3112,65 @@ Four are already in hand from planning; add anything found while porting:
 - **Date handling.** Whether Swift matched the web for the same instant, per the oracle, across how many cases and which zones. Say if the oracle was cut down to `dayIndex` only.
 - **Dictionary loading.** The release-mode number, and what it implies for a real app.
 
-- [ ] **Step 8: Write the verdict**
+- [ ] **Step 8: Write "what stands between this and a shipped app"**
+
+**The section the experiment is actually for.** The engine is the half that
+ports cleanly; everything hard is downstream of it. Scope this honestly — an
+optimistic estimate here is worse than useless, because it is the number a
+decision gets made on.
+
+**Separate the two bars, and say plainly that they are different.** They are
+routinely conflated and the gap between them is large:
+
+- **Onto Bea's phone.** TestFlight, or even a direct Xcode install. No App Store
+  review. This is the near bar.
+- **Into the App Store.** Public listing, full review, age rating, privacy
+  disclosures, ongoing maintenance. This is the far bar.
+
+For each item below: a rough effort figure, what in the web version carries
+over and what does not, and — separately marked — whether it is a genuine
+**blocker** or merely **work**. Most of it is work. Say which few are not.
+
+| Area | Cover at minimum |
+|---|---|
+| SwiftUI rebuild | The whole UI. `useGame.ts` alone is ~600 lines of state machine. What is logic (ports) versus what is view (does not). |
+| Persistence | `localStorage` → `UserDefaults` / SwiftData / a file. `storage.ts` and the `storageEpoch` day keys. |
+| Two-theme system | `themeCopy.ts` plus the CSS. Copy ports; styling does not. |
+| Audio | `WebAudioEngine` → AVFoundation. |
+| Dictionary loading | Decided by the Task 15 number, not by guesswork. Does the release figure justify a sorted binary or SQLite, or is the plain list fine? |
+| App icons and launch assets | Existing PNGs versus what an asset catalog actually demands. |
+| Apple Developer Program | Cost, enrolment time, and whether identity verification is a step that can stall. |
+| Provisioning and signing | What Xcode automatic signing handles and what it does not. |
+| TestFlight | Internal versus external testing, and which one reaching Bea actually requires. |
+| App Store review | Guidelines that plausibly bite a dictionary word game. Consider at least: minimum functionality, age rating given that a 427k-word dictionary contains words a rating questionnaire asks about (note the existing slur denylist), and third-party content licensing — Wiktionary is CC BY-SA 4.0, SCOWL and ENABLE have their own terms. Flag the licensing question as something to verify rather than asserting an answer. |
+
+Anything genuinely uncertain gets marked as uncertain. "I do not know whether X
+passes review" is a more useful sentence than a confident guess.
+
+- [ ] **Step 9: Write the verdict**
 
 Three separate answers, not one. They can point in different directions, and
 collapsing them is how an experiment gets misread:
 
-1. **Was it enjoyable to read?** From the reader's column, not the writer's.
-   Did the Swift stay legible, and did it hold interest across sixteen tasks?
-2. **Was it fast?** From the writer's column and the elapsed times. Note where
-   the port ran long and whether that was Swift or the problem.
-3. **Would Antoine want to keep directing Swift work?** The actual decision.
-   Enjoying reading it and wanting to own it are different questions, and a
-   "yes, no, yes" or "yes, yes, no" is a perfectly coherent result — say so
-   plainly if that is what the evidence shows.
+1. **Could a native Peach of a Word realistically get onto Bea's phone?** The
+   near bar. Answer with the engine result and the shipping section behind it.
+2. **Could it realistically reach the App Store?** The far bar. Separate answer.
+3. **Was the engine port fast, and what does that predict?** From the writer's
+   column. Be explicit that the engine is the *easy* half and that its speed is
+   weak evidence about the UI half — the whole reason this port was scoped to
+   pure logic is that pure logic is where a new language is least painful.
 
-Then one paragraph on whether continuing to a full port is worth it.
+Then one paragraph on whether continuing is worth it, given that the question
+is now shipping rather than learning.
 
-- [ ] **Step 9: Verify everything passes, then commit**
+**Do not launder the reader's column.** Tasks 3 through 15 were skimmed rather
+than read closely, by explicit choice once the question shifted from "can I
+write Swift" to "could I ship this". The reader's column must say so, and the
+verdict must not lean on legibility evidence that was not actually gathered.
+A verdict written as though every diff was reviewed would be the single most
+misleading thing this report could do.
+
+- [ ] **Step 10: Verify everything passes, then commit**
 
 ```bash
 swift test 2>&1 | tail -5
