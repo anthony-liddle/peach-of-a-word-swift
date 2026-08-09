@@ -880,3 +880,156 @@ from a terminal. Xcode previews, which are probably the central authoring
 experience for SwiftUI, were never opened. If SwiftUI has a frustrating side, the
 preview loop is the most likely place for it to live, and this session did not
 look there.
+
+---
+
+# Part three: tile tapping
+
+2026-08-09. The largest piece of SwiftUI work so far, and the first that is
+genuinely new rather than a port of logic. The engine did not move: `validateGuess`
+still takes a `String`. Everything that produces that string changed.
+
+## The model, and the detail that matters
+
+Read from `src/ui/Game.tsx` and `src/ui/useGame.ts`. The state shape is:
+
+```
+Tile { id, letter }        // id is an index into the sorted rack
+tiles: [Tile]              // id to letter
+rackOrder: [Int]           // ids in display order, all Shuffle touches
+composing: [Int]           // ids placed, in placement order
+composedWord = composing.map { tiles[$0].letter }.joined()
+```
+
+**Composition is a list of tile IDs, never letters.** This is what makes
+duplicate letters work. Today's rack is `motorway`, which has two separate `o`
+tiles; tapping one must consume that specific tile and leave the other
+available. A letter-keyed model would consume both or lose track.
+
+Ported as-is, not simplified. Two things fell out of it for free:
+
+- **Shuffle cannot disturb a composition in progress.** `rackOrder` and
+  `composing` refer to each other only by id, so reordering the display cannot
+  touch what is on the stick. That correctness is structural rather than
+  arranged.
+- **The "already placed" test is the same derivation as the web.**
+  `composing.contains(id)` per tile per render, which is O(8) and free.
+
+Actions ported: `addTile`, `addLetter`, `removeLast`, `clear`, `shuffleRack`,
+`submit`. The web version clears the stick on every submit outcome, valid or
+not, and that is copied.
+
+## 1. How does SwiftUI handle the tile state?
+
+**The same derivation works unchanged. SwiftUI did not want it shaped
+differently.**
+
+`isPlaced(id)` is computed on every render exactly as React computes
+`composing.includes(id)`. No memoisation, no explicit diffing, no dependency
+declarations. `@Observable` tracks that the rack read `composing`, so tapping
+one tile re-renders the rack and nothing else.
+
+One genuine difference, and it is the SwiftUI analogue of React's `key`:
+
+```swift
+ForEach(model.rackOrder, id: \.self) { id in ... }
+```
+
+Identity has to be the tile id, not the array position. Using the position
+would make Shuffle look like eight letters changing in place rather than eight
+tiles moving. Same rule as React keys, same failure mode if you get it wrong.
+
+The one thing I would change: `model.tiles.first(where: { $0.id == id })` is a
+linear lookup inside a loop. At eight tiles it is irrelevant, and a dictionary
+would be the right shape if the rack ever grew.
+
+## 2. Did the `@Observable` class hold up?
+
+**Yes, and it is still not a reducer.**
+
+`GameModel` went from about 219 lines to about 300, absorbing six new actions.
+Each action is one to three lines that mutate state directly. A reducer would
+add an action enum plus a switch and buy nothing at this size.
+
+**The honest limit, and it is the same one as before.** This still has one mode,
+no persistence, and no undo. The web reducer exists partly because Daily and
+Endless each hold their own slice and switching modes must not disturb the
+other. That is the pressure that would actually justify the shape, and it is not
+here yet. So the finding is "not required at this size", not "never required".
+
+What did become visible: as the number of actions grew, the value of the actions
+being *methods* rather than dispatched cases is that each one is individually
+callable and testable. The launch-argument test hooks call `addTile` and
+`addLetter` directly, which a reducer would make marginally more awkward.
+
+## 3. How did layout feel compared to CSS?
+
+**Better than expected, and it was the cheapest part of the work again.**
+
+The rack is one line of intent:
+
+```swift
+LazyVGrid(columns: [GridItem(.adaptive(minimum: tileMinWidth), spacing: 10)])
+```
+
+That is the direct equivalent of CSS `repeat(auto-fit, minmax(...))`, and it
+does the same job with less ceremony. **At `accessibility-extra-large` the grid
+reflowed from four columns to three by itself**, verified with
+`simctl ui <device> content_size accessibility-extra-large`. That was free, and
+it is the part of the web version's text-size work that did not need doing again.
+
+Two places CSS was nicer:
+
+- **`aspect-ratio: 3 / 4` has no clean equivalent** that cooperates with an
+  adaptive grid. I used a scaled `minHeight` instead, which is close but not the
+  same idea.
+- **The hard offset shadow.** CSS writes `0 5px 0 <colour>` and means it.
+  SwiftUI needs `.shadow(color:, radius: 0, x: 0, y: 5)`, where `radius: 0` is
+  the non-obvious part; the default blur makes it look wrong immediately.
+
+## 4. Did you open Xcode previews?
+
+**No. This remains the single biggest unexamined part of the whole experiment.**
+
+Everything here was built, installed and verified from the terminal, as in part
+two. `#Preview` is present on `ContentView` and compiles as part of the build,
+so it is at least valid, but the canvas was never opened and this report has
+nothing to say about whether it helps.
+
+That is now a conspicuous gap rather than an incidental one. Previews are
+plausibly the main authoring loop for real SwiftUI work, and every estimate in
+this report about how long a full rebuild would take is made without knowing
+what that loop feels like.
+
+## What was verified, and what was not
+
+**Verified headlessly**, on the iOS 26.4 Simulator:
+
+- `-tapWords motorway,root,tram,moray` composes each word through the tile path
+  (letter to specific unused tile id) and submits. All four validated, score 28
+  of 65, identical to the earlier typed run. **`motorway` and `root` each need
+  two distinct `o` tiles, so duplicate handling is confirmed.**
+- `-tapTiles 0,1,2,1` places rack positions 0, 1 and 2 and **correctly ignores
+  the repeated 1**: three letters land on the stick, not four. Placed tiles
+  render sunk (faded, no shadow) while the rest stand proud.
+- Dynamic Type reflow, above.
+
+**Not verified programmatically: an actual finger tap.** Driving the Simulator
+with AppleScript failed with error `-25204` (accessibility permissions), the
+same class of failure that blocked typing into the text field in part two. So
+the tile *actions* are proven and the Button *gesture* is not. It needs a human
+with the app in front of them, which is why the build went to the phone.
+
+This is worth naming as a pattern rather than an incident: **across three
+sessions, every attempt to drive iOS UI from the terminal has failed, and each
+time the workaround was a launch argument.** Whatever else Xcode adds, it owns
+UI interaction testing. A real project would reach for XCUITest here.
+
+## Owed
+
+- **Fonts.** The cute theme is Fredoka for display and Nunito for body. This
+  uses the system font with `.rounded` design, which reads as the same family of
+  shape and cost nothing. Bundling the real faces is a later pass, as the brief
+  allowed.
+- **The found list** is a plain scrolling column with no heading, no rarity
+  colour, and no tap targets. Out of scope here and it shows.
