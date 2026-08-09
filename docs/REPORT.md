@@ -298,6 +298,12 @@ The two letter-count representations, one full pass over 427,290 words:
 `Int8Array(26)`. Swift's default — a fixed-size value type — is the fast one,
 and the faithful translation is the slow one.
 
+> **Superseded, and deliberately not deleted.** The inline version was later
+> dropped so the deployment floor could fall from iOS 26 to iOS 17, since
+> `InlineArray` was the only thing gating it. The measurement above is still
+> true and is still the most interesting result in the port; it is simply no
+> longer what ships. See "The deployment floor: decided, and taken" below.
+
 Absolute stakes are small (25 ms, once per puzzle). The point is the direction:
 the idiomatic choice and the fast choice coincided.
 
@@ -736,32 +742,56 @@ fixed, and the values in the table were re-measured afterwards. Worth recording
 because it is the second time in this project that a measurement, rather than
 the code being measured, was the thing that was wrong.
 
-## The iOS 26 floor: now a decided question
+## The deployment floor: decided, and taken
 
 The engine report called the macOS 26 platform floor "defensible for an
 experiment, plainly disproportionate as a deployment constraint" and left it
-there. Adding an iOS target made it concrete and testable, so I tested it.
+there. Adding an iOS target made it concrete and testable, so I tested it, and
+then took the change.
 
-`InlineArray` is the **only** thing gating the floor. Swapping `LetterCounts`
-back to a `[Int8]` buffer and lowering the declaration to
-`.macOS(.v14), .iOS(.v17)` builds clean and passes **all 84 tests**.
+`InlineArray` was the **only** thing gating the floor. `LetterCounts` is now
+backed by a plain `[Int8]`, `Package.swift` declares
+`.macOS(.v14), .iOS(.v17)`, and `swift-tools-version` dropped from 6.2 to 6.0.
+All 84 tests pass. The app was installed and run on an **iOS 17.5** simulator,
+so the floor drop is verified rather than assumed.
 
-So the tradeoff is fully specified:
-
-| | iOS 26 floor | iOS 17 floor |
+| | Before | After |
 |---|---|---|
-| `LetterCounts` backing | `InlineArray<26, Int8>` | `[Int8]` |
-| Formability pass over the full list | 16.7 ms | 41.6 ms |
-| Cost | Excludes every device that cannot run iOS 26 | 25 ms, once per puzzle |
+| Platform floor | macOS 26 / iOS 26 | **macOS 14 / iOS 17** |
+| One formability pass | 16.7 ms | 44.4 ms |
+| `createPuzzle` | 44 ms | 94 ms |
+| App cold start, iOS 26.4 Simulator, Release | 260 ms | **300 ms** |
 
-**A shipping build should take the iOS 17 floor.** 25 ms on a once per puzzle
-operation is not detectable by a player. An iOS 26 minimum in mid 2026 excludes a
-large share of devices in use, quite possibly including the one phone this is
-being built for.
+**One correction to the earlier estimate, and it matters.** This report and the
+brief that followed it both quoted the cost as "25 ms on a once-per-puzzle
+operation", taken from the single-pass delta. The measured cost is larger:
+`createPuzzle` makes four passes over the word lists, so it pays the penalty
+about 1.75 times over. The real figures are **+50 ms on `createPuzzle`** and
+**+40 ms on app cold start**.
 
-I have **not** made that change. It would invalidate the measurements above and
-it is a decision to surface rather than take unilaterally. It is a five minute
-change when wanted.
+The trade still holds comfortably. 40 ms behind a loading indicator, once per
+puzzle, against nine years of device support. But the number that was used to
+justify the decision was too low by half, and it was too low because a
+single-pass benchmark was quietly treated as if it described a four-pass
+operation. Recorded because it is the same failure shape this project keeps
+finding: a measurement that is true in the place it was taken and misleading in
+the place it is quoted.
+
+**The 2.5x finding stands and is kept** in `docs/MEASUREMENTS.md`. Swift's
+default value type was the fast option and the literal translation of the
+TypeScript `Int8Array(26)` was the slow one. That is still the most interesting
+result in the port. It was given up because a deployment floor is worth more
+than 40 ms, not because it was wrong.
+
+**On collapsing the two implementations.** The library previously carried
+`letterCountsArray` and `canFormArray` alongside `LetterCounts`, purely so the
+two representations could be measured against each other. With `LetterCounts`
+now `[Int8]`-backed, keeping them would mean shipping two identical
+implementations of one fact with nothing forcing them to agree, which is the
+exact bug shape this project has found five times in the web repo. They are
+deleted. The agreement test survives: a naive reference implementation moved
+into `FormabilityTests.swift`, where being a duplicate is the point rather than
+a liability. Test count is unchanged at 84.
 
 ## Accessibility, for free and not for free
 
@@ -815,9 +845,10 @@ considered as the web version does.
 
 **Two things to fix before any of that**, both cheap and both found here:
 
-1. Drop `InlineArray` and lower the platform floor to iOS 17. Five minutes,
-   costs 25 ms, and it is the difference between an app Bea can install and one
-   she may not be able to.
+1. ~~Drop `InlineArray` and lower the platform floor to iOS 17.~~ **Done.** It
+   cost 40 ms on app cold start rather than the 25 ms estimated here, and the
+   app now builds and runs on an iOS 17.5 simulator. See "The deployment floor:
+   decided, and taken" below.
 2. Move the word lists into the package properly, or at least make the
    bundle-relative path the default rather than the `#filePath` one. The current
    default is a trap that passes in the simulator and fails on a device.

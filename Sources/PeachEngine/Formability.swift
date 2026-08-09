@@ -1,21 +1,29 @@
-/// Count of each letter a-z, held inline as a fixed-size value type.
+/// Count of each letter a-z in a word.
 ///
-/// `InlineArray<26, Int8>` is a fixed-size array stored *in* the struct rather
-/// than in a separately allocated heap buffer, so constructing one allocates
-/// nothing. Swift's ordinary `Array` cannot do this: it is a reference to a
-/// heap buffer with copy-on-write semantics, which is what `letterCountsArray`
-/// below deliberately uses so the two can be compared. TypeScript's
-/// `Int8Array(26)` is always the heap-allocated shape.
+/// Backed by a heap-allocated `[Int8]`. This was previously an
+/// `InlineArray<26, Int8>`, a fixed-size array stored inline in the struct with
+/// no allocation, which measured 2.5x faster over a full pass of the boundary
+/// list (16.7 ms against 41.6 ms, release, M3 Pro).
 ///
-/// Requires macOS 26, which is why Package.swift pins that platform.
+/// The inline version was dropped anyway. `InlineArray` requires iOS 26 and
+/// macOS 26, and it was the only thing in this package that did, so it alone
+/// set the deployment floor. Twenty five milliseconds on an operation that runs
+/// once per puzzle does not buy an OS minimum that would exclude most devices
+/// in use, including quite possibly the one phone this game is being built for.
+///
+/// The measurement is kept in docs/MEASUREMENTS.md rather than deleted. It is
+/// still true, and it is still the most interesting number in the port: Swift's
+/// default value type was the fast option and the literal translation of the
+/// TypeScript `Int8Array(26)` was the slow one. The floor is simply worth more
+/// than the milliseconds.
 public struct LetterCounts: Sendable {
-    private var counts: InlineArray<26, Int8> = .init(repeating: 0)
+    private var counts = [Int8](repeating: 0, count: 26)
 
     /// Non-letters and non-ASCII bytes are ignored, matching the TypeScript.
     public init(_ word: String) {
         // Iterating `.utf8` rather than `Character` is both faster and closer
         // to the original's `charCodeAt`. Swift's `Character` is a grapheme
-        // cluster — the right default for text, the wrong unit here.
+        // cluster, which is the right default for text and the wrong unit here.
         for byte in word.utf8 where byte >= 97 && byte <= 122 {
             counts[Int(byte) - 97] += 1
         }
@@ -29,27 +37,6 @@ public struct LetterCounts: Sendable {
         }
         return true
     }
-}
-
-/// The literal translation of the TypeScript `Int8Array(26)`: a heap-allocated
-/// buffer per call. Kept alongside `LetterCounts` only so Task 15 can measure
-/// what the allocation costs across the full boundary list.
-public func letterCountsArray(_ word: String) -> [Int8] {
-    var counts = [Int8](repeating: 0, count: 26)
-    for byte in word.utf8 where byte >= 97 && byte <= 122 {
-        counts[Int(byte) - 97] += 1
-    }
-    return counts
-}
-
-/// `canForm` over the array-backed representation. Must agree with
-/// `LetterCounts.canForm` on every input; there is a test that says so.
-public func canFormArray(_ rackCounts: [Int8], _ word: String) -> Bool {
-    let need = letterCountsArray(word)
-    for i in 0..<26 where need[i] > rackCounts[i] {
-        return false
-    }
-    return true
 }
 
 /// Filter a word list to those formable from the rack, length >= the minimum.

@@ -1,6 +1,32 @@
 import Testing
 @testable import PeachEngine
 
+/// A deliberately naive letter counter, used only to check `LetterCounts`
+/// against a second opinion.
+///
+/// This used to live in the library as `letterCountsArray` / `canFormArray`,
+/// because `LetterCounts` was backed by `InlineArray` and the pair existed to
+/// measure the two representations against each other. `LetterCounts` is now
+/// itself `[Int8]`-backed, so a second `[Int8]` implementation in the library
+/// would be pure duplication: two computations of one fact with nothing forcing
+/// them to agree, which is the exact bug shape this project has now found five
+/// times in the web repo.
+///
+/// A reference implementation is still worth having. It just belongs in the
+/// tests, where being a duplicate is the point, rather than in the shipped API.
+private func referenceCanForm(rack: String, word: String) -> Bool {
+    func counts(_ s: String) -> [Int] {
+        var out = [Int](repeating: 0, count: 26)
+        for byte in s.utf8 where byte >= 97 && byte <= 122 {
+            out[Int(byte) - 97] += 1
+        }
+        return out
+    }
+    let have = counts(rack)
+    let need = counts(word)
+    return (0..<26).allSatisfy { need[$0] <= have[$0] }
+}
+
 @Suite("canForm")
 struct CanFormTests {
     // `let` properties on a @Suite struct replace vitest's module-level consts.
@@ -25,14 +51,11 @@ struct CanFormTests {
         #expect(!rack.canForm(LetterCounts("zebra")))
     }
 
-    // The array-backed variant must agree with the inline one everywhere. If
-    // these ever disagree, the Task 15 measurement is comparing two different
-    // functions rather than two representations of the same one.
-    @Test("the array-backed variant agrees with the inline one",
+    @Test("agrees with an independent reference implementation",
           arguments: ["sneer", "eased", "zebra", "eee", "eeee", "serenade", "ad", ""])
-    func variantsAgree(word: String) {
+    func matchesReference(word: String) {
         #expect(rack.canForm(LetterCounts(word))
-                == canFormArray(letterCountsArray("serenade"), word))
+                == referenceCanForm(rack: "serenade", word: word))
     }
 }
 

@@ -11,6 +11,15 @@ median reported. Debug figures from `swift run peach-bench`.
 
 Every figure below is a **macOS** number. See "What this does not measure".
 
+> **Two configurations appear in this document.** The engine was first built
+> with `LetterCounts` backed by `InlineArray`, which required iOS 26 and
+> macOS 26. That was later dropped for a plain `[Int8]` so the deployment floor
+> could fall to iOS 17. Numbers are labelled **inline (historical)** or
+> **shipped** throughout. The historical numbers are kept deliberately: they are
+> still true, and section 2 is the most interesting result in the port.
+>
+> Re-measured after the swap with all simulators shut down, median of five runs.
+
 ## 1. Dictionary load
 
 The validation dictionary is `enable.txt` unioned with `scowl95-additions.txt`:
@@ -31,74 +40,124 @@ See `SNAPSHOT.md`.)
 
 | | Release | Debug |
 |---|---|---|
-| Full load | **186 ms** | 381 ms |
+| Full load, inline (historical) | 186 ms | 381 ms |
+| Full load, shipped | **198 ms** | (not re-run) |
+
+This block does no formability work, so the representation swap should not
+affect it. The 12 ms difference is run-to-run variation and machine state, not a
+regression. Recorded rather than smoothed so the two configurations are directly
+comparable.
 
 ### What this decides
 
 The brief asked whether a sorted binary file or SQLite would be needed. **On
 this evidence, no.**
 
-186 ms of synchronous work at launch is noticeable but not broken — comparable
-to a single modest network request, and well inside what a launch screen
-absorbs. Moving it off the main thread, or deferring the two rarity-band lists
-until after first paint (they are not needed to render the rack), would take the
-blocking portion to roughly 110 ms without changing the storage format at all.
+About 200 ms of list loading at launch is noticeable but not broken, comparable
+to a single modest network request and well inside what a launch screen absorbs.
+Moving it off the main thread, or deferring the two rarity-band lists until after
+first paint (they are not needed to render the rack), would take the blocking
+portion to roughly 110 ms without changing the storage format at all.
 
 The surprise is *where* the time goes. Building a 427k-entry hash set costs
-**11.8 ms** — essentially free. Almost all the cost is reading and splitting
-text: 173 ms of the 186. So the optimisation with the best return is not a
-database, it is not parsing 8 MB of UTF-8 into 427,290 individually allocated
-`String`s. A packed binary blob searched in place would attack the right
-problem; SQLite would add a dependency to fix the part that was already fast.
+**11.8 ms**, essentially free. Almost all the cost is reading and splitting
+text. So the optimisation with the best return is not a database, it is not
+parsing 8 MB of UTF-8 into 427,290 individually allocated `String`s. A packed
+binary blob searched in place would attack the right problem; SQLite would add a
+dependency to fix the part that was already fast.
 
 **Conclusion: ship the plain lists. Revisit only if launch time becomes a real
 complaint, and if it does, reach for a packed format rather than a database.**
 
 ## 2. Letter counts: inline value type vs heap array
 
-One full formability pass over all 427,290 words, twice, with the two
-representations described in `Sources/PeachEngine/Formability.swift`. Both
-produce the same 239 formable words — there is a test that enforces it, so this
-is a comparison of two encodings of one function, not of two functions.
+**The most interesting result in the port, and the one that was deliberately
+given up.**
+
+One full formability pass over all 427,290 words, with the two representations
+of `LetterCounts`. Both produce the same 239 formable words, so this is a
+comparison of two encodings of one function, not of two functions.
 
 | Representation | Release | Debug |
 |---|---|---|
-| `LetterCounts` — `InlineArray<26, Int8>`, no allocation | **16.7 ms** | 417.9 ms |
-| `[Int8]` — heap-allocated buffer per word | **41.6 ms** | (not run) |
-| **Delta** | **2.5× / +24.9 ms** | |
+| `InlineArray<26, Int8>`, no allocation (**inline, historical**) | **16.7 ms** | 417.9 ms |
+| `[Int8]`, heap-allocated buffer per word (**shipped**) | **44.4 ms** | (not re-run) |
+| **Delta** | **2.7x / +27.7 ms** | |
 
 The heap version is the literal translation of the TypeScript's `Int8Array(26)`.
-Choosing Swift's default value semantics instead — a fixed-size array stored
-inline in the struct — removes 427,290 heap allocations from a single pass and
-runs 2.5× faster.
+The inline version removes 427,290 heap allocations from a single pass. Swift's
+default value type was the fast option and the faithful translation was the slow
+one, which is the finding worth keeping.
 
-Worth noting how small the absolute stake is: 25 ms, once, on a full-dictionary
-scan the app performs when building a puzzle, not per keystroke. The interesting
-part is not the saving, it is that the language's default was also the fast
-option, and the TypeScript-faithful translation was the slow one.
+**The inline version was dropped anyway.** `InlineArray` requires iOS 26 and
+macOS 26 and was the only API in the package that did, so it alone set the
+deployment floor. See "The deployment floor" below.
 
-The debug figure for `LetterCounts` is the outlier of the whole run: **417.9 ms
-against 16.7 ms in release, a 25× penalty.** Swift's abstractions are free only
-after the optimiser has been at them. Any benchmark run under `swift test`, which
-is a debug build, would have been off by an order of magnitude — this is the
-single strongest argument for the plan's insistence on release-mode measurement.
+The debug figure is the outlier of the whole project: **417.9 ms against 16.7 ms
+in release, a 25x penalty.** Swift's abstractions are free only after the
+optimiser has been at them. Any benchmark run under `swift test`, which is a
+debug build, would have been off by an order of magnitude.
+
+(The earlier version of this table recorded 41.6 ms for the `[Int8]` variant,
+measured through a separate `canFormArray` helper. The 44.4 ms figure is the
+same representation measured through `LetterCounts` itself after the swap, with
+simulators shut down. The small difference is measurement conditions, not a
+change in the code.)
 
 ## 3. End-to-end `createPuzzle` on a real rack
 
 | | Release |
 |---|---|
-| `createPuzzle("serenade")` over the full lists | **44 ms** |
+| `createPuzzle("serenade")`, **inline (historical)** | **44 ms** |
+| `createPuzzle("serenade")`, **shipped** | **94 ms** |
 
-Result: 239 validation words, 35 set words, 62 uncommon, 130 rare, 12 mythic,
-par 111.
+Result either way: 239 validation words, 35 set words, 62 uncommon, 130 rare,
+12 mythic, par 111.
 
-This is four full passes over the word lists (validation, common, beyond-70,
-beyond-95) plus the set algebra. It runs once per puzzle, not per guess —
-guessing is a `Set` lookup against `validationWords`, which is O(1) and
-unmeasurable here.
+**Note the cost is larger here than the single-pass delta suggests, and this
+correction matters.** `createPuzzle` makes four passes over the word lists
+(validation, common, beyond-70, beyond-95), so it pays the representation
+penalty roughly 1.75 times over rather than once. The real cost of dropping
+`InlineArray` is about **50 ms on `createPuzzle`**, not the 25 ms that a
+single-pass reading implies.
 
-44 ms is comfortably inside a frame budget for a one-off operation and needs no
-attention.
+It still runs once per puzzle, not per guess. Guessing is an O(1) `Set` lookup
+against `validationWords` and is unmeasurable here. 94 ms on a one-off operation
+that happens behind a loading indicator needs no attention.
+
+## The deployment floor
+
+The decision this document exists to support, recorded with its cost.
+
+| | Inline (historical) | Shipped |
+|---|---|---|
+| `LetterCounts` backing | `InlineArray<26, Int8>` | `[Int8]` |
+| Platform floor | macOS 26 / iOS 26 | **macOS 14 / iOS 17** |
+| `swift-tools-version` | 6.2 | 6.0 |
+| One formability pass | 16.7 ms | 44.4 ms |
+| `createPuzzle` | 44 ms | 94 ms |
+| App cold start, iOS 26.4 Simulator, Release | 260 ms | **300 ms** |
+| App cold start, iOS 17.5 Simulator, Release | not buildable | **404 ms** |
+
+The iOS 17.5 figure is a single run and should be treated as soft. It is
+included because it is the only evidence that the lower floor actually works,
+and because the older simulator runtime being meaningfully slower on identical
+host hardware is worth knowing. It is still a simulator number, so it is still a
+Mac number, and it still says nothing reliable about a phone.
+
+`InlineArray` was verified to be the only thing gating the floor: nothing else
+in the package or the app requires anything above iOS 17. The app's own floor is
+set by `@Observable` and `ContentUnavailableView`, both iOS 17, so the engine
+alone would go lower still.
+
+**Total cost of the change: about 40 ms on app cold start**, behind a loading
+indicator, on an operation that runs once per puzzle. **Total benefit: nine
+years of device support.** An iOS 26 minimum in mid 2026 would exclude most
+devices in use, quite possibly including the one phone this game is being built
+for, which would defeat the point of building it.
+
+Verified by installing and running the app on an **iOS 17.5** simulator
+(iPhone 15 Pro), not merely by building against the lower floor.
 
 ## What this does not measure
 

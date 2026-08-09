@@ -49,7 +49,10 @@ Release mode matters for the benchmark: debug Swift string and collection work
 is often around 10x slower, and a debug number would argue for a different
 storage format on a lie.
 
-Requires Swift 6.2+ and macOS 26, both forced by `InlineArray`.
+Requires Swift 6.0+. The package targets **macOS 14 and iOS 17**; the iOS floor
+is set by the app's use of `@Observable` and `ContentUnavailableView`, not by the
+engine. It was briefly macOS 26 / iOS 26, which only `InlineArray` required. See
+"The deployment floor" in [docs/MEASUREMENTS.md](docs/MEASUREMENTS.md).
 
 ## Licence
 

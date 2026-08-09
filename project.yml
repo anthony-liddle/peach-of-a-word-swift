@@ -13,8 +13,11 @@
 name: PeachMinimal
 options:
   bundleIdPrefix: com.anthonyliddle.peachofaword
+  # iOS 17 is the floor for this app: @Observable and ContentUnavailableView are
+  # both iOS 17, and nothing here needs anything newer. It was briefly 26.0,
+  # which only InlineArray in PeachEngine required. See docs/MEASUREMENTS.md.
   deploymentTarget:
-    iOS: "26.0"
+    iOS: "17.0"
   createIntermediateGroups: true
 
 packages:

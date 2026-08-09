@@ -43,27 +43,23 @@ let beyond70 = time("read beyond-size-70.txt") { try! readWordList("beyond-size-
 let beyond95 = time("read beyond-size-95.txt") { try! readWordList("beyond-size-95.txt") }
 print("")
 
-print("=== Letter counts: inline value type vs heap array ===")
-print("One full formability pass over the boundary list, both ways.")
+print("=== Letter counts: one full formability pass ===")
+// This used to measure InlineArray against [Int8] side by side. LetterCounts is
+// now [Int8]-backed on both sides of that comparison, so there is nothing left
+// to compare: the inline version was dropped to lower the deployment floor from
+// iOS 26 to iOS 17. The historical 2.5x figure is preserved in
+// docs/MEASUREMENTS.md, which is the right place for a number that no longer
+// describes the shipped code.
 let rack = "serenade"
-let inlineHits = time("LetterCounts (InlineArray, no allocation)") { () -> Int in
+let hits = time("LetterCounts over the boundary list") { () -> Int in
     let rackCounts = LetterCounts(rack)
-    var hits = 0
+    var found = 0
     for word in boundary where word.count >= 3 && rackCounts.canForm(LetterCounts(word)) {
-        hits += 1
+        found += 1
     }
-    return hits
+    return found
 }
-let arrayHits = time("[Int8] (heap allocation per word)") { () -> Int in
-    let rackCounts = letterCountsArray(rack)
-    var hits = 0
-    for word in boundary where word.count >= 3 && canFormArray(rackCounts, word) {
-        hits += 1
-    }
-    return hits
-}
-precondition(inlineHits == arrayHits, "the two shapes disagree — they are not the same function")
-print("  formable words: \(inlineHits)")
+print("  formable words: \(hits)")
 print("")
 
 print("=== End-to-end createPuzzle on a real rack ===")
