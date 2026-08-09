@@ -52,4 +52,12 @@ targets:
         CURRENT_PROJECT_VERSION: "1"
         SWIFT_VERSION: "6.0"
         TARGETED_DEVICE_FAMILY: "1"
-        CODE_SIGNING_ALLOWED: NO
+        # Signing lives here rather than in Xcode's UI, because this project is
+        # generated: anything set through Xcode's project settings is discarded
+        # the next time `xcodegen generate` runs. Source edits under App/ and
+        # Sources/ are safe; project settings are not.
+        #
+        # This was briefly CODE_SIGNING_ALLOWED: NO, which is fine for the
+        # simulator and blocks running on a real device.
+        CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: 9ML46U556H
