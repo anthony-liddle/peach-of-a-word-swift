@@ -29,6 +29,17 @@ Every link is checked for a 200 before it goes in.
 | `mutating func` | Marks a method that changes a value type. TS objects are all references, so there is nothing to mark. Load-bearing in Tasks 10 and 14. | [Swift book: Modifying Value Types from Within Instance Methods](https://docs.swift.org/swift-book/documentation/the-swift-programming-language/methods/#Modifying-Value-Types-from-Within-Instance-Methods) · [Structures and Classes](https://docs.swift.org/swift-book/documentation/the-swift-programming-language/classesandstructures/) |
 | Swift Testing | Not XCTest. `@Test`, `@Suite`, `#expect`, and `arguments:` for parameterised cases. | [Swift Testing documentation](https://developer.apple.com/documentation/testing) |
 
+### Task 2
+
+| Concept | Why it has no TypeScript analogue | Link |
+|---|---|---|
+| `enum Rung: String` | TS models this as a string union (`'set' \| 'uncommon' \| ...`), which is structural — any matching string literal is one. A Swift enum is a distinct nominal type, and a `switch` over it is checked for exhaustiveness. | [Swift book: Enumerations](https://docs.swift.org/swift-book/documentation/the-swift-programming-language/enumerations/) |
+| `extension Rung { ... }` | Adding members to a type after the fact, including to types you do not own. TS has declaration merging, but it cannot add methods with bodies. | [Swift book: Extensions](https://docs.swift.org/swift-book/documentation/the-swift-programming-language/extensions/) |
+| `switch` as an expression | `case 3: 1` with no `return`. The whole `switch` evaluates to a value. TS needs a lookup object or an IIFE. | [SE-0380: `if` and `switch` expressions](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0380-if-switch-expressions.md) |
+| `case 8...` | A one-sided range *pattern*, not a comparison. This is the branch the TypeScript left untested. | [Swift book: Patterns](https://docs.swift.org/swift-book/documentation/the-swift-programming-language/patterns/) |
+| `map(\.threshold)` | A key path used as a function. TS writes `.map(t => t.threshold)`; the key path is a first-class value that can be stored and passed. | [KeyPath reference](https://developer.apple.com/documentation/swift/keypath) |
+| `Sendable`, and why globals must be `let` | Swift 6 requires global state to be immutable and safe to share across concurrency domains. TS has no equivalent because it has no compiler-enforced concurrency model. | [Sendable reference](https://developer.apple.com/documentation/swift/sendable) · [Swift book: Concurrency](https://docs.swift.org/swift-book/documentation/the-swift-programming-language/concurrency/) |
+
 ## Writer's column — the agent's experience of writing it
 
 **On "elapsed":** wall-clock between commits includes time spent waiting on
@@ -40,6 +51,7 @@ plainly rather than quoting the totals as if they were stopwatch readings.
 | Task | Elapsed (agent-active, est.) | Awkward to write | Pleasant to write |
 |---|---|---|---|
 | 1. Scaffolding | ~20 min, of which maybe 4 was Swift | Nothing in the Swift itself. The time went to verifying the snapshot rather than writing code — and to the `wc -l` off-by-one, which was a real (small) prediction miss. | `InlineArray` forcing `swift-tools-version: 6.2` was already known from the planning spike, so the package built first try. Swift Testing's `arguments:` turned five near-identical count assertions into one parameterised test. |
+| 2. Config, `Rung`, scoring | ~8 min, nearly all Swift | Honestly nothing. This is the easiest possible task: pure functions over integers, no state, no concurrency, no Foundation. If Swift were going to feel hostile it would not be here. Worth saying so plainly rather than manufacturing friction. | `case 8...` is the standout. The TypeScript wrote `SCORE_BY_LENGTH[length] ?? (length > 8 ? 15 : 0)` — a lookup with a fallback expression — and never tested the fallback. As a `switch` the above-8 case is *visibly a case*, and writing it made not testing it feel like an omission. The language nudged toward the test. `switch`-as-expression also removed six `return`s. |
 
 ## Reader's column — Antoine's experience of reading it
 
