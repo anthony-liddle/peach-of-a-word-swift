@@ -11,9 +11,15 @@ question this experiment exists to answer.
 
 ## Writer's column — the agent's experience of writing it
 
-| Task | Elapsed | Awkward to write | Pleasant to write |
+**On "elapsed":** wall-clock between commits includes time spent waiting on
+review, so it overstates working time. The figures below are agent-active time,
+which is an estimate, not a measurement. Treat the *relative* costs across tasks
+as the real signal and the absolute numbers as soft. Task 16 must say this
+plainly rather than quoting the totals as if they were stopwatch readings.
+
+| Task | Elapsed (agent-active, est.) | Awkward to write | Pleasant to write |
 |---|---|---|---|
-| 1. Scaffolding | ~25 min | Nothing in the Swift itself. The time went to verifying the snapshot rather than writing code — and to the `wc -l` off-by-one, which was a real (small) prediction miss. | `InlineArray` forcing `swift-tools-version: 6.2` was already known from the planning spike, so the package built first try. Swift Testing's `arguments:` turned five near-identical count assertions into one parameterised test. |
+| 1. Scaffolding | ~20 min, of which maybe 4 was Swift | Nothing in the Swift itself. The time went to verifying the snapshot rather than writing code — and to the `wc -l` off-by-one, which was a real (small) prediction miss. | `InlineArray` forcing `swift-tools-version: 6.2` was already known from the planning spike, so the package built first try. Swift Testing's `arguments:` turned five near-identical count assertions into one parameterised test. |
 
 ## Reader's column — Antoine's experience of reading it
 
