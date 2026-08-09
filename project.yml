@@ -1,0 +1,52 @@
+# XcodeGen spec for the minimal SwiftUI app.
+#
+# This file exists because there is no way to create an iOS app target from the
+# terminal with stock tooling. SwiftPM builds libraries, executables and tests,
+# but it cannot produce an app bundle, and there is no `xcodebuild -create`.
+# So an app means an .xcodeproj, and an .xcodeproj means either hand-writing
+# pbxproj or generating it. That is a finding, not a footnote. See
+# docs/REPORT.md, question 4.
+#
+# Regenerate with: xcodegen generate
+# The generated .xcodeproj is committed too, so the repo opens without xcodegen.
+
+name: PeachMinimal
+options:
+  bundleIdPrefix: com.anthonyliddle.peachofaword
+  deploymentTarget:
+    iOS: "26.0"
+  createIntermediateGroups: true
+
+packages:
+  PeachEngine:
+    path: .
+
+targets:
+  PeachMinimal:
+    type: application
+    platform: iOS
+    sources:
+      - path: App
+      # A folder reference, so the word lists keep their directory structure
+      # inside the bundle and land at Bundle.main.resourceURL/Data/.
+      - path: Data
+        type: folder
+        buildPhase: resources
+    dependencies:
+      - package: PeachEngine
+        product: PeachEngine
+    info:
+      path: App/Info.plist
+      properties:
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: NO
+        PRODUCT_NAME: PeachMinimal
+        MARKETING_VERSION: "0.1"
+        CURRENT_PROJECT_VERSION: "1"
+        SWIFT_VERSION: "6.0"
+        TARGETED_DEVICE_FAMILY: "1"
+        CODE_SIGNING_ALLOWED: NO

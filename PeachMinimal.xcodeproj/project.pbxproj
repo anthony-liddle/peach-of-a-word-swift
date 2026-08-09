@@ -1,0 +1,358 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		08C8BE0EB81A0A0913AB7D1E /* PeachEngine in Frameworks */ = {isa = PBXBuildFile; productRef = A0001254A6DD675C2C821B6E /* PeachEngine */; };
+		379F6CDC292C009A15679485 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8EC6A09C5E098AF549CDE802 /* ContentView.swift */; };
+		42B2F660A623FD3CA87344E5 /* GameModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 976142F0A7032B2D976C5A6D /* GameModel.swift */; };
+		D0A498839A7369142292482D /* PeachMinimalApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEBA05907CBA1E79B5A0F219 /* PeachMinimalApp.swift */; };
+		D79ED1BBF137BF3935060C26 /* Data in Resources */ = {isa = PBXBuildFile; fileRef = 282695D12B85BF209B7BB32A /* Data */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		282695D12B85BF209B7BB32A /* Data */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Data; sourceTree = SOURCE_ROOT; };
+		72DE18D6E5A0492A2A8110DC /* peach-of-a-word-swift */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "peach-of-a-word-swift"; path = .; sourceTree = SOURCE_ROOT; };
+		8EC6A09C5E098AF549CDE802 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		976142F0A7032B2D976C5A6D /* GameModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameModel.swift; sourceTree = "<group>"; };
+		ABAC440104036A7BD2D52E7A /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		D3A7FCC1C5EE85FA94EDF6B0 /* PeachMinimal.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = PeachMinimal.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		FEBA05907CBA1E79B5A0F219 /* PeachMinimalApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PeachMinimalApp.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		F045F3A30EF647984DDF6097 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				08C8BE0EB81A0A0913AB7D1E /* PeachEngine in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		169AC83860B1713DDAD24DAC /* App */ = {
+			isa = PBXGroup;
+			children = (
+				8EC6A09C5E098AF549CDE802 /* ContentView.swift */,
+				976142F0A7032B2D976C5A6D /* GameModel.swift */,
+				ABAC440104036A7BD2D52E7A /* Info.plist */,
+				FEBA05907CBA1E79B5A0F219 /* PeachMinimalApp.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		2E5E93DAFD3C06346EE35339 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				D3A7FCC1C5EE85FA94EDF6B0 /* PeachMinimal.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		47F6A7AC98F15B33053E1D66 = {
+			isa = PBXGroup;
+			children = (
+				282695D12B85BF209B7BB32A /* Data */,
+				169AC83860B1713DDAD24DAC /* App */,
+				FC0EC3F5623691E3FAAEAC25 /* Packages */,
+				2E5E93DAFD3C06346EE35339 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		FC0EC3F5623691E3FAAEAC25 /* Packages */ = {
+			isa = PBXGroup;
+			children = (
+				72DE18D6E5A0492A2A8110DC /* peach-of-a-word-swift */,
+			);
+			name = Packages;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		9704D3231D211CC02334EAE4 /* PeachMinimal */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B6CCB70AAE2D0EAA5E3E84C4 /* Build configuration list for PBXNativeTarget "PeachMinimal" */;
+			buildPhases = (
+				205D9D64AD35A7E312B28574 /* Sources */,
+				0B362AB8D24CEEFCA10F413B /* Resources */,
+				F045F3A30EF647984DDF6097 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = PeachMinimal;
+			packageProductDependencies = (
+				A0001254A6DD675C2C821B6E /* PeachEngine */,
+			);
+			productName = PeachMinimal;
+			productReference = D3A7FCC1C5EE85FA94EDF6B0 /* PeachMinimal.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		8F7542F821A2D3F293C2687D /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+				};
+			};
+			buildConfigurationList = A44E77CD5AB5D1862B5CAE69 /* Build configuration list for PBXProject "PeachMinimal" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 47F6A7AC98F15B33053E1D66;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				46C054E2B6C2680BB852C940 /* XCLocalSwiftPackageReference "." */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 2E5E93DAFD3C06346EE35339 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				9704D3231D211CC02334EAE4 /* PeachMinimal */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		0B362AB8D24CEEFCA10F413B /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D79ED1BBF137BF3935060C26 /* Data in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		205D9D64AD35A7E312B28574 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				379F6CDC292C009A15679485 /* ContentView.swift in Sources */,
+				42B2F660A623FD3CA87344E5 /* GameModel.swift in Sources */,
+				D0A498839A7369142292482D /* PeachMinimalApp.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		5EA65783EEA0060AC5CA80EF /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		D514B10D776731F3268D2787 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGNING_ALLOWED = NO;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = App/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = com.anthonyliddle.peachofaword.PeachMinimal;
+				PRODUCT_NAME = PeachMinimal;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		E259FA654FB95D6209008F51 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		E30A9341943575557294502A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGNING_ALLOWED = NO;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = App/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = com.anthonyliddle.peachofaword.PeachMinimal;
+				PRODUCT_NAME = PeachMinimal;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		A44E77CD5AB5D1862B5CAE69 /* Build configuration list for PBXProject "PeachMinimal" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5EA65783EEA0060AC5CA80EF /* Debug */,
+				E259FA654FB95D6209008F51 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		B6CCB70AAE2D0EAA5E3E84C4 /* Build configuration list for PBXNativeTarget "PeachMinimal" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				D514B10D776731F3268D2787 /* Debug */,
+				E30A9341943575557294502A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		46C054E2B6C2680BB852C940 /* XCLocalSwiftPackageReference "." */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = .;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		A0001254A6DD675C2C821B6E /* PeachEngine */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = PeachEngine;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 8F7542F821A2D3F293C2687D /* Project object */;
+}

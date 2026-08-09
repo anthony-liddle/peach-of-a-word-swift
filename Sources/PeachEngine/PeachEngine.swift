@@ -15,11 +15,23 @@ public let repositoryRoot: URL = URL(fileURLWithPath: #filePath)
 /// Directory holding the frozen data snapshot. See SNAPSHOT.md.
 public let dataDirectory: URL = repositoryRoot.appendingPathComponent("Data")
 
-/// Read a newline-delimited word list, trimming blanks. Used by the benchmark
-/// and by any test that wants the real lists rather than a fixture.
-public func readWordList(_ name: String) throws -> [String] {
+/// Read a newline-delimited word list, trimming blanks.
+///
+/// `directory` defaults to `dataDirectory`, which is derived from `#filePath`
+/// and therefore only exists on the machine that compiled the package. That is
+/// fine for the tests and the benchmark, which run from the source tree.
+///
+/// It is NOT fine for an app. An app bundle has no repo root, so the SwiftUI
+/// target passes `Bundle.main.resourceURL` instead. Note the trap: the iOS
+/// Simulator shares the Mac filesystem, so the baked-in `#filePath` path still
+/// resolves there and a naive app would appear to work in the simulator and
+/// fail on a real device.
+public func readWordList(
+    _ name: String,
+    in directory: URL = dataDirectory
+) throws -> [String] {
     let text = try String(
-        contentsOf: dataDirectory.appendingPathComponent(name),
+        contentsOf: directory.appendingPathComponent(name),
         encoding: .utf8
     )
     return text.split(separator: "\n").compactMap {
