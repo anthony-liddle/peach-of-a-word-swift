@@ -1123,45 +1123,72 @@ Both text sizes were re-verified after the fix.
 
 ## Did you open Xcode previews?
 
-**Attempted, partially, and still not usefully answered. This is the fourth
-session running and it remains the biggest unmeasured unknown.**
+**Yes. Answered at last, and the answer is that they work well.**
 
-What happened, in order:
+An earlier draft of this section said "attempted, partially, and still not
+usefully answered". That was true when written and is now superseded. It is kept
+below in outline because how it failed is itself the finding.
 
-1. Opened `ContentView.swift` in Xcode with `xed`.
-2. Sent Option-Command-Return to toggle the canvas. **Nothing happened.**
-   Synthetic keystrokes to Xcode do not take, the same failure that blocked
-   typing into the text field in part two and tapping a tile in part three.
-3. Discovered that **menu automation does work** where keystrokes do not.
-   Enumerated Xcode's Editor menu and clicked the Canvas item directly.
-4. Tried to screenshot the result, which triggered a **macOS screen-recording
-   permission prompt for the terminal**. That is a system privacy decision, so
-   it was left for a human rather than accepted on their behalf.
-5. Confirmed indirectly that the click landed: the Editor menu item that read
-   "Canvas" now reads "Preview". But every editor menu item is currently
-   disabled, which is consistent with that permission modal still holding focus.
+### What it took to get there
 
-So: the canvas was probably turned on, and it was never seen or used. The visual
-work in this session was done the same way as the previous three, by building to
-the simulator and screenshotting with `simctl`.
+1. Option-Command-Return to toggle the canvas did nothing.
+2. Menu automation **does** work where the keystroke appeared not to. Enumerated
+   Xcode's Editor menu and clicked "Canvas" directly. The canvas opened.
+3. It opened **paused**. Option-Command-P resumed it, and this time the keystroke
+   did land, so the earlier failure was almost certainly the editor not having
+   focus rather than keystrokes being blocked outright. The window also had to be
+   enlarged first: at its original size every Editor menu item was disabled.
+4. First render took roughly two to three minutes from resume.
 
-**What that loop is actually like**, since it is the honest comparison available:
-roughly 40 seconds from edit to seeing the result, most of it `xcodebuild`. Good
-enough to iterate on colour and spacing, and clearly worse than a canvas that
-re-renders live. Four or five iterations went into the tiles alone, and each one
-cost the better part of a minute.
+### What the canvas actually does
 
-**The standing pattern is now unmistakable.** Across four sessions, every attempt
-to drive Xcode or iOS UI from a terminal has failed: keystrokes to the simulator,
-AppleScript clicks on the simulator, keystrokes to Xcode. Menu clicking works,
-and screenshotting the desktop needs a permission a human must grant. Whatever
-else Xcode adds to a native project, **it owns the interactive surface**, and an
-agent working headlessly is locked out of the part of SwiftUI development that is
-most likely to be its strength.
+It rendered the **whole real app**, not a static mock: the bundled Fredoka
+wordmark, the tiles, the controls, and the rack showing today's actual
+`motorway` letters. That means the preview ran the `@Observable` model, the
+detached background task, and the ~200 ms read of five word lists out of the app
+bundle. Nothing had to be stubbed for it.
+
+### The loop, measured
+
+The number that matters, measured rather than estimated:
+
+| | |
+|---|---|
+| Edit to updated pixels, **preview canvas** | **about 3 seconds** |
+| Edit to updated pixels, **build and run to simulator** | about 40 seconds |
+
+The test: change `glyphSize` from 54 to 30, poll screenshots of the canvas
+region, and compare hashes until it changed. Three seconds, and the render was
+correct rather than an error state. The rack even reshuffled, so it re-ran the
+whole app rather than patching a view.
+
+**That is more than a tenfold difference, and the edit was made from outside
+Xcode with `sed`.** The canvas picked up a file change from a completely
+different process. Nothing about this loop requires editing inside Xcode, which
+matters for an agent: the fast path is available without driving the editor.
+
+### What this changes
+
+The previous three sessions each estimated a full SwiftUI rebuild without knowing
+this. Those estimates were made on a 40 second loop and should be read as
+pessimistic on the visual work specifically. Layout and styling are exactly the
+tasks a 3 second loop transforms, and they are the bulk of what remains.
+
+It does not change the estimates for logic, which the terminal loop already
+served well.
+
+### The honest caveat
+
+Getting here needed a human twice: once to grant screen recording so the canvas
+could be seen at all, and the whole path depended on menu automation working
+where it easily might not have. **An agent cannot currently discover this loop
+unaided**, and on three prior sessions it did not. That is worth more than the
+3 seconds as a finding about what working on a native project is actually like.
 
 ## Owed
 
-- **Xcode previews**, still.
+- ~~**Xcode previews**~~ **Done.** Working, measured at about 3 seconds per
+  iteration, and usable from outside Xcode.
 - **The kicker wraps to two lines** at phone width. The web wraps here too, so
   this may be faithful rather than wrong, but it was not compared side by side
   against a real screenshot.
