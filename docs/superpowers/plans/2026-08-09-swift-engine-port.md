@@ -59,7 +59,8 @@ Public API surface, referenced across tasks:
 | `EngineError` | `enum: Error` | 11 |
 | `dayIndex` | `(Date, epoch: EpochDate, timeZone: TimeZone) -> Int` | 12 |
 | `dailySourceWord` | `(calendar:date:epoch:timeZone:) throws -> String` | 13 |
-| `EndlessSource` | `struct` + `mutating func next() -> String` | 14 |
+| `RandomSource`, `Mulberry32` | `protocol` with `mutating func next() -> Double`, conforming `struct` | 10 |
+| `EndlessSource` | `struct EndlessSource<R: RandomSource>` + `mutating func next() -> String` | 14 |
 
 ---
 
@@ -1870,6 +1871,17 @@ Expected: FAIL — `cannot find 'seededPermutation' in scope`.
 /// Deterministic, seeded shuffling. Shared by the daily cycle reshuffle and the
 /// calendar generator so both draw the same stream from the same seed.
 
+/// A source of uniform values in [0, 1).
+///
+/// `mutating func` rather than a `() -> Double` closure, deliberately: a
+/// closure would capture its state by reference, so anything holding one would
+/// share a cursor with everything else holding a copy. As a protocol with a
+/// mutating requirement, the state lives in the conforming value, and copying
+/// the holder forks the stream. Task 14 depends on this.
+public protocol RandomSource {
+    mutating func next() -> Double
+}
+
 /// Deterministic PRNG. Same seed, same stream.
 ///
 /// A faithful port of the JavaScript `mulberry32`, which is written in terms of
@@ -1882,15 +1894,15 @@ Expected: FAIL — `cannot find 'seededPermutation' in scope`.
 /// A `struct` with a `mutating func`, not a closure over a captured variable:
 /// the state is visible in the type, and a copy of the generator is genuinely
 /// independent of the original.
-struct Mulberry32 {
+public struct Mulberry32: RandomSource {
     private var a: UInt32
 
-    init(seed: UInt32) {
+    public init(seed: UInt32) {
         a = seed
     }
 
     /// The next value in [0, 1).
-    mutating func next() -> Double {
+    public mutating func next() -> Double {
         a = a &+ 0x6d2b_79f5
         var t = (a ^ (a >> 15)) &* (1 | a)
         t = ((t &+ ((t ^ (t >> 7)) &* (61 | t))) ^ t)
@@ -2621,15 +2633,20 @@ This is the most interesting shape decision in the port. In TypeScript it is a c
 - a `struct` with `mutating func next()` — value semantics, so a copy is an independent stream, and every holder must declare it `var`;
 - a `final class` with `func next()` — reference semantics, matching the closure's behaviour exactly, since two references share one cursor.
 
-**Pick one, and write down in `docs/PORT-LOG.md` which you picked, why, and what the other would have cost.** The plan below uses the `struct`, because value semantics are the Swift default and the surprise of "a copy is a separate stream" is the thing worth feeling. If the class turns out to fit better while writing it, switch and record that instead — the tests below pass either way apart from the `var` on the declaration.
+The plan uses the **struct**, because value semantics are Swift's default and the surprise of "a copy is a separate stream" is the thing worth feeling.
+
+**The randomness has to be generic for that to be true.** A `rng: @escaping () -> Double` parameter would smuggle reference semantics back in: a closure captures its state by reference, so a copy of the struct would share the caller's generator and the two streams would diverge the moment either crossed a pass boundary. That is why Task 10 defines `RandomSource` as a protocol with a `mutating` requirement, and why `EndlessSource` is generic over it and stores it as a `var`. This is subtle and easy to get wrong — the whole reason it is spelled out here rather than left to the executor.
+
+**Write down in `docs/PORT-LOG.md` how the value-semantics constraint actually felt**: the generic parameter, the `var` on every declaration, and whether a `final class` would have been the more honest translation.
 
 **Files:**
 - Create: `Sources/PeachEngine/EndlessSource.swift`
+- Modify: `Sources/PeachEngine/Shuffle.swift` (nothing to change — `RandomSource` and `Mulberry32` already land in Task 10)
 - Create: `Tests/PeachEngineTests/EndlessSourceTests.swift`
 
 **Interfaces:**
-- Consumes: `seededPermutation` (Task 10), `EngineError` (Task 12).
-- Produces: `struct EndlessSource` with `init(calendar:exclude:previous:rng:) throws` and `mutating func next() -> String`.
+- Consumes: `seededPermutation` and `RandomSource` (Task 10), `EngineError` (Task 12).
+- Produces: `struct EndlessSource<R: RandomSource>` with `init(calendar:exclude:previous:rng:) throws` and `mutating func next() -> String`.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -2645,8 +2662,9 @@ struct EndlessSourceTests {
     let calendar = ["alpha", "bravo", "charlie", "delta", "echo"]
 
     /// A deterministic stand-in for a random source, so every draw is
-    /// reproducible. A struct with a mutating func, mirroring Mulberry32.
-    struct TestRNG {
+    /// reproducible. A struct conforming to RandomSource, so a copy of the
+    /// EndlessSource holding it forks this too.
+    struct TestRNG: RandomSource {
         private var a: UInt32
         init(seed: UInt32 = 1) { a = seed }
         mutating func next() -> Double {
@@ -2657,14 +2675,17 @@ struct EndlessSourceTests {
 
     /// Build a source wired to a seeded test RNG.
     func source(seed: UInt32 = 1, exclude: String? = nil,
-                previous: String? = nil, calendar: [String]? = nil) throws -> EndlessSource {
-        var rng = TestRNG(seed: seed)
-        return try EndlessSource(calendar: calendar ?? self.calendar,
-                                 exclude: exclude, previous: previous,
-                                 rng: { rng.next() })
+                previous: String? = nil,
+                calendar: [String]? = nil) throws -> EndlessSource<TestRNG> {
+        try EndlessSource(calendar: calendar ?? self.calendar,
+                          exclude: exclude, previous: previous,
+                          rng: TestRNG(seed: seed))
     }
 
-    func draw(_ s: inout EndlessSource, _ count: Int) -> [String] {
+    // `inout` is Swift's explicit pass-by-reference marker, needed because
+    // `next()` is mutating and this helper has to advance the caller's copy
+    // rather than a local one. Part of the cost of the value-semantics choice.
+    func draw(_ s: inout EndlessSource<TestRNG>, _ count: Int) -> [String] {
         (0..<count).map { _ in s.next() }
     }
 
@@ -2740,22 +2761,27 @@ struct EndlessSourceTests {
     @Test("throws on an empty calendar")
     func emptyCalendar() {
         #expect(throws: EngineError.emptyCalendar) {
-            var rng = TestRNG()
             _ = try EndlessSource(calendar: [], exclude: nil, previous: nil,
-                                  rng: { rng.next() })
+                                  rng: TestRNG())
         }
     }
 
     // No TypeScript counterpart, and the whole reason for choosing a struct: in
     // TypeScript the source is a closure, so handing it to two callers hands
-    // them one shared cursor. Here a copy is an independent stream. This test
-    // documents that difference rather than asserting the old behaviour.
-    @Test("a copy is an independent stream (value semantics)")
+    // them one shared cursor. Here a copy is an independent stream.
+    //
+    // The draws deliberately cross a pass boundary. Staying inside one pass
+    // would prove nothing: both copies would just be reading the same
+    // already-computed `order` at the same position. Only a reshuffle calls
+    // `rng.next()`, so only crossing the boundary shows whether the generator
+    // forked with the copy or is still shared. It is exactly the assertion that
+    // fails if `rng` is a captured closure instead of a stored RandomSource.
+    @Test("a copy is an independent stream, across a pass boundary")
     func valueSemantics() throws {
         var a = try source(seed: 11)
-        _ = a.next()
-        var b = a           // a copy, not a reference
-        #expect(a.next() == b.next())
+        _ = draw(&a, 3)       // mid-pass, cursor at 3 of 5
+        var b = a             // a copy, not a reference
+        #expect(draw(&a, 8) == draw(&b, 8))  // 8 draws: two reshuffles each
     }
 }
 ```
@@ -2793,14 +2819,23 @@ Expected: FAIL — `cannot find 'EndlessSource' in scope`.
 /// The struct is used here because value semantics are Swift's default and the
 /// surprise — that handing a copy to someone else does not share the cursor —
 /// is the thing worth understanding early. The cost is real: `var` on every
-/// declaration, `inout` to pass it to a helper, and no way to share one stream
-/// between two owners without wrapping it.
-public struct EndlessSource {
+/// declaration, `inout` to pass it to a helper, a generic parameter that
+/// spreads to every type that mentions this one, and no way to share one stream
+/// between two owners without deliberately wrapping it.
+///
+/// The generic `R: RandomSource` is load-bearing, not decoration. A
+/// `rng: @escaping () -> Double` parameter would look simpler and would quietly
+/// destroy the value semantics: a closure captures its state by reference, so
+/// two copies of this struct would share one generator and diverge as soon as
+/// either crossed a pass boundary. Storing the generator as a `var` of a
+/// protocol type with a `mutating` requirement is what makes a copy a genuine
+/// fork.
+public struct EndlessSource<R: RandomSource> {
     private let pool: [String]
     private var order: [Int] = []
     private var position: Int
     private var last: String?
-    private let rng: () -> Double
+    private var rng: R
 
     /// - Parameters:
     ///   - calendar: the eligible words to draw from.
@@ -2808,13 +2843,13 @@ public struct EndlessSource {
     ///     daily word.
     ///   - previous: the word already on screen, so the very first draw differs
     ///     from it.
-    ///   - rng: injectable for testing. Called once per pass, to seed that
-    ///     pass's shuffle.
+    ///   - rng: the randomness. Advanced once per pass, to seed that pass's
+    ///     shuffle. Injectable so tests are reproducible.
     public init(
         calendar: [String],
         exclude: String? = nil,
         previous: String? = nil,
-        rng: @escaping () -> Double
+        rng: R
     ) throws {
         guard !calendar.isEmpty else { throw EngineError.emptyCalendar }
         let remaining = calendar.filter { $0 != exclude }
@@ -2831,7 +2866,12 @@ public struct EndlessSource {
     public mutating func next() -> String {
         let n = pool.count
         if position >= n {
-            order = seededPermutation(n, seed: UInt32(rng() * 4_294_967_296.0))
+            // Clamped before scaling: `UInt32(1.0 * 4_294_967_296)` overflows
+            // and TRAPS. Mulberry32 cannot return 1.0, but an injected
+            // RandomSource can, and a crash inside a library is a worse failure
+            // than a wrapped seed.
+            let unit = min(max(rng.next(), 0), 0.999_999_999_9)
+            order = seededPermutation(n, seed: UInt32(unit * 4_294_967_296.0))
             if n > 1 && pool[order[0]] == last {
                 order.swapAt(0, 1)
             }
@@ -3072,7 +3112,9 @@ Do not claim the suite passes without running it and reading the output.
 
 **Spec coverage.** Scoring curve → Task 2. Rarity classification → Task 4. `computeTier` → Task 6. Completion → Task 7. Calendar lookup with both epochs → Tasks 2, 12, 13. `createPuzzle` and the size-15 floor → Tasks 5, 9. `createEndlessSource` → Task 14. Swift Testing → all test tasks. `dayIndex` with injectable `TimeZone` → Task 12. Oracle → Task 11 (with the documented cut-down). Both letter-count shapes measured → Tasks 3, 15. Data snapshot, 7 files, SHA recorded → Task 1. Release-mode load timing → Task 15. Report with both directions of friction → Task 16. Minimal scaffolding, Swift `.gitignore`, README framing → Task 1.
 
-**Verified before writing, not assumed:** `InlineArray` compiles on this toolchain and forces `swift-tools-version: 6.2` + `.macOS(.v26)`; the `Mulberry32` port reproduces Node's `seededPermutation(20, 7)`, `(50, 123)`, and `(5, 0x5e1ec7ed)` exactly; `seedForCycle` via `Int64` reproduces Node's `[2654435761, 1013904226, 3668339987, 145972072]`; the `dayIndex` port matches Node on all ten `America/Los_Angeles` DST instants; Swift Testing's `arguments:` works in a package built this way.
+**Verified before writing, not assumed:** `InlineArray` compiles on this toolchain and forces `swift-tools-version: 6.2` + `.macOS(.v26)`; the `Mulberry32` port reproduces Node's `seededPermutation(20, 7)`, `(50, 123)`, and `(5, 0x5e1ec7ed)` exactly; `seedForCycle` via `Int64` reproduces Node's `[2654435761, 1013904226, 3668339987, 145972072]`; the `dayIndex` port matches Node on all ten `America/Los_Angeles` DST instants; Swift Testing's `arguments:` works in a package built this way; `EndlessSource<R: RandomSource>` genuinely forks on copy across a pass boundary, and the `static let` fixtures (`Fixture.puzzle`, `OracleFixture.shared`) initialize without a Swift 6 concurrency complaint.
+
+**Checked and found not to be a problem:** the `cal.dateComponents([.day], from: startOfDay, to: startOfDay)` one-liner was hunted for divergence from the faithful `dayIndex` port across `America/Santiago`, `Asia/Beirut`, `America/Havana`, and `Asia/Amman` — all midnight-DST-transition zones — and never diverged. Task 12 keeps the faithful port anyway (it mirrors the TypeScript) but records the finding rather than re-investigating.
 
 **Hand-derived values, since confirmed against Node:** Task 12's `twoEpochs`
 (220 and 47), the `zoneMatters` instant (`1788609600` = 2026-09-05T12:00:00Z),
