@@ -7,8 +7,15 @@
 # pbxproj or generating it. That is a finding, not a footnote. See
 # docs/REPORT.md, question 4.
 #
-# Regenerate with: xcodegen generate
-# The generated .xcodeproj is committed too, so the repo opens without xcodegen.
+# Generate with: xcodegen generate
+#
+# This file is the only source of truth for the project. The .xcodeproj is NOT
+# committed, so a fresh clone has no project until that command is run, and
+# ci_scripts/ci_post_clone.sh runs it on every Xcode Cloud build.
+#
+# It was committed for a while, so the repo would open without XcodeGen. That
+# made this file and the generated project two descriptions of the same thing,
+# with nothing to stop them disagreeing.
 
 name: PeachOfAWord
 options:
