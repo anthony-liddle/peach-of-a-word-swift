@@ -33,9 +33,21 @@ struct ContentView: View {
 
             switch model.phase {
             case .loading:
-                ProgressView("Loading the dictionary")
-                    .tint(Cute.accent)
-                    .foregroundStyle(Cute.inkSoft)
+                // The kicker lives here now. It came off the play screen
+                // because an app does not need to announce what it is every
+                // session, but a splash is exactly where that line belongs, and
+                // it is also where the dictionary load hides.
+                VStack(spacing: 18) {
+                    PeachMark().frame(width: 72, height: 72)
+                    Text("A game about finding words in words")
+                        .font(CuteFont.body(12, weight: "SemiBold", relativeTo: .caption))
+                        .tracking(4.4)
+                        .textCase(.uppercase)
+                        .foregroundStyle(Cute.accentDeep)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 32)
+                    ProgressView().tint(Cute.accent)
+                }
             case .failed(let message):
                 ContentUnavailableView(
                     "Could not start",
@@ -49,6 +61,24 @@ struct ContentView: View {
         // `.task` runs when the view appears and is cancelled automatically if
         // it disappears. It is the SwiftUI answer to useEffect with an empty
         // dependency array, minus the cleanup function.
+        .sheet(item: $model.celebration) { celebration in
+            SourceRevealCard(
+                word: celebration.word,
+                points: celebration.points,
+                wordsGrown: model.puzzle?.commonWords.count ?? 0
+            ) {
+                model.celebration = nil
+            }
+            // Medium rather than full, so the board stays visible behind it and
+            // this reads as a moment rather than an interruption. Drag to
+            // dismiss comes free, which is the reason for a sheet over an
+            // overlay.
+            // Large is offered as well as medium, so accessibility text sizes
+            // have somewhere to go rather than being squeezed into a fixed
+            // height.
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+        }
         .task {
             await model.load()
             #if DEBUG
@@ -358,13 +388,16 @@ private struct TileButton: View {
             .frame(maxHeight: maxTileHeight)
             .frame(minHeight: Cute.minTapTarget)
         }
-        .buttonStyle(.plain)
+        // The slab now lives in the press style, so it can shorten as the tile
+        // descends onto it rather than staying put while the tile moves.
+        .buttonStyle(TilePressStyle(slabColour: placed ? .clear : Cute.surfaceShadow,
+                                    shape: shape))
         .disabled(placed)
         // A placed tile keeps its face and loses its slab, so it sits down into
         // the rack. 0.32 is the web's value: dimmed but still legible, which is
         // the difference between reading as unavailable and reading as absent.
-        .cuteSlab(shape, color: placed ? .clear : Cute.surfaceShadow, y: 5)
         .opacity(placed ? 0.32 : 1)
+        .motion(Feel.bounce, value: placed)
         .accessibilityLabel("Letter \(letter)\(placed ? ", already picked" : "")")
     }
 }
@@ -517,6 +550,9 @@ private struct MessageLine: View {
             case .accepted(let word, let points, let rung):
                 Text("\(word), \(points) points" + (rung == .set ? "" : " (\(rung.rawValue))"))
                     .foregroundStyle(rung == .set ? Cute.accent : Cute.discovery)
+            case .sourceFound:
+                Text("You found the Peach of a Word!")
+                    .foregroundStyle(Cute.accent)
             case .rejected(let message):
                 Text(message).foregroundStyle(Cute.inkFaint)
             }

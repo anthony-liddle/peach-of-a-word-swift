@@ -74,10 +74,14 @@ struct TierMeterView: View {
                     // The streak has been stored and read since persistence
                     // landed but had nowhere to live, because the toolbar is out
                     // of scope. This is its natural home.
-                    Label("\(streak)", systemImage: "flame.fill")
-                        .labelStyle(.titleAndIcon)
-                        .foregroundStyle(Cute.crown)
-                        .monospacedDigit()
+                    // A flame and a number said nothing about what it counted.
+                    // The word is short enough to just print.
+                    HStack(spacing: 3) {
+                        Image(systemName: "flame.fill")
+                        Text("\(streak) day\(streak == 1 ? "" : "s")")
+                            .monospacedDigit()
+                    }
+                    .foregroundStyle(Cute.crown)
                         .accessibilityLabel("Streak: \(streak) \(streak == 1 ? "day" : "days")")
                 }
             }
@@ -115,6 +119,7 @@ struct TierMeterView: View {
         // session: a GeometryReader consumes all offered space rather than
         // reporting an intrinsic size.
         .frame(height: 12)
+        .motion(Feel.settle, value: standing.score)
         .background(Cute.paperDeep)
         .clipShape(Capsule())
         .overlay(Capsule().stroke(Cute.ink, lineWidth: 1))

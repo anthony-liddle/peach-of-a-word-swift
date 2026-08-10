@@ -27,9 +27,10 @@ final class GameModel {
     }
 
     /// What just happened to a submitted guess. Drives the one-line feedback.
-    enum Feedback {
+    enum Feedback: Equatable {
         case none
         case accepted(word: String, points: Int, rung: Rung)
+        case sourceFound
         case rejected(String)
     }
 
@@ -39,6 +40,19 @@ final class GameModel {
     private(set) var found: [String] = []
     private(set) var feedback: Feedback = .none
     private(set) var loadMilliseconds: Double = 0
+
+    /// The source word, once found, until the card is dismissed.
+    ///
+    /// On most days this fires in the opening seconds: the source word is what
+    /// gets cracked on sight. So it is a moment, not a gate, and clearing it
+    /// must return to a fully playable board.
+    var celebration: Celebration?
+
+    struct Celebration: Identifiable {
+        let word: String
+        let points: Int
+        var id: String { word }
+    }
 
     /// The persisted streak, as of the day this session loaded.
     private(set) var streak: Int = 0
@@ -324,6 +338,7 @@ final class GameModel {
     func addTile(_ id: Int) {
         guard !composing.contains(id) else { return }
         composing.append(id)
+        Feel.tilePress()
     }
 
     /// Place the first unused tile bearing this letter, in rack order.
@@ -425,16 +440,26 @@ final class GameModel {
         // through, which is the whole point of it being an enum with associated
         // values rather than an object with a `kind` string.
         switch result {
-        case .valid(let word, let score, let rung, _):
+        case .valid(let word, let score, let rung, let isSourceWord):
             found.insert(word, at: 0)
-            feedback = .accepted(word: word, points: score, rung: rung)
+            if isSourceWord {
+                feedback = .sourceFound
+                celebration = Celebration(word: word, points: score)
+                Feel.sourceWord()
+            } else {
+                feedback = .accepted(word: word, points: score, rung: rung)
+                Feel.find()
+            }
             foundDidChange()
         case .tooShort:
             feedback = .rejected("Too short. Three letters or more.")
+            Feel.reject()
         case .notAWord:
             feedback = .rejected("Not a word you can make from these letters.")
+            Feel.reject()
         case .alreadyFound:
             feedback = .rejected("Already found.")
+            Feel.reject()
         }
     }
 }

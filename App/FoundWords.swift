@@ -124,10 +124,8 @@ func buildGroups(_ words: [FoundWord], in puzzle: Puzzle) -> [LengthGroup] {
 /// sparkle, gem) where the letterpress theme uses drawn shapes; these are the
 /// cute ones, since that is what v1 ships.
 ///
-/// The source word is a peach in `--crown`. The web draws one rather than using
-/// the colour emoji, to sit with the rest of the flat motif art; this is a
-/// filled circle in the same peach, which reads at mark size and keeps both the
-/// shape and the colour distinct from every other mark.
+/// The source word is the peach itself, ported from the web's own artwork. See
+/// `PeachMark`.
 struct RarityMark: View {
     let category: WordCategory
     @ScaledMetric(relativeTo: .body) private var size: CGFloat = 13
@@ -136,7 +134,9 @@ struct RarityMark: View {
         Group {
             switch category {
             case .source:
-                Circle().fill(Cute.crown).frame(width: size * 0.82, height: size * 0.82)
+                // The face turns to mud at mark size, so the silhouette carries
+                // it here. The card shows the full peach.
+                PeachMark(showsFace: false).frame(width: size, height: size)
             case .set:
                 Text("\u{2665}")      // heart
             case .uncommon:
