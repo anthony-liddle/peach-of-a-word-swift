@@ -1976,3 +1976,43 @@ The haptics, again. The simulator has none, so the four-level gradient remains a
 designed intention. The difference this time is that one specific bug in it has
 been found and fixed, so the thing being judged is a pattern that actually
 reaches full intensity rather than one that never did.
+
+## The seed flag lost to saved progress
+
+Reported from the phone: `-seedBoard hierarchy` appeared to do nothing, because
+the day was already saved as complete.
+
+**The bug.** Seeding ran after load, and it *added* to whatever storage had
+restored rather than replacing it. On a day already saved complete, every seeded
+word was already present, so nothing changed and the flag looked like it had
+worked. `completionSeen` was also carried over from the restored board, so even
+finishing a freshly seeded board would have celebrated nothing.
+
+**The fix, and which of the two options.** `-seedBoard` now **clears the day
+itself** before seeding, rather than requiring `-resetProgress` alongside it.
+Correct behaviour should not depend on remembering a second flag, and a seed
+means "the board is exactly this". `-resetProgress` still exists for the
+separate case of wanting an empty board, and it now also clears `completionSeen`
+so a re-completed day celebrates properly.
+
+`completionSeen` is recomputed from the **seeded** board rather than the saved
+one, so a seed landing short of completion can still celebrate when finished,
+and a seed landing complete does not celebrate a peak that was not played.
+
+Verified end to end: seed `almost`, complete it (72 words), then seed
+`hierarchy` over that complete save. Before the fix the board stayed at 72;
+after it, 38. Finding the source word and then the last set word from that
+seeded state fires the completion card correctly, with the peach card correctly
+dropped in favour of it.
+
+## Confirming two items from the previous batch
+
+Both landed. They were written up in the Part eight sections rather than Part
+nine, which is why the last report read as silent on them.
+
+- **Glossary line height.** `chipHeight` is 24 (the web's `min-height: 24px`),
+  `verticalSpacing` is 5 (its `0.3rem`), and the tap target comes from
+  `touchInset` of 10 via the pad, `contentShape`, negative-pad pattern. Shipped
+  in `2f2bdb8`.
+- **Splash copy.** "Loading the dictionary" is gone. The splash carries the
+  peach and "A game about finding words in words". Shipped in `877f2ed`.
