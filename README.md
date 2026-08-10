@@ -24,11 +24,13 @@ drifted from the files it describes.
 
 ## Running it
 
-Requires **Xcode 26 or newer** to build the app, and Swift 6.0+ for the engine
-alone. The package targets **macOS 14 and iOS 17**; that is the deployment
-floor, set by the app's use of `@Observable` and `ContentUnavailableView`, and
-is separate from the SDK it compiles against. See
-[CONTRIBUTING.md](CONTRIBUTING.md) for why the app target needs the newer SDK.
+Requires Swift 6.0+ and Xcode 16.4 or newer. The package targets **macOS 14 and
+iOS 17**, a floor set by the app's use of `@Observable` and
+`ContentUnavailableView`, not by the engine.
+
+CI builds the app on both the newest Xcode and the oldest supported one, because
+the deployment floor is only real if the app still compiles without the newest
+SDK. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ```bash
 # XcodeGen is required. The .xcodeproj is generated and is not in the repo.

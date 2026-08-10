@@ -13,15 +13,26 @@ xcodegen generate
 open PeachOfAWord.xcodeproj
 ```
 
-**Xcode 26 or newer** to build the app. The package targets macOS 14 and iOS 17,
-which is the deployment floor and a separate thing from the SDK it compiles
-against: `App/Feel.swift` calls UIKit's feedback generators from nonisolated
-functions, and those APIs are `@MainActor` in the iOS 18 SDK and `nonisolated`
-from the iOS 26 SDK. On Xcode 16.4 the app target does not compile. The app
-still runs on iOS 17.
+Swift 6.0+ and Xcode 16.4 or newer. The package targets macOS 14 and iOS 17.
 
-The engine has no such constraint. `swift test` passes on Swift 6.1, so
-`Sources/` and `Tests/` can be worked on with an older toolchain.
+## Two Xcodes, on purpose
+
+CI builds the app twice: on the newest Xcode, which is what Xcode Cloud ships
+with, and on the oldest supported one (`build-oldest-sdk`, macOS 15 / Xcode
+16.4). Both are required checks.
+
+The second is not redundant. A deployment floor of iOS 17 is only real if the
+app still compiles without the newest SDK, and it is possible to lose that by
+accident without touching anything that looks version specific. `App/Feel.swift`
+did: it called UIKit's feedback generators from nonisolated functions, and those
+APIs are `@MainActor` in the iOS 18 SDK and `nonisolated` from the iOS 26 SDK.
+The file compiled on Xcode 26 and failed on Xcode 16.4.
+
+Nothing catches that except a compiler with the older SDK. The API exists in
+both, so availability checks against the deployment target pass; no `@available`
+guard is involved; and there is nothing in this repository to grep for, because
+the difference lives in Apple's declarations. If `build-oldest-sdk` fails and
+the newer job passes, that is what you are looking at.
 
 ## The one rule that will catch you out
 
