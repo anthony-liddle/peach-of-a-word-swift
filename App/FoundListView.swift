@@ -7,8 +7,11 @@ import PeachEngine
 /// be written by hand rather than expressed. The web says
 /// `display: flex; flex-wrap: wrap; gap: 0.3rem 0.75rem` and is done.
 struct FlowLayout: Layout {
+    // The web uses `gap: 0.3rem 0.75rem`: a small row gap and a larger column
+    // gap. The asymmetry is the point. An equal gap makes wrapped rows read as
+    // separate lines rather than as one continuous flow of words.
     var horizontalSpacing: CGFloat = 12
-    var verticalSpacing: CGFloat = 6
+    var verticalSpacing: CGFloat = 2
 
     /// Split the subviews into rows that fit the proposed width.
     private func rows(_ subviews: Subviews, width: CGFloat) -> [[(Int, CGSize)]] {
@@ -58,7 +61,14 @@ struct FlowLayout: Layout {
 /// One found word: its mark, the word, and what it was worth.
 private struct WordChip: View {
     let found: FoundWord
-    @ScaledMetric(relativeTo: .body) private var target: CGFloat = 44
+    /// A deliberate trade against the 44pt guideline.
+    ///
+    /// At 44 the chip box is more than twice the height of its text, so wrapped
+    /// rows sat far apart and read as separate lines rather than as flowing
+    /// words. 38 keeps a comfortable target (the chips are wide, and the
+    /// smallest dimension is the one the guideline is really about) while
+    /// closing the row pitch by a quarter.
+    @ScaledMetric(relativeTo: .body) private var target: CGFloat = 38
 
     var body: some View {
         Button {

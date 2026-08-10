@@ -91,19 +91,32 @@ struct ContentView: View {
                     .padding(.vertical, 8)
                 }
             } else {
-                VStack(spacing: 12) {
+                // Explicit spacing rather than one uniform VStack gap, because
+                // the gaps are not all the same job: feedback belongs tight to
+                // the well it reports on, and the rack wants less room beneath
+                // it than the uniform 12pt was giving it.
+                VStack(spacing: 0) {
                     header
                     ComposingStick(word: model.composedWord)
-                    TypeCase(model: model)
+                        .padding(.top, 12)
+                    // Feedback lives here, directly under the well it reports
+                    // on, and it lives here permanently. It previously sat
+                    // between the rack and the list, immediately above the
+                    // summary line, where the two read as one slot alternating
+                    // between a count and a message. They are different things:
+                    // the summary describes the board, this describes the last
+                    // submission. Both now have a fixed home and neither moves
+                    // as words are found.
                     MessageLine(feedback: model.feedback)
+                        .padding(.top, 6)
+                    TypeCase(model: model)
+                        .padding(.top, 8)
 
-                    ScrollView {
-                        foundList.padding(.bottom, 8)
-                    }
-                    .scrollIndicators(.hidden)
-                    .frame(maxHeight: .infinity)
+                    scrollingList
+                        .padding(.top, 10)
 
                     Controls(model: model)
+                        .padding(.top, 10)
                 }
                 .padding(.horizontal, 18)
                 .padding(.top, 4)
@@ -135,6 +148,71 @@ struct ContentView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// The scrolling list, with its boundaries faded.
+    ///
+    /// A plain ScrollView clips its content at a hard edge, so mid-scroll a
+    /// group header was sliced through the middle of its text: top half gone,
+    /// bottom half sitting against the background. That reads as broken rather
+    /// than as scrolled.
+    ///
+    /// Two fixes were available: start the scroll region below the rack so
+    /// nothing ever passes under it, or fade the content out as it reaches the
+    /// boundary. **The fade wins**, because the region already starts below the
+    /// rack: the slicing is the ScrollView's own edge, not the rack overlapping
+    /// it, so moving things would not have helped. A fade is also the native
+    /// treatment and it keeps the signal that there is more above, which a hard
+    /// edge with nothing cut off would lose.
+    ///
+    /// The gradient is opaque through the middle and only eats the outer few
+    /// points, so it never dims content that is fully in view.
+    private var scrollingList: some View {
+        ScrollView {
+            // Padding inside the scrolled content, so at rest the fade eats
+            // this rather than the first row. Without it the summary line sat
+            // inside the gradient and rendered dimmed while fully in view.
+            foundList.padding(.vertical, 16)
+        }
+        .scrollIndicators(.hidden)
+        // Debug only: anchoring to the bottom shows the scrolled state, which
+        // is the only state the clipping bug appears in and the only way to see
+        // it without a gesture, since simctl cannot scroll.
+        .modifier(DebugScrollAnchor())
+        .frame(maxHeight: .infinity)
+        .mask(alignment: .center) {
+            LinearGradient(
+                // The fade band is kept smaller than the 16pt content padding
+                // above, so at rest it falls entirely inside the padding and
+                // never dims a row that is fully in view. Mid-scroll it is what
+                // content dissolves into instead of being sliced.
+                stops: [
+                    .init(color: .clear, location: 0),
+                    .init(color: .black, location: 0.032),
+                    .init(color: .black, location: 0.95),
+                    .init(color: .clear, location: 1),
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        }
+    }
+}
+
+/// Anchors the found list to its bottom when `-scrollBottom 1` is passed, so
+/// the scrolled state can be screenshotted. Debug builds only, and a no-op
+/// everywhere else.
+private struct DebugScrollAnchor: ViewModifier {
+    func body(content: Content) -> some View {
+        #if DEBUG
+        if UserDefaults.standard.bool(forKey: "scrollBottom") {
+            content.defaultScrollAnchor(.bottom)
+        } else {
+            content
+        }
+        #else
+        content
+        #endif
     }
 }
 
@@ -194,7 +272,12 @@ private struct TypeCase: View {
     // Adaptive columns so the grid reflows when Dynamic Type grows the tiles,
     // rather than hardcoding four across. This is the CSS grid auto-fit
     // equivalent and it is the one place the layout had to think.
-    @ScaledMetric(relativeTo: .largeTitle) private var tileMinWidth: CGFloat = 62
+    // Sized so exactly four columns fit at full phone width, which is the
+    // 4x2 rack the game is built around. Removing the old 310pt width cap let a
+    // fifth column squeeze in and split the rack 5 and 3, which looked wrong.
+    // It still reflows at accessibility sizes, where the scaled minimum grows
+    // past what four columns can hold.
+    @ScaledMetric(relativeTo: .largeTitle) private var tileMinWidth: CGFloat = 78
 
     var body: some View {
         LazyVGrid(
@@ -211,12 +294,21 @@ private struct TypeCase: View {
                 }
             }
         }
-        // The tiles keep their 3:4 ratio, so the only way to make them shorter
-        // is to make them narrower. Capping the rack rather than letting it span
-        // the full width trims roughly a fifth off the height and buys the space
-        // the found list needed.
-        .frame(maxWidth: 310)
-        .frame(maxWidth: .infinity)
+        // Full width, matching the compose well above: that is the column the
+        // eye reads down, and a narrower rack inside it looked inset for no
+        // reason.
+        //
+        // The rack was previously capped at 310pt purely to make the tiles
+        // shorter, because with a fixed 3:4 ratio narrowing was the only lever
+        // available. The lever used instead is a **capped tile height**: the
+        // tile fills its column and its height is a scaled constant, so the
+        // width comes back without the height following it.
+        //
+        // The cost is that the tiles are no longer exactly 3:4. At full width on
+        // a 402pt phone a column is about 85pt, so a 102pt tile is roughly 5:6
+        // rather than 3:4. The web's are 79x105 at its narrower phone width, so
+        // this is a slightly squarer tile on a larger screen, which the brief
+        // allows and which keeps the rack full width.
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Letter tiles")
     }
@@ -240,6 +332,11 @@ private struct TileButton: View {
     // minimumScaleFactor is the backstop for the extreme sizes.
     @ScaledMetric(relativeTo: .largeTitle) private var glyphSize: CGFloat = 46
 
+    /// Capped rather than derived from the width, which is what lets the rack
+    /// run full width without the tiles growing taller. Scaled, so Dynamic Type
+    /// still grows them.
+    @ScaledMetric(relativeTo: .largeTitle) private var tileHeight: CGFloat = 102
+
     var body: some View {
         Button(action: action) {
             ZStack {
@@ -252,10 +349,11 @@ private struct TileButton: View {
                     .minimumScaleFactor(0.4)
                     .padding(4)
             }
-            // Taller than wide. This is most of why they read as tiles rather
-            // than as buttons.
-            .aspectRatio(3.0 / 4.0, contentMode: .fit)
-            .frame(minHeight: Cute.minTapTarget)
+            // Still taller than wide, which is most of why they read as tiles
+            // rather than as buttons, but the height is now a capped constant
+            // rather than a ratio of the width.
+            .frame(maxWidth: .infinity)
+            .frame(height: max(tileHeight, Cute.minTapTarget))
         }
         .buttonStyle(.plain)
         .disabled(placed)
@@ -288,7 +386,7 @@ private struct Controls: View {
     var body: some View {
         VStack(spacing: 9) {
             HStack(spacing: 10) {
-                PillButton("⌫", kind: .delete, disabled: empty,
+                PillButton(kind: .delete, disabled: empty,
                            label: "Delete last letter") { model.removeLast() }
                     // The web gives Submit `flex: 2` against Delete's `flex: 1`.
                     // Capping Delete is the simple approximation of that ratio
@@ -316,7 +414,7 @@ private struct PillButton: View {
     var label: String? = nil
     let action: () -> Void
 
-    init(_ title: String, kind: Kind, disabled: Bool = false,
+    init(_ title: String = "", kind: Kind, disabled: Bool = false,
          label: String? = nil, action: @escaping () -> Void) {
         self.title = title
         self.kind = kind
@@ -324,6 +422,14 @@ private struct PillButton: View {
         self.label = label
         self.action = action
     }
+
+    /// The delete control carries an icon rather than a glyph in a text font.
+    /// It is the only icon-only control on the screen and was the least legible
+    /// thing on it: a backspace character set in a body face renders far smaller
+    /// than the words beside it. The web makes `.btn--delete` a size larger than
+    /// its siblings for exactly this reason; an SF Symbol is sized as an icon,
+    /// which is the same intent expressed the native way.
+    @ScaledMetric(relativeTo: .title3) private var deleteGlyph: CGFloat = 26
 
     /// The most-used controls on the screen, so they are the biggest. The
     /// primary pair runs taller than the utility pair beneath it.
@@ -363,21 +469,25 @@ private struct PillButton: View {
 
     var body: some View {
         Button(action: action) {
-            Text(title)
-                // 0.875rem uppercase with 0.14em tracking, as the web has it.
-                // The delete glyph runs a little larger (1.05rem) so it does not
-                // read as smaller than the words beside it.
-                .font(kind == .delete
-                      ? CuteFont.body(19, weight: "SemiBold", relativeTo: .body)
-                      : CuteFont.body(15, weight: kind == .primary ? "SemiBold" : "Regular",
-                                      relativeTo: .subheadline))
-                .tracking(kind == .delete ? 0 : 2.1)
-                .textCase(kind == .delete ? nil : .uppercase)
-                .foregroundStyle(foreground)
-                .frame(maxWidth: .infinity)
-                .frame(minHeight: height)
-                .background(Capsule().fill(fill))
-                .overlay(Capsule().stroke(border, lineWidth: 1))
+            Group {
+                if kind == .delete {
+                    Image(systemName: "delete.left")
+                        .font(.system(size: deleteGlyph, weight: .medium))
+                } else {
+                    // 0.875rem uppercase with 0.14em tracking, as the web has it.
+                    Text(title)
+                        .font(CuteFont.body(15,
+                                            weight: kind == .primary ? "SemiBold" : "Regular",
+                                            relativeTo: .subheadline))
+                        .tracking(2.1)
+                        .textCase(.uppercase)
+                }
+            }
+            .foregroundStyle(foreground)
+            .frame(maxWidth: .infinity)
+            .frame(minHeight: height)
+            .background(Capsule().fill(fill))
+            .overlay(Capsule().stroke(border, lineWidth: 1))
         }
         .buttonStyle(.plain)
         .disabled(disabled)
