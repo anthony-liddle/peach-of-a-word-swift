@@ -1,16 +1,6 @@
 import SwiftUI
 import PeachEngine
 
-/// The six named ranks, cute skin, from the web repo's `themeCopy.ts`.
-/// The engine owns the ladder structure; these are a skin over the index.
-let cuteTierNames = [
-    "First Sprout", "Little Bud", "Blossom", "Ripening", "Sweet", "Perfectly Peachy",
-]
-
-/// The completion crown: the rank above the six, reached by finding every set
-/// word rather than by points.
-let cuteCrownName = "Peachy Keen Supreme"
-
 /// The goal bar: a points climb toward the rack's reachable score.
 ///
 /// **Everything here is read off `TierStanding`.** Nothing is recomputed. The
@@ -37,7 +27,7 @@ struct TierMeterView: View {
     private var completed: Bool { isComplete(standing) }
 
     private var label: String {
-        completed ? cuteCrownName : cuteTierNames[min(standing.index, cuteTierNames.count - 1)]
+        completed ? Vocabulary.crownName : Vocabulary.tierNames[min(standing.index, Vocabulary.tierNames.count - 1)]
     }
 
     var body: some View {
@@ -68,12 +58,12 @@ struct TierMeterView: View {
                     .monospacedDigit()
                 Group {
                     if let next = standing.next {
-                        Text("Next: \(cuteTierNames[next.index]) at \(Int((next.threshold * 100).rounded()))%")
+                        Text("Next: \(Vocabulary.tierNames[next.index]) at \(Int((next.threshold * 100).rounded()))%")
                     } else {
                         // "Top rank" is enough. The explanation that the full
                         // set is the peak does not need to live here
                         // permanently; the completion card says it properly.
-                        Text("Top rank")
+                        Text(Vocabulary.ladderPeak)
                     }
                 }
                 Spacer(minLength: 4)

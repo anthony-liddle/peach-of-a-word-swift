@@ -183,28 +183,114 @@ struct AppVocabularyTests {
 
     // MARK: - The strings this app does skin
 
-    /// Ported from `themeCopy.test.ts:136`, which asserts the cute completion
-    /// line. Asserted against the source text for the reason given at the top
-    /// of this file: there is no way to import an `App/` view from here.
-    @Test("the completion card carries the cute line, not the letterpress one")
-    func completionLineIsSkinned() throws {
-        let card = try #require(
-            Self.sources.first { $0.name == "CompletionCard.swift" }
-        )
-        let literals = Self.stringLiterals(in: card.text)
-        #expect(literals.contains("Every common word these letters can grow, picked."))
+    // MARK: - The vocabulary itself
+
+    /// `Copy.swift`'s string literals, with the interpolations resolved.
+    ///
+    /// The scanner sees `"The \(container) is empty."` as
+    /// `The (container) is empty.`, because it treats a backslash as an escape
+    /// and keeps what follows. Rather than asserting that mangled form, the
+    /// interpolations are substituted back, so the expectations below can be
+    /// the web's actual strings and a reader can compare them by eye.
+    static let vocabularyLiterals: [String] = {
+        let source = sources.first { $0.name == "Copy.swift" }?.text ?? ""
+        return stringLiterals(in: source).map {
+            $0.replacingOccurrences(of: "(container)", with: "basket")
+              .replacingOccurrences(of: "(containerCapitalized)", with: "Basket")
+        }
+    }()
+
+    /// The container noun exists at all, which is the thing that was missing.
+    ///
+    /// Four strings drifted into placeholder-generic and the common thread was
+    /// a noun that had never been ported. This asserts the noun and, below,
+    /// that the strings are built from it rather than spelling it out, so
+    /// changing basket to crate stays a one-line change.
+    @Test("the container noun is defined once and the strings are built from it")
+    func containerNoun() throws {
+        let copy = try #require(Self.sources.first { $0.name == "Copy.swift" })
+        #expect(Self.stringLiterals(in: copy.text).contains("basket"))
+        // Spelled out rather than interpolated would still render correctly and
+        // would silently break the one-line swap, so it is worth its own check.
+        for literal in Self.stringLiterals(in: copy.text) where literal != "basket" {
+            #expect(
+                !literal.lowercased().contains("basket"),
+                "a string spells out the container noun instead of interpolating it: \(literal)"
+            )
+        }
     }
 
-    /// The rest of the cute vocabulary this app actually uses, so the guard is
-    /// not only an absence check. An absence test passes on an app with no
-    /// strings in it at all.
-    @Test("the cute vocabulary the app does carry is present", arguments: [
-        ("SourceRevealCard.swift", "The peach every word grew from"),
-        ("ContentView.swift", "Pick letters to make a word"),
-        ("ContentView.swift", "Pick word"),
+    /// The cute values, against the web's `themeCopy.ts`.
+    ///
+    /// Ported from `themeCopy.test.ts`, which asserts the same strings for the
+    /// same reason. Four of these were placeholder-generic until the vocabulary
+    /// module landed, and a value test is the only thing that stops them
+    /// drifting back: nothing about "Found words will collect here." is
+    /// detectably wrong to a machine.
+    @Test("every skinned string carries its cute value", arguments: [
+        // The four that were generic.
+        "Pick the peaches",
+        "No words picked yet. The basket is empty.",
+        "Back to the basket",
+        "Basket full",
+        // The one that was outright letterpress, from themeCopy.test.ts:136.
+        "Every common word these letters can grow, picked.",
+        // The one that was missing entirely.
+        "Picking the peaches.",
+        // The ones that were already right, so the guard is not only a
+        // regression list. An absence test passes on an app with no strings.
+        "Pick word",
+        "Pick letters to make a word",
+        "The peach every word grew from",
+        "You found the Peach of a Word!",
+        "Peachy Keen Supreme",
     ])
-    func cuteVocabularyPresent(file: String, phrase: String) throws {
-        let source = try #require(Self.sources.first { $0.name == file })
-        #expect(Self.stringLiterals(in: source.text).contains { $0.contains(phrase) })
+    func cuteValue(phrase: String) {
+        #expect(
+            Self.vocabularyLiterals.contains(phrase),
+            "missing from Copy.swift: \(phrase)"
+        )
+    }
+
+    /// The retired placeholders, which must not come back anywhere.
+    ///
+    /// Separate from the value test above because a value can be present while
+    /// a stale duplicate still renders somewhere else. This is the check that a
+    /// half-finished revert would fail.
+    @Test("no retired placeholder string survives", arguments: [
+        "A game about finding words in words",
+        "Found words will collect here.",
+        "Every common word the rack can spell, found.",
+    ])
+    func retiredPlaceholder(phrase: String) {
+        let offenders = Self.sources.filter {
+            Self.stringLiterals(in: $0.text).contains { $0.contains(phrase) }
+        }.map(\.name)
+        #expect(offenders == [], "retired placeholder still in use: \(phrase)")
+    }
+
+    /// The skinned strings live in `Copy.swift` and nowhere else.
+    ///
+    /// This is the closest thing to the web's "vocabulary lives only in the
+    /// copy module" rule that is enforceable here, and it is what would have
+    /// caught the original four: a themed string spelled out in a view is a
+    /// string nobody compares against the theme.
+    ///
+    /// It cannot catch a *new* generic string, and no test can. "Found words
+    /// will collect here." is grammatical, on topic, and wrong only by
+    /// comparison with a file in another repository. That judgement is human,
+    /// and pretending otherwise would be a check that looks like coverage
+    /// without being any.
+    @Test("no view duplicates a string the vocabulary already owns")
+    func noDuplicatedVocabulary() {
+        let owned = Set(Self.vocabularyLiterals.filter { $0.count > 8 })
+        let offenders = Self.sources
+            .filter { $0.name != "Copy.swift" }
+            .flatMap { source in
+                Self.stringLiterals(in: source.text)
+                    .filter { owned.contains($0) }
+                    .map { "\(source.name): \"\($0)\"" }
+            }
+        #expect(offenders == [], "spelled out in a view instead of read from Vocabulary")
     }
 }

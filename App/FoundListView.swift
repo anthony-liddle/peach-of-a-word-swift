@@ -138,7 +138,7 @@ struct FoundListView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             if found.isEmpty {
-                Text("Found words will collect here.")
+                Text(Vocabulary.emptyFoundList)
                     .font(CuteFont.body(15, relativeTo: .subheadline))
                     .foregroundStyle(Cute.inkFaint)
                     .frame(maxWidth: .infinity, alignment: .center)
@@ -151,6 +151,7 @@ struct FoundListView: View {
                     }
                 }
             }
+            Colophon()
         }
     }
 
@@ -220,8 +221,8 @@ struct FoundListView: View {
             title: "Peach of a Word",
             date: boardDate,
             tierLabel: complete
-                ? cuteCrownName
-                : cuteTierNames[min(standing.index, cuteTierNames.count - 1)],
+                ? Vocabulary.crownName
+                : Vocabulary.tierNames[min(standing.index, Vocabulary.tierNames.count - 1)],
             setFound: standing.setFound,
             setTotal: standing.setTotal,
             uncommon: words.filter { $0.category == .uncommon }.count,

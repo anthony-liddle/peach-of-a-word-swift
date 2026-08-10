@@ -217,6 +217,22 @@ final class GameModel {
             )
         }
 
+        #if DEBUG
+        // Hold the splash open, so the loading line can actually be looked at.
+        //
+        // The dictionary loads in about 200ms on a Mac, which is far too quick
+        // to screenshot by racing it: the attempt caught the launch animation
+        // instead. A string nobody can see is a string nobody can check, and
+        // this one had been missing entirely without anyone noticing.
+        //
+        // Debug only, like every other launch hook here, so it cannot reach a
+        // shipping build.
+        let holdSeconds = UserDefaults.standard.double(forKey: "holdLoading")
+        if holdSeconds > 0 {
+            try? await Task.sleep(for: .seconds(holdSeconds))
+        }
+        #endif
+
         switch built {
         case .success(let p):
             puzzle = p
