@@ -22,6 +22,23 @@ struct ContentView: View {
     /// The smallest found list worth calling a list: a group heading and a row
     /// of chips. Scales with Dynamic Type, because a floor in fixed points
     /// would itself be crushed at large sizes.
+    ///
+    /// **This floor decides that a 667pt phone scrolls at every text size**,
+    /// including the default, where it previously used the fixed layout. That
+    /// was considered and kept, for two reasons.
+    ///
+    /// The 40pt it had there was never a list. It was a heading and a clipped
+    /// word row, and trading a real list for a touch-down commit on the one
+    /// phone that cannot display the list is the wrong way round. The
+    /// complaint that started this work was about flow while composing, which
+    /// a 40pt viewport does not help either.
+    ///
+    /// It also gives that phone **one layout instead of two**, so it never
+    /// switches regimes as text size changes. That is the same "same shape at
+    /// every size" property that made the fixed layout attractive in the first
+    /// place, and a short phone is the one device that can actually have it.
+    /// Two regimes with a boundary nobody could observe is what produced the
+    /// untestable path this replaces.
     @ScaledMetric(relativeTo: .body) private var minimumListHeight: CGFloat = 52
     #if TAP_RECORDER
     @Environment(\.scenePhase) private var scenePhase
