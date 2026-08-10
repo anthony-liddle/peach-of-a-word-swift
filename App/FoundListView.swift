@@ -85,12 +85,19 @@ private struct WordChip: View {
     /// height.
     @ScaledMetric(relativeTo: .body) private var touchInset: CGFloat = 10
 
+    /// **Deliberately not a button.**
+    ///
+    /// These were built as real buttons with real 44pt targets so the definition
+    /// reveal could drop in later. But the reveal is blocked on the WordNet
+    /// decision, and in the meantime a control that invites a tap and then
+    /// ignores it is worse than a label: it reads as broken, and VoiceOver
+    /// announces "button" and promises an action that never comes.
+    ///
+    /// So they are inert until there is something to show. The chip structure,
+    /// the marks, the points and the row rhythm are all unchanged; restoring
+    /// the button is wrapping this in one when the reveal lands, not a rebuild.
     var body: some View {
-        Button {
-            // The definition reveal is out of scope for v1. This is a real
-            // button with a real label and a real target so the reveal drops in
-            // later without restructuring the list.
-        } label: {
+        Group {
             HStack(spacing: 5) {
                 RarityMark(category: found.category)
                 Text(found.word)
@@ -107,13 +114,8 @@ private struct WordChip: View {
                 }
             }
             .frame(minHeight: chipHeight)
-            // Grow, claim the grown bounds as the hit region, then collapse the
-            // layout back. The touch area stays large; the row does not.
-            .padding(.vertical, touchInset)
-            .contentShape(Rectangle())
-            .padding(.vertical, -touchInset)
         }
-        .buttonStyle(.plain)
+        .accessibilityElement(children: .combine)
         .accessibilityLabel(
             "\(found.word), \(found.category.spokenName), "
             + counted(found.score, "point")
@@ -125,6 +127,9 @@ struct FoundListView: View {
     let puzzle: Puzzle
     let found: [String]
     let standing: TierStanding
+    /// The date the board belongs to, so a share names the right day even if
+    /// midnight has passed while the app stayed open.
+    var boardDate: Date = Date()
 
     // One classification pass, shared by the summary and the groups, so a word
     // is never Rare in one readout and something else in the other.
@@ -169,6 +174,8 @@ struct FoundListView: View {
                     .font(CuteFont.body(15, weight: "SemiBold", relativeTo: .subheadline))
                     .foregroundStyle(Cute.ink)
                     .monospacedDigit()
+                Spacer(minLength: 8)
+                shareButton
             }
             if !counts.isEmpty {
                 HStack(spacing: 6) {
@@ -187,6 +194,43 @@ struct FoundListView: View {
             }
         }
         .accessibilityElement(children: .combine)
+    }
+
+    /// The daily share.
+    ///
+    /// Pulled into v1 from v2 for a reason specific to this game: the morning
+    /// ritual of sending the result is most of why it gets played, and moving
+    /// to an app without it would take that away.
+    ///
+    /// The text is built by the engine from a value that has no source word in
+    /// it, so a daily share cannot leak the answer. `ShareLink` gives the native
+    /// sheet for free.
+    private var shareButton: some View {
+        ShareLink(item: shareText) {
+            Label("Share", systemImage: "square.and.arrow.up")
+                .font(CuteFont.body(13, weight: "SemiBold", relativeTo: .footnote))
+                .foregroundStyle(Cute.accent)
+        }
+        .accessibilityLabel("Share today's result")
+    }
+
+    private var shareText: String {
+        let complete = isComplete(standing)
+        return buildShareText(DailyShareResult(
+            title: "Peach of a Word",
+            date: boardDate,
+            tierLabel: complete
+                ? cuteCrownName
+                : cuteTierNames[min(standing.index, cuteTierNames.count - 1)],
+            setFound: standing.setFound,
+            setTotal: standing.setTotal,
+            uncommon: words.filter { $0.category == .uncommon }.count,
+            rare: words.filter { $0.category == .rare }.count,
+            mythic: words.filter { $0.category == .mythic }.count,
+            setPoints: standing.setPoints,
+            offPagePoints: standing.offPagePoints,
+            totalPoints: standing.score
+        ))
     }
 
     private func groupView(_ group: LengthGroup) -> some View {

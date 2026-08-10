@@ -37,7 +37,7 @@ swift run -c release peach-bench        # dictionary load + letter-count timings
 
 # The app. Regenerate the project only if you change project.yml.
 xcodegen generate
-xcodebuild -project PeachMinimal.xcodeproj -scheme PeachMinimal \
+xcodebuild -project PeachOfAWord.xcodeproj -scheme PeachOfAWord \
   -configuration Release \
   -destination 'platform=iOS Simulator,name=iPhone 17 Pro' build
 ```

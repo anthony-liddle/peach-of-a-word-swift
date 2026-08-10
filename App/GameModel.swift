@@ -87,6 +87,11 @@ final class GameModel {
     /// under yesterday's key rather than leaking into today.
     private var storageDayIndex: Int?
 
+    /// The moment this board was built for. Captured with the day index, for the
+    /// same reason: if midnight passes while the app is open the board on screen
+    /// is still yesterday's, and a share of it must say yesterday's date.
+    private(set) var boardDate = Date()
+
     /// How many times progress has been written this session.
     ///
     /// Exists to prove a property rather than to implement one: taps, delete,
@@ -227,6 +232,7 @@ final class GameModel {
             // day and cost a streak. See StorageEpochTests.
             let day = dayIndex(Self.now, epoch: storageEpoch, timeZone: .current)
             storageDayIndex = day
+            boardDate = Self.now
             found = storage.loadDayProgress(dayIndex: day, sourceWord: p.sourceWord)
             streak = storage.currentStreak(todayIndex: day)
             // A day restored already complete has had its moment. Only the

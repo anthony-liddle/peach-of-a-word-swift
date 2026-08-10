@@ -179,7 +179,8 @@ struct ContentView: View {
     private var foundList: some View {
         Group {
             if let puzzle = model.puzzle, let standing = model.standing {
-                FoundListView(puzzle: puzzle, found: model.found, standing: standing)
+                FoundListView(puzzle: puzzle, found: model.found,
+                              standing: standing, boardDate: model.boardDate)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
