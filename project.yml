@@ -178,3 +178,41 @@ targets:
         TARGETED_DEVICE_FAMILY: "1"
         CODE_SIGN_STYLE: Automatic
         DEVELOPMENT_TEAM: 9ML46U556H
+
+  # UI tests, which exist because four separate questions could not be answered
+  # any other way.
+  #
+  # Previews, typing into the simulator, tapping a tile, and scrolling a view
+  # were each worked around with a launch argument. Launch arguments can put the
+  # app into a state; they cannot perform a gesture, and the remaining questions
+  # on the accessibility path are all gestures. This is the instrument that
+  # should have existed after the second workaround.
+  #
+  # Not in the app scheme's testTargets. `xcodebuild test` and Xcode Cloud
+  # therefore do not run these, which is deliberate for now: the delivery
+  # pipeline took three pull requests to get green and a flaky UI test is the
+  # classic way to lose it again. Run them explicitly:
+  #
+  #   xcodebuild test -scheme PeachOfAWord -only-testing:PeachOfAWordUITests \
+  #     -destination 'platform=iOS Simulator,name=iPhone 15'
+  PeachOfAWordUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: UITests
+    dependencies:
+      - target: PeachOfAWord
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: com.anthonyliddle.peachofaword.uitests
+        TEST_TARGET_NAME: PeachOfAWord
+        SWIFT_VERSION: "6.0"
+        TARGETED_DEVICE_FAMILY: "1"
+        CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: 9ML46U556H
+    # Its own scheme, so these can be run without putting them in the app
+    # scheme, which is what Xcode Cloud and GitHub Actions test.
+    scheme:
+      testTargets:
+        - PeachOfAWordUITests

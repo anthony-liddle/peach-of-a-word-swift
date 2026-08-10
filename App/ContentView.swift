@@ -370,6 +370,20 @@ private struct TypeCase: View {
     /// to Dynamic Type, which is what it always should have been.
     private var columnCount: Int { dynamicTypeSize.isAccessibilitySize ? 3 : 4 }
 
+    /// Whether tiles commit on touch down.
+    ///
+    /// Off at accessibility sizes, where the whole screen is a scroll view and
+    /// a zero-distance drag on a tile fires before the system can know whether
+    /// the finger is tapping or starting a scroll. That was a reasoned call,
+    /// never observed, which is what `RackScrollTests` exists to settle. The
+    /// override lets one swipe be run against both configurations.
+    private var commitOnTouchDown: Bool {
+        #if DEBUG
+        if UserDefaults.standard.bool(forKey: "forceTouchDown") { return true }
+        #endif
+        return !dynamicTypeSize.isAccessibilitySize
+    }
+
     private var columns: [GridItem] {
         Array(repeating: GridItem(.flexible(), spacing: 9), count: columnCount)
     }
@@ -391,7 +405,7 @@ private struct TypeCase: View {
                         // wraps the whole screen at accessibility sizes. That
                         // path is already flagged as untested, so it keeps the
                         // Button until it is looked at properly.
-                        commitOnTouchDown: !dynamicTypeSize.isAccessibilitySize,
+                        commitOnTouchDown: commitOnTouchDown,
                         tileID: id
                     )
                 }
