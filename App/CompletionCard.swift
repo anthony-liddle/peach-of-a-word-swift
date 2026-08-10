@@ -49,7 +49,15 @@ struct CompletionCard: View {
                             .multilineTextAlignment(.center)
                             .fixedSize(horizontal: false, vertical: true)
 
-                        Text("Every common word the rack can spell, found.")
+                        // The cute skin, from themeCopy.ts:197. This shipped
+                        // for a while carrying the letterpress line ("the rack
+                        // can spell, found"), which is type-case vocabulary
+                        // standing in the middle of the peach celebration.
+                        // A rack is letterpress; these letters grow, and what
+                        // you do with them is pick. AppVocabularyTests asserts
+                        // the string so the next drift fails a test rather
+                        // than waiting to be noticed a fourth time.
+                        Text("Every common word these letters can grow, picked.")
                             .font(CuteFont.body(15, relativeTo: .subheadline))
                             .foregroundStyle(Cute.inkSoft)
                             .multilineTextAlignment(.center)

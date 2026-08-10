@@ -174,7 +174,7 @@ report cannot settle.
 
 ## Bugs the port surfaced in the web repo
 
-Four, of which two were found *by porting* rather than by reading. None fixed —
+Five, of which two were found *by porting* rather than by reading. None fixed —
 the web repo is out of scope for this experiment. Each deserves its own change.
 
 ### 1. Completion is computed twice, in the UI, and one copy is unguarded
@@ -221,6 +221,26 @@ its fixture. The Swift port sides with the implementation and has a test
 
 Not a bug — the fossil of one. The warning survives into the Swift port because
 it records exactly the failure mode of finding #1.
+
+### 5. The cute colophon credits typefaces `ATTRIBUTION.md` does not
+
+Found later, while writing this repo's own attribution file rather than by
+porting code.
+
+`src/ui/themeCopy.ts:196` sets the cute theme's type credit to "Written in
+Fredoka and Nunito." `ATTRIBUTION.md` credits only Fraunces and Spectral, the
+letterpress pair. So the app tells its players it is set in two typefaces that
+its attribution file never names, and the SIL Open Font License notice for
+neither appears anywhere in the repo.
+
+Lower stakes there than here, because the web fetches its fonts at build time
+into `scripts/.cache/` rather than redistributing the binaries, and the OFL's
+notice requirement bites hardest on redistribution. This repo does redistribute
+them, which is why `App/Fonts/OFL-Fredoka.txt` and `OFL-Nunito.txt` are
+committed. Still a gap: the credit the web shows and the credit it documents
+disagree, and the fix is two lines in a file that already exists.
+
+Unfixed, like the four above. The web repo stays canonical.
 
 Also noted, cosmetic: none of the five shipped word lists ends in a trailing
 newline, so `wc -l` under-reports every one of them by one.
