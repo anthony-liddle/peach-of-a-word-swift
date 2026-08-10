@@ -1811,3 +1811,68 @@ mark and card size, and Reduce Motion.
 to feel a spring through a screenshot. The gradient above is a designed
 intention, not a measured result, and it is the one part of this pass that needs
 a hand on the phone.
+
+## Chip rhythm: sized from text, target from hit area
+
+The 38pt chip was the cause, not the gap. It gave roughly 30pt of box around
+20pt of text, so wrapped rows read as separate lines however small the gap got.
+
+Chips are now **24pt of layout height**, matching the web's `min-height: 24px`,
+with a 5pt row gap, matching its `0.3rem`. The tap target comes from hit-area
+expansion instead: pad the frame, claim the padded bounds with `contentShape`,
+then collapse the layout back with negative padding. The touch region is about
+44pt; the row costs 24.
+
+**The justification is in the code, not just here**, so it does not later read
+as a quietly lowered standard. 44pt is Apple's figure for standalone controls.
+WCAG 2.5.8 sets 24 by 24 and carves out an explicit exception for inline targets
+constrained by the line height of surrounding text, which is exactly what these
+are: words in a flowing paragraph, not buttons in a row.
+
+## Replaying the celebration
+
+Two debug flags, both `#if DEBUG` with the rest.
+
+- `-resetProgress 1` wipes today's saved words so the board starts empty and the
+  source word can be found for real.
+- `-replaySource 1` clears the day and then plays the source word **through the
+  ordinary path**: composed tile by tile and submitted. The haptic, the feedback
+  line, the card and the save all happen exactly as in play, rather than the
+  card being poked directly into view. That matters, because what needs testing
+  is the beat, not the sheet.
+
+## The source-word haptic: a crescendo
+
+The heavy-then-medium pair did read as two taps. It is now a CoreHaptics
+pattern: a continuous rumble whose intensity curve climbs for about a third of a
+second, deliberately slow at first and steepening, resolving into a single sharp
+transient at the peak. One gesture that builds.
+
+**CoreHaptics was not a session sink**, so it did not need approximating: about
+70 lines including the engine lifecycle. Worth knowing for next time: the engine
+gets stopped by the system on interruption (a call, backgrounding), so it needs
+a reset handler and a restart on each play, or it silently dies after the first
+phone call. It falls back to the old two-beat pattern where CoreHaptics is
+unavailable, which is every simulator and any device without a Taptic Engine.
+
+**No confetti**, and the hierarchy is the reason rather than the effort:
+completion is far rarer and is the actual peak, while the source word is usually
+cracked in the opening seconds. Spending the biggest visual gesture on the
+common event would leave nothing for the rare one. So the escalation is felt and
+not seen, which is what the crescendo is for.
+
+**On the governing accommodation.** Correct that Reduce Motion is not it. There
+is no public API to read the system haptics setting, and there does not need to
+be: both `UIFeedbackGenerator` and `CHHapticEngine` are silenced by the system
+when it is off. Honouring it requires nothing except not trying to work around
+it. Reduce Motion continues to suppress animation only.
+
+## What I still cannot verify
+
+Two things, both needing a hand on the phone:
+
+- **The crescendo.** No simulator has haptics, and the fallback path is what
+  runs there, so nothing about the pattern has been felt.
+- **The expanded chip target.** The `contentShape` plus negative padding trick
+  is standard, and the layout is visibly correct, but whether a 24pt chip with a
+  44pt hit region is comfortable to tap is a finger question.
