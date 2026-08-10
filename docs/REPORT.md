@@ -2016,3 +2016,143 @@ nine, which is why the last report read as silent on them.
   in `2f2bdb8`.
 - **Splash copy.** "Loading the dictionary" is gone. The splash carries the
   peach and "A game about finding words in words". Shipped in `877f2ed`.
+
+---
+
+# Part ten: TestFlight prep
+
+2026-08-09. Punch list items toward a first upload, plus a haptic tweak (tile
+tap raised from 0.45 to 0.58).
+
+## 1. Identity, settled before anyone installs
+
+**Bundle identifier: `com.anthonyliddle.peachofaword`.**
+
+It was `com.anthonyliddle.peachofaword.PeachMinimal`, which carried a scaffold
+name into a permanent identity. The proposal is simply to drop the target-name
+suffix: the prefix was already the right answer, and collapsing to it gives a
+clean reverse-DNS identifier with nothing version- or scaffold-shaped in it.
+
+The reason to do it now rather than later is the one named in the brief and it
+is worth restating: changing an identifier after an install makes iOS treat the
+app as a different one. The old copy stays on the device, orphaned, and its
+saved progress is unreachable. Free today; expensive the first morning there is
+a streak worth keeping.
+
+**Display name: "Peach of a Word".** The target and product are `PeachOfAWord`
+for tooling; the home screen shows the spaces.
+
+**One consequence to act on:** the app already on the phone under the old
+identifier is now a separate app. Delete it, or two peaches sit on the home
+screen and the old one holds today's test progress.
+
+## 2. The app icon
+
+Rendered at 1024 from the web's own artwork rather than drawn again, same
+reasoning as the in-app peach: a second peach that looked nearly right would be
+worse than none. The composition matches `build-icons.ts`, full-bleed cute paper
+background at `#FFF4EE` with the standard 0.09 safe padding, rendered through
+the same resvg the web build uses. The web repo was not modified.
+
+**One thing that would have failed at upload:** the first render carried an
+alpha channel, and App Store Connect rejects that outright rather than at
+review. Passing a background colour to the renderer fills the pixels but keeps
+the channel, so the icon is flattened through a CoreGraphics context with
+`noneSkipLast`. Verified `hasAlpha: no`.
+
+## 3. Day two, which had never happened
+
+Every session until now had been the same puzzle on the same day. The rollover
+is the core loop of a daily game and it had only ever run in unit tests.
+
+Run end to end in the app:
+
+| | |
+|---|---|
+| Day 220, set cleared | 72 words, streak 1 |
+| Day 221 | **fresh board, 0 words**, streak still 1, no write on restore |
+| Day 221 cleared | 124 words, **streak 2** |
+| Day 222 | fresh board, streak 2 |
+| Days 220 to 234 saved, then back to 220 | **0 words: pruned** |
+| Back to 221 | 3 words: still kept |
+
+So: a new day index, a new source word, no leak of yesterday's words into
+today's key, the streak incrementing across consecutive days, and the
+fourteen-day cap dropping the oldest day at exactly the right boundary.
+
+**How it was driven, stated plainly.** Not by moving a clock. `simctl` cannot
+set the simulator's date, and the simulator takes it from the host, so a real
+clock test means moving the Mac's system time, which affects signing and
+certificates. Instead there is a debug-only `-dayOffset N` that shifts the
+`Date()` the app reads.
+
+That exercises everything downstream: the day index, the calendar lookup, the
+storage key, the streak comparison and the prune. **What it does not exercise is
+the single call to `Date()` itself**, which is Foundation rather than this
+project's code. A true clock test is still worth doing once, and it takes about
+thirty seconds on the phone: Settings, General, Date and Time, turn off Set
+Automatically, move the date forward a day, open the app.
+
+## 4. Sharing, pulled into v1
+
+The text is a line-for-line port of the web's block:
+
+```
+🍑 Peach of a Word · Aug 9
+Blossom · 12 of 27 words
+🟥🟥🟥🟥🟥🟥🟪🟪🟪🟪
+✦ 5 Uncommon · 3 Rare
+89 pts
+```
+
+**Built in the engine, not the app**, so the spoiler guarantee can be proven.
+`DailyShareResult` has **no source-word field at all**, which is the same
+protection the web gets from its discriminated union: the answer cannot leak
+because there is nothing to leak it from. A test builds the real `motorway`
+puzzle, shares a completed board, and asserts that neither the source word nor
+any found word of four letters or more appears in the output.
+
+Also ported: the fixed ten-square score row, the guarantee that a real haul
+never rounds away to nothing, and the rule that the rarity line carries counts
+but **never denominators**. A share that advertised how many obscure words a
+rack holds would spread that to everyone who read it.
+
+`ShareLink` gives the native sheet. The share reads the **board's** date rather
+than the current one, so a share after midnight still names the day being
+played.
+
+## 5. The dead tap: made inert
+
+The chips were built as buttons with 44pt targets so the reveal could drop in
+later. But the reveal is blocked on the WordNet decision, and in the meantime a
+control that invites a tap and ignores it is worse than a label: it reads as
+broken, and VoiceOver announces "button" and promises an action that never
+comes.
+
+They are now plain text with a combined accessibility label. The structure, the
+marks, the points and the row rhythm are unchanged, so restoring the button when
+there is something to show is wrapping them in one, not a rebuild.
+
+## 6. Release configuration
+
+Version 1.0, build 1.
+
+**Debug gating verified behaviourally on the Release build**, as asked, not by
+grep. A Release build launched with every flag at once (`-seedBoard almost
+-tapWords ... -tapTiles ... -resetProgress 1 -replaySource 1 -dayOffset 5
+-scrollBottom 1`) starts at an empty board, First Sprout, 0 points, and on
+today's puzzle rather than day +5. All seven inert.
+
+Grep was explicitly not trusted here, because a previous grep of a Release
+binary produced a false negative on a flag that demonstrably worked.
+
+## Still owed before an upload
+
+- **A real clock test on the device**, thirty seconds, described above.
+- **The App Store Connect record**: name, age rating questionnaire, privacy
+  policy URL (required even for an app that collects nothing), and the export
+  compliance answer.
+- **The Apple Developer Program enrolment**, if not already done. $99 and
+  identity verification can take days, so it belongs before the critical path.
+- **The CC BY-SA question**, which stays open and is moot while no definitions
+  ship.

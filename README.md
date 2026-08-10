@@ -32,7 +32,7 @@ Swift and SwiftUI concepts with no TypeScript equivalent.
 ## Running it
 
 ```bash
-swift test                              # the ported engine suite, 84 tests
+swift test                              # the engine suite, 102 tests
 swift run -c release peach-bench        # dictionary load + letter-count timings
 
 # The app. Regenerate the project only if you change project.yml.
