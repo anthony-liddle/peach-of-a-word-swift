@@ -1496,3 +1496,113 @@ check has found something.
   divider, because the web's rule is "only when a group has both". Faithful, but
   the count and the chips beneath still describe different populations in that
   one case. Worth revisiting against real play.
+
+---
+
+# Part seven: layout and polish batch
+
+2026-08-09. Punch list items 1, 2, 3, 4, 10 and 11.
+
+## 1. Tiles at full width. The lever was a capped tile height.
+
+The rack was previously capped at 310pt purely to make the tiles shorter,
+because with a fixed 3:4 ratio narrowing was the only lever available.
+
+**The lever used instead: the tile height is a scaled constant and the tile
+fills its column.** Width comes back, height does not follow it.
+
+The cost, stated plainly: the tiles are no longer exactly 3:4. At full width on
+a 402pt phone a column is about 85pt, so a 102pt tile is roughly 5:6. The web's
+are 79x105 on its narrower phone width, so this is a slightly squarer tile on a
+larger screen. The brief allows that trade and it is the one worth making,
+because the rack now reads as the same column as the compose well above it.
+
+**One thing this broke, and it was only visible by looking.** Removing the width
+cap let a fifth column fit, and the rack split 5 and 3. The adaptive minimum is
+now 78pt, sized so exactly four columns fit at full phone width, and it still
+reflows at accessibility sizes where the scaled minimum outgrows four.
+
+## 2. Padding below the tiles
+
+The uniform 12pt VStack gap was doing four different jobs. Replaced with
+explicit per-element padding, which also made item 11 possible.
+
+## 3. Chip row spacing
+
+Two changes, because the gap was only half the problem.
+
+The `FlowLayout` row gap went from 6pt to 2pt, matching the web's asymmetric
+`gap: 0.3rem 0.75rem` (small row gap, larger column gap). But the bigger cause
+was the **chip height**: at a 44pt minimum the box was more than twice the
+height of its text, so rows sat far apart no matter how small the gap.
+
+Chips are now 38pt. **That is a deliberate trade against the 44pt guideline**
+and is flagged rather than buried: the chips are wide, the smallest dimension is
+what the guideline is really about, and the row pitch closed by a quarter.
+
+## 4. The delete glyph
+
+It was a backspace character set in a body font, which renders far smaller than
+the words beside it. It is now an SF Symbol at 26pt, sized as an icon. The web
+makes `.btn--delete` a size larger than its siblings for the same reason; an
+icon is that intent expressed the native way.
+
+## 10. The scroll boundary. The fix was a fade.
+
+Both options were available: start the scroll region below the rack, or fade the
+content at the boundary.
+
+**The fade wins, and the other option would not have worked.** The scroll region
+already starts below the rack. The slicing was the ScrollView's own edge
+clipping its content, not the rack overlapping it, so moving things would have
+changed nothing. A fade is also the native treatment and it keeps the signal
+that there is more above, which a hard edge with nothing cut off would lose.
+
+**The first attempt was wrong in an instructive way.** A gradient sized as a
+fraction of the scroll height dimmed the summary line while it was fully in
+view, because at rest the first row sits inside the fade band. Fixed by padding
+the scrolled content by 16pt and keeping the fade band smaller than that, so at
+rest the fade falls entirely inside the padding and only bites once content
+actually moves under it.
+
+Verified in the scrolled state, not just at rest. `simctl` cannot perform a
+gesture, so a debug-only `-scrollBottom` flag anchors the list to its bottom.
+That is the only state the bug appears in and there was no other headless way to
+see it.
+
+## 11. Feedback has a permanent home
+
+It now sits **directly under the compose well**, which is the thing it reports
+on, and it never moves.
+
+It previously sat between the rack and the list, immediately above the summary
+line, so the two read as one slot alternating between a count and a message.
+They are different things: the summary describes the board, the feedback
+describes the last submission.
+
+The web puts feedback below the controls. That was rejected here because this
+layout is bottom-weighted: the controls are at the screen edge, so feedback
+below them would sit against the home indicator, easy to miss and awkward to
+reach visually. Under the well is where the eye already is when a word is
+submitted. The slot reserves its height either way, so nothing shifts.
+
+## On observation
+
+**No desktop capture this session.** Every screenshot came from `simctl`, which
+only ever contains the app.
+
+The canvas was not used, which cost roughly six rebuild cycles at about 40
+seconds each against 3 in the canvas. That is the honest price of the constraint
+and it is worth stating rather than pretending the loops are equivalent.
+
+**Where the canvas would have helped most**, if you want to point it at
+something: the fade band. It took three passes to get right (too subtle, then
+dimming content in view, then correct) and each pass was a full rebuild. It is
+exactly the kind of continuous-value tuning a live canvas is for.
+
+## Owed
+
+- **A group with only off-page finds** still reads "0 of 2" above chips with no
+  divider. Unchanged from last pass and still faithful to the web, but the count
+  and the chips describe different populations in that one case.
+- The 38pt chip height, if it turns out to be uncomfortable in hand.
