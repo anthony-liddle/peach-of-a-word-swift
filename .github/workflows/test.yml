@@ -36,7 +36,7 @@ jobs:
     steps:
       # v5 rather than v4, which the runner reports as deprecated for still
       # targeting Node.js 20.
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Versions
         run: |
