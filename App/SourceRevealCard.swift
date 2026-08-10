@@ -69,10 +69,10 @@ struct SourceRevealCard: View {
                 // kicker starts. "The peach every word grew from" wants to know
                 // how many. Remove it the day real reveal content exists.
                 VStack(spacing: 4) {
-                    Text("\(points) \(points == 1 ? "point" : "points")")
+                    Text(counted(points, "point"))
                         .font(CuteFont.body(16, weight: "Bold", relativeTo: .body))
                         .foregroundStyle(Cute.inkSoft)
-                    Text("\(wordsGrown) words grew from it")
+                    Text("\(counted(wordsGrown, "word")) grew from it")
                         .font(CuteFont.body(14, relativeTo: .footnote))
                         .foregroundStyle(Cute.inkFaint)
                         .multilineTextAlignment(.center)

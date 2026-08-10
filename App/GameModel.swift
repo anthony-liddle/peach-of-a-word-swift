@@ -41,18 +41,36 @@ final class GameModel {
     private(set) var feedback: Feedback = .none
     private(set) var loadMilliseconds: Double = 0
 
-    /// The source word, once found, until the card is dismissed.
+    /// The celebration currently on screen, if any.
     ///
-    /// On most days this fires in the opening seconds: the source word is what
-    /// gets cracked on sight. So it is a moment, not a gate, and clearing it
-    /// must return to a fully playable board.
-    var celebration: Celebration?
+    /// Two beats share this slot, and the hierarchy decides which wins when both
+    /// land on the same submit (finding the source word last, which also
+    /// completes the set): **completion is the peak, so it takes priority** and
+    /// the peach card is dropped rather than queued behind it. Two sheets in a
+    /// row would turn the biggest moment in the game into paperwork.
+    ///
+    /// Neither ends the game. Off-page words remain, the board stays live, and
+    /// dismissing returns to it.
+    var moment: Moment?
 
-    struct Celebration: Identifiable {
-        let word: String
-        let points: Int
-        var id: String { word }
+    enum Moment: Identifiable {
+        case sourceWord(word: String, points: Int)
+        case completion(setTotal: Int, score: Int)
+
+        var id: String {
+            switch self {
+            case .sourceWord(let word, _): "source-\(word)"
+            case .completion: "completion"
+            }
+        }
     }
+
+    /// True once completion has been celebrated, so it fires on the transition
+    /// and never again.
+    ///
+    /// Seeded at load from the restored board: reopening an already-complete
+    /// day must not replay the peak.
+    private var completionSeen = false
 
     /// The persisted streak, as of the day this session loaded.
     private(set) var streak: Int = 0
@@ -190,6 +208,9 @@ final class GameModel {
             storageDayIndex = day
             found = storage.loadDayProgress(dayIndex: day, sourceWord: p.sourceWord)
             streak = storage.currentStreak(todayIndex: day)
+            // A day restored already complete has had its moment. Only the
+            // transition celebrates.
+            completionSeen = isComplete(computeTier(found: Set(found), puzzle: p))
 
             phase = .ready
             writeDebugState()
@@ -309,7 +330,17 @@ final class GameModel {
         }
 
         var picks: [String]
-        if spec == "almost" {
+        if spec == "hierarchy" {
+            // Everything except the source word and one other set word, so a
+            // single session can reach both remaining beats: find the source
+            // word for level three, then the last set word for level four.
+            // Tile taps and an ordinary find come free on the way.
+            picks = puzzle.commonWords.sorted()
+                .filter { $0 != puzzle.sourceWord }
+                .dropLast()
+                .map { $0 }
+            picks += stride(puzzle.uncommonWords, keeping: 4)
+        } else if spec == "almost" {
             // All but one set word: the meter sits just under the crown.
             picks = puzzle.commonWords.sorted().dropLast().map { $0 }
             picks += stride(puzzle.uncommonWords, keeping: 3)
@@ -426,6 +457,15 @@ final class GameModel {
         storage.saveDayProgress(dayIndex: day, sourceWord: puzzle.sourceWord, found: found)
 
         let standing = computeTier(found: Set(found), puzzle: puzzle)
+
+        // The peak. Checked here rather than in `resolve` so it sees the board
+        // after the find has landed, and so seeding reaches it too.
+        if isComplete(standing) && !completionSeen {
+            completionSeen = true
+            moment = .completion(setTotal: standing.setTotal, score: standing.score)
+            Feel.completion()
+        }
+
         if standing.index >= streakTierIndex && !streakRecordedThisSession {
             streakRecordedThisSession = true
             storage.recordDailyCleared(dayIndex: day)
@@ -462,12 +502,14 @@ final class GameModel {
             found.insert(word, at: 0)
             if isSourceWord {
                 feedback = .sourceFound
-                celebration = Celebration(word: word, points: score)
+                moment = .sourceWord(word: word, points: score)
                 Feel.sourceWord()
             } else {
                 feedback = .accepted(word: word, points: score, rung: rung)
                 Feel.find()
             }
+            // May replace the peach moment with the completion one, which is
+            // the intended precedence.
             foundDidChange()
         case .tooShort:
             feedback = .rejected("Too short. Three letters or more.")

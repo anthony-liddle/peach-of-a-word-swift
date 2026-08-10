@@ -27,6 +27,10 @@ struct TierMeterView: View {
     /// completion peak, which this bar does not measure.
     private var percent: Int { min(100, Int((standing.fraction * 100).rounded())) }
 
+    /// The reserved height for the caption row. Scaled, so Dynamic Type still
+    /// grows it, but fixed at any given size so the content cannot move it.
+    @ScaledMetric(relativeTo: .caption) private var captionHeight: CGFloat = 17
+
     /// Completion is the word-count peak above the named ladder. Once reached,
     /// the label holds the crown so the achievement stays visible while play
     /// continues. It is not a points rank.
@@ -45,7 +49,7 @@ struct TierMeterView: View {
                     .font(CuteFont.display(18, relativeTo: .headline))
                     .foregroundStyle(completed ? Cute.crown : Cute.ink)
                 Spacer(minLength: 8)
-                Text("\(standing.score) \(standing.score == 1 ? "point" : "points")")
+                Text(counted(standing.score, "point"))
                     .font(CuteFont.body(15, weight: "Bold", relativeTo: .subheadline))
                     .foregroundStyle(Cute.ink)
                     .monospacedDigit()
@@ -53,38 +57,40 @@ struct TierMeterView: View {
 
             track
 
+            // A fixed single-line height, reserved.
+            //
+            // This row wrapped to two lines at the top rank and pushed the whole
+            // layout down, mid-play, as the score changed. Shortening the copy
+            // fixes today's string; reserving the height fixes the class, so no
+            // future wording can shift the board underneath someone's thumb.
             HStack(spacing: 8) {
                 Text("\(percent)%")
                     .monospacedDigit()
-                // Allowed to wrap rather than truncate. At accessibility text
-                // sizes a single line lost the end of the sentence, and losing
-                // words is worse than taking a second line.
                 Group {
                     if let next = standing.next {
                         Text("Next: \(cuteTierNames[next.index]) at \(Int((next.threshold * 100).rounded()))%")
                     } else {
-                        Text("Top rank. The full set is the peak.")
+                        // "Top rank" is enough. The explanation that the full
+                        // set is the peak does not need to live here
+                        // permanently; the completion card says it properly.
+                        Text("Top rank")
                     }
                 }
-                .lineLimit(2)
-                .minimumScaleFactor(0.7)
-                .fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: 4)
                 if streak > 0 {
-                    // The streak has been stored and read since persistence
-                    // landed but had nowhere to live, because the toolbar is out
-                    // of scope. This is its natural home.
                     // A flame and a number said nothing about what it counted.
                     // The word is short enough to just print.
                     HStack(spacing: 3) {
                         Image(systemName: "flame.fill")
-                        Text("\(streak) day\(streak == 1 ? "" : "s")")
+                        Text(counted(streak, "day"))
                             .monospacedDigit()
                     }
                     .foregroundStyle(Cute.crown)
-                        .accessibilityLabel("Streak: \(streak) \(streak == 1 ? "day" : "days")")
                 }
             }
+            .lineLimit(1)
+            .minimumScaleFactor(0.6)
+            .frame(height: captionHeight)
             .font(CuteFont.body(12, relativeTo: .caption))
             .foregroundStyle(Cute.inkFaint)
         }

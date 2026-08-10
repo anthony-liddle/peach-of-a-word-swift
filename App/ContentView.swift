@@ -61,13 +61,18 @@ struct ContentView: View {
         // `.task` runs when the view appears and is cancelled automatically if
         // it disappears. It is the SwiftUI answer to useEffect with an empty
         // dependency array, minus the cleanup function.
-        .sheet(item: $model.celebration) { celebration in
-            SourceRevealCard(
-                word: celebration.word,
-                points: celebration.points,
-                wordsGrown: model.puzzle?.commonWords.count ?? 0
-            ) {
-                model.celebration = nil
+        .sheet(item: $model.moment) { moment in
+            Group {
+                switch moment {
+                case .sourceWord(let word, let points):
+                    SourceRevealCard(
+                        word: word,
+                        points: points,
+                        wordsGrown: model.puzzle?.commonWords.count ?? 0
+                    ) { model.moment = nil }
+                case .completion(let setTotal, let score):
+                    CompletionCard(setTotal: setTotal, score: score) { model.moment = nil }
+                }
             }
             // Medium rather than full, so the board stays visible behind it and
             // this reads as a moment rather than an interruption. Drag to
@@ -548,7 +553,7 @@ private struct MessageLine: View {
             case .none:
                 Text(" ")
             case .accepted(let word, let points, let rung):
-                Text("\(word), \(points) points" + (rung == .set ? "" : " (\(rung.rawValue))"))
+                Text("\(word), \(counted(points, "point"))" + (rung == .set ? "" : " (\(rung.rawValue))"))
                     .foregroundStyle(rung == .set ? Cute.accent : Cute.discovery)
             case .sourceFound:
                 Text("You found the Peach of a Word!")

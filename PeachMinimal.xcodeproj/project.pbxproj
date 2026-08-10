@@ -9,6 +9,8 @@
 /* Begin PBXBuildFile section */
 		06E2B7E0A952CA5A24A95AAA /* CuteTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0FCCD138A67D497CCEB63292 /* CuteTheme.swift */; };
 		08C8BE0EB81A0A0913AB7D1E /* PeachEngine in Frameworks */ = {isa = PBXBuildFile; productRef = A0001254A6DD675C2C821B6E /* PeachEngine */; };
+		0A635F3E5CB2649C99E3624E /* CompletionCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B6FCDDC230C7F35C6C77B27 /* CompletionCard.swift */; };
+		141C3443851804D6157F250F /* Copy.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4FDB6CEA7E7B2907B7351D5 /* Copy.swift */; };
 		379F6CDC292C009A15679485 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8EC6A09C5E098AF549CDE802 /* ContentView.swift */; };
 		42B2F660A623FD3CA87344E5 /* GameModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 976142F0A7032B2D976C5A6D /* GameModel.swift */; };
 		435DCEED0DC7A39AF8D3C0C7 /* TierMeterView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10AB55792C1950D6B7E4727F /* TierMeterView.swift */; };
@@ -18,6 +20,7 @@
 		7FDBF825CC32EC004534E401 /* Fredoka.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 9F25F94C16B3325A38E7E667 /* Fredoka.ttf */; };
 		948BE9575E77CDE19D34D471 /* SourceRevealCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3AA596ACC985997863BC4F2 /* SourceRevealCard.swift */; };
 		C13FAB7ADEB3CEAA9643275C /* OFL-Fredoka.txt in Resources */ = {isa = PBXBuildFile; fileRef = ECE1BF706A7C6A3689E81BDE /* OFL-Fredoka.txt */; };
+		C66F4F50AB832BCABA8C1ABB /* Confetti.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11C7BBBB27F65B28FB46B1F7 /* Confetti.swift */; };
 		CBDA1FC60158CE1770797B15 /* Feel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BEB603F385DB94A66831310 /* Feel.swift */; };
 		D0A498839A7369142292482D /* PeachMinimalApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEBA05907CBA1E79B5A0F219 /* PeachMinimalApp.swift */; };
 		D79ED1BBF137BF3935060C26 /* Data in Resources */ = {isa = PBXBuildFile; fileRef = 282695D12B85BF209B7BB32A /* Data */; };
@@ -30,10 +33,12 @@
 		0B957806AE7DD1E05FB6F5B2 /* OFL-Nunito.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = "OFL-Nunito.txt"; sourceTree = "<group>"; };
 		0FCCD138A67D497CCEB63292 /* CuteTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CuteTheme.swift; sourceTree = "<group>"; };
 		10AB55792C1950D6B7E4727F /* TierMeterView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TierMeterView.swift; sourceTree = "<group>"; };
+		11C7BBBB27F65B28FB46B1F7 /* Confetti.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Confetti.swift; sourceTree = "<group>"; };
 		282695D12B85BF209B7BB32A /* Data */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Data; sourceTree = SOURCE_ROOT; };
 		6193E6D19392841F6C9584F9 /* FoundWords.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoundWords.swift; sourceTree = "<group>"; };
 		72DE18D6E5A0492A2A8110DC /* peach-of-a-word-swift */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "peach-of-a-word-swift"; path = .; sourceTree = SOURCE_ROOT; };
 		731146D17EF810DAE185E230 /* Nunito.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Nunito.ttf; sourceTree = "<group>"; };
+		8B6FCDDC230C7F35C6C77B27 /* CompletionCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompletionCard.swift; sourceTree = "<group>"; };
 		8EC6A09C5E098AF549CDE802 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		976142F0A7032B2D976C5A6D /* GameModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameModel.swift; sourceTree = "<group>"; };
 		9BEB603F385DB94A66831310 /* Feel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Feel.swift; sourceTree = "<group>"; };
@@ -45,6 +50,7 @@
 		D0C47F41F776CD4347E65BB0 /* FoundListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoundListView.swift; sourceTree = "<group>"; };
 		D3A7FCC1C5EE85FA94EDF6B0 /* PeachMinimal.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = PeachMinimal.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		ECE1BF706A7C6A3689E81BDE /* OFL-Fredoka.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = "OFL-Fredoka.txt"; sourceTree = "<group>"; };
+		F4FDB6CEA7E7B2907B7351D5 /* Copy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Copy.swift; sourceTree = "<group>"; };
 		FEBA05907CBA1E79B5A0F219 /* PeachMinimalApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PeachMinimalApp.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -63,7 +69,10 @@
 		169AC83860B1713DDAD24DAC /* App */ = {
 			isa = PBXGroup;
 			children = (
+				8B6FCDDC230C7F35C6C77B27 /* CompletionCard.swift */,
+				11C7BBBB27F65B28FB46B1F7 /* Confetti.swift */,
 				8EC6A09C5E098AF549CDE802 /* ContentView.swift */,
+				F4FDB6CEA7E7B2907B7351D5 /* Copy.swift */,
 				0FCCD138A67D497CCEB63292 /* CuteTheme.swift */,
 				9BEB603F385DB94A66831310 /* Feel.swift */,
 				D0C47F41F776CD4347E65BB0 /* FoundListView.swift */,
@@ -197,7 +206,10 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				0A635F3E5CB2649C99E3624E /* CompletionCard.swift in Sources */,
+				C66F4F50AB832BCABA8C1ABB /* Confetti.swift in Sources */,
 				379F6CDC292C009A15679485 /* ContentView.swift in Sources */,
+				141C3443851804D6157F250F /* Copy.swift in Sources */,
 				06E2B7E0A952CA5A24A95AAA /* CuteTheme.swift in Sources */,
 				CBDA1FC60158CE1770797B15 /* Feel.swift in Sources */,
 				639CEC5F190C919B2C4656C9 /* FoundListView.swift in Sources */,

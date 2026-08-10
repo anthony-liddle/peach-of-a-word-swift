@@ -116,7 +116,7 @@ private struct WordChip: View {
         .buttonStyle(.plain)
         .accessibilityLabel(
             "\(found.word), \(found.category.spokenName), "
-            + "\(found.score) \(found.score == 1 ? "point" : "points")"
+            + counted(found.score, "point")
         )
     }
 }
@@ -165,7 +165,7 @@ struct FoundListView: View {
         return VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 6) {
                 RarityMark(category: .set)
-                Text("\(standing.setFound) of \(standing.setTotal) words")
+                Text("\(standing.setFound) of \(counted(standing.setTotal, "word"))")
                     .font(CuteFont.body(15, weight: "SemiBold", relativeTo: .subheadline))
                     .foregroundStyle(Cute.ink)
                     .monospacedDigit()
@@ -192,7 +192,7 @@ struct FoundListView: View {
     private func groupView(_ group: LengthGroup) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .firstTextBaseline) {
-                Text("\(group.length) letters")
+                Text(counted(group.length, "letter"))
                     .font(CuteFont.display(15, relativeTo: .subheadline))
                     .foregroundStyle(Cute.inkSoft)
                 Spacer(minLength: 8)
