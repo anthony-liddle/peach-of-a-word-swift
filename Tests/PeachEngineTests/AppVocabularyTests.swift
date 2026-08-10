@@ -282,6 +282,31 @@ struct AppVocabularyTests {
         #expect(offenders == [], "retired placeholder still in use: \(phrase)")
     }
 
+    // MARK: - The ladder never gets a denominator
+
+    /// No "X of Y" anywhere on the rarity ladder.
+    ///
+    /// Counts only, never "5 of 47 Rare". Advertising how many off-page words a
+    /// rack holds turns open-ended discovery into a grind, which is the thing
+    /// the rarity model exists to prevent. The rule is easy to break by
+    /// accident, because a denominator looks like helpful progress information
+    /// everywhere else in the app, so it is worth a test rather than a comment.
+    ///
+    /// Completion is the one place an "X of Y" belongs, and `FoundSummary`
+    /// carries exactly that one.
+    @Test("no denominator reaches the rarity ladder")
+    func noRungDenominator() throws {
+        let sheet = try #require(Self.sources.first { $0.name == "RungSheet.swift" })
+        let sheetOffenders = Self.stringLiterals(in: sheet.text).filter { $0.contains(" of ") }
+        #expect(sheetOffenders == [], "a denominator in the rung sheet")
+
+        let summary = try #require(Self.sources.first { $0.name == "FoundSummary.swift" })
+        let summaryHits = Self.stringLiterals(in: summary.text).filter { $0.contains(" of ") }
+        // Exactly one, and it is the completion count.
+        #expect(summaryHits.count == 1, "expected only the completion count, got \(summaryHits)")
+        #expect(summaryHits.first?.contains("(standing.setFound)") == true)
+    }
+
     /// The skinned strings live in `Copy.swift` and nowhere else.
     ///
     /// This is the closest thing to the web's "vocabulary lives only in the
