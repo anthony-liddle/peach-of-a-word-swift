@@ -30,6 +30,27 @@ set -euo pipefail
 # different project than the one reviewed, and nobody would be told.
 XCODEGEN_VERSION="2.46.0"
 
+# SHA-256 of that release's xcodegen.zip, checked before anything is unpacked
+# or run.
+#
+# A version tag is not an integrity guarantee. A GitHub release asset can be
+# replaced in place without the tag changing, so pinning only the version means
+# every build downloads and executes whatever currently sits at that URL. This
+# script runs with the repository checked out and the signing chain available,
+# so "whatever currently sits at that URL" is not a risk worth carrying for the
+# sake of four megabytes.
+#
+# Trust-on-first-use: the value below was taken from the bytes GitHub served on
+# 2026-08-09, confirmed identical across two independent fetches. It does not
+# prove the release was honest that day. It does guarantee that every build
+# from now on runs the same binary as the one reviewed, and that a later
+# substitution fails the build loudly instead of executing.
+#
+# Update deliberately, together with XCODEGEN_VERSION, never to silence a
+# failure:
+#   curl -fsSL .../<version>/xcodegen.zip | shasum -a 256
+XCODEGEN_SHA256="4d9e34b62172d645eed6457cac13fc222569974098ef4ee9c3368bedf0196806"
+
 # CI_BUILD_NUMBER is per-workflow and starts at 1. Builds 1 and 2 were uploaded
 # by hand before Xcode Cloud existed, and App Store Connect permanently reserves
 # every build number it accepts, so an unoffset first Cloud build would be
@@ -68,6 +89,19 @@ curl -fsSL \
   -o "$TOOLS_DIR/xcodegen.zip" \
   "https://github.com/yonaskolb/XcodeGen/releases/download/${XCODEGEN_VERSION}/xcodegen.zip" \
   || fail "could not download XcodeGen $XCODEGEN_VERSION"
+
+# Verified before unpacking, not after. An archive is untrusted input until its
+# hash matches, and unzip acts on the archive's own contents.
+actual_sha="$(shasum -a 256 "$TOOLS_DIR/xcodegen.zip" | cut -d' ' -f1)"
+if [ "$actual_sha" != "$XCODEGEN_SHA256" ]; then
+  fail "XcodeGen $XCODEGEN_VERSION checksum mismatch, refusing to run it
+    expected $XCODEGEN_SHA256
+    actual   $actual_sha
+  The release asset at that URL is not the reviewed one. Do not update the
+  pinned hash to make this pass without establishing why it changed."
+fi
+say "checksum verified"
+
 unzip -q "$TOOLS_DIR/xcodegen.zip" -d "$TOOLS_DIR" || fail "could not unpack XcodeGen"
 [ -x "$XCODEGEN" ] || fail "XcodeGen binary missing at $XCODEGEN"
 say "using $("$XCODEGEN" --version)"
