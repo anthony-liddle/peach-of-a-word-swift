@@ -28,10 +28,25 @@ struct OracleFixture: Codable {
         EpochDate(year: epoch.year, month: epoch.month, day: epoch.day)
     }
 
-    static let shared: OracleFixture = {
-        let url = repositoryRoot
+    /// The source tree first, then a bundled copy, for the same reason
+    /// `dataDirectory` does it: the test phase on Xcode Cloud does not have the
+    /// checkout that `#filePath` points at, and this crashed 14 tests there
+    /// before the fallback existed.
+    static func fixtureURL() -> URL {
+        let fromSource = repositoryRoot
             .appendingPathComponent("Fixtures")
             .appendingPathComponent("oracle.json")
+        if FileManager.default.fileExists(atPath: fromSource.path) { return fromSource }
+        for bundle in Bundle.allBundles {
+            if let url = bundle.url(forResource: "oracle", withExtension: "json") {
+                return url
+            }
+        }
+        return fromSource
+    }
+
+    static let shared: OracleFixture = {
+        let url = fixtureURL()
         // Force-unwrapping in a test helper is deliberate: a missing or
         // malformed oracle should fail loudly and immediately, not degrade into
         // a suite that silently checks nothing.

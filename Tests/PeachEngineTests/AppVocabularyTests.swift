@@ -27,7 +27,20 @@ struct AppVocabularyTests {
 
     // MARK: - Reading the app's sources
 
-    private static let appDirectory = repositoryRoot.appendingPathComponent("App")
+    /// The source tree first, then a bundled copy. Same reason as
+    /// `dataDirectory` and the oracle: Xcode Cloud's test phase does not carry
+    /// the checkout, so a guard that reads source text has to be given the
+    /// source text.
+    private static let appDirectory: URL = {
+        let fromSource = repositoryRoot.appendingPathComponent("App")
+        if FileManager.default.fileExists(atPath: fromSource.path) { return fromSource }
+        for bundle in Bundle.allBundles {
+            guard let resources = bundle.resourceURL else { continue }
+            let candidate = resources.appendingPathComponent("App")
+            if FileManager.default.fileExists(atPath: candidate.path) { return candidate }
+        }
+        return fromSource
+    }()
 
     /// Every `App/*.swift` file, as (name, text).
     private static let sources: [(name: String, text: String)] = {
