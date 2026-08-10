@@ -14,11 +14,11 @@
 #   1. Regenerates PeachOfAWord.xcodeproj from project.yml.
 #   2. Sets the build number from CI_BUILD_NUMBER.
 #
-# Step 1 exists because the generated project is committed. That was a
-# deliberate call so the repo opens without XcodeGen, but it makes the project
-# a second source of truth: change project.yml, forget to regenerate, and Xcode
-# Cloud builds the stale project without complaining. Regenerating here means
-# project.yml is authoritative and the committed copy is a convenience.
+# Step 1 is not an optimisation. The .xcodeproj is not in the repository, so a
+# fresh clone has no project to build and this script is the only thing that
+# creates one. It was committed for a while, which made it a second source of
+# truth: change project.yml, forget to regenerate, and Cloud builds the stale
+# project without complaining. Regenerating here is what made dropping it safe.
 #
 # Nothing here runs locally. A local `xcodebuild archive` sees an unmodified
 # project.yml and the committed build number.
@@ -161,9 +161,9 @@ if [ -n "$EXPECTED_BUILD_NUMBER" ]; then
   say "build number $EXPECTED_BUILD_NUMBER confirmed in the generated project"
 fi
 
-# The generated project will differ from the committed one by exactly one thing:
-# XcodeGen names the local package group after the checkout directory, which is
-# `repository` under Xcode Cloud and `peach-of-a-word-swift` locally. It is a
-# display name in the Packages group and affects nothing that gets built. Said
-# out loud so a future reader diffing the two does not read it as drift.
+# One quirk worth knowing if this project is ever diffed against a locally
+# generated one: XcodeGen names the local package group after the checkout
+# directory, so it reads `repository` here and `peach-of-a-word-swift` on a
+# normal clone. A display name in the Packages group, nothing that gets built.
+# It was the reason the project could never be committed reproducibly.
 say "done"

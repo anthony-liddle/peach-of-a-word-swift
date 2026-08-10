@@ -29,7 +29,10 @@ iOS floor comes from the app's use of `@Observable` and `ContentUnavailableView`
 not from the engine.
 
 ```bash
-# The app. Regenerate the project only if you change project.yml.
+# XcodeGen is required. The .xcodeproj is generated and is not in the repo.
+brew install xcodegen                   # or: mint install yonaskolb/XcodeGen
+
+# The app.
 xcodegen generate
 xcodebuild -project PeachOfAWord.xcodeproj -scheme PeachOfAWord \
   -configuration Release \
@@ -39,17 +42,26 @@ swift test                              # the engine suite, 102 tests
 swift run -c release peach-bench        # dictionary load + letter-count timings
 ```
 
-`PeachOfAWord.xcodeproj` is committed as well as generated, so the repo opens in
-Xcode without XcodeGen installed. Project settings are therefore **not** editable
-through Xcode's UI: anything set there is discarded the next time
-`xcodegen generate` runs. Change `project.yml` instead. Source files under `App/`
-and `Sources/` are unaffected.
+**`PeachOfAWord.xcodeproj` is not in the repository.** It is generated from
+`project.yml`, so a fresh clone has no project in it and `xcodegen generate` is
+the first thing to run. Opening the folder in Xcode before that will not work.
 
-Xcode Cloud does not rely on the committed project. `ci_scripts/ci_post_clone.sh`
-regenerates it from `project.yml` on every build and fails the build if it
-cannot, so `project.yml` is authoritative and the committed `.xcodeproj` is a
-convenience for opening the repo. That script also sets the build number from
-`CI_BUILD_NUMBER`; local builds keep the number committed in `project.yml`.
+It was committed for a while, so the repo would open without the tool. That
+made the spec and the project two sources of truth for the same thing: change
+`project.yml`, forget to regenerate, and the build quietly uses the stale
+project. Xcode Cloud regenerates it on every build through
+`ci_scripts/ci_post_clone.sh`, which left no reason to keep carrying the second
+copy.
+
+The consequence for anyone working here: project settings are **not** editable
+through Xcode's UI. Anything set there is discarded by the next
+`xcodegen generate`, and now there is no committed file to notice the loss in.
+Change `project.yml` instead. Source files under `App/` and `Sources/` are
+unaffected, and so is opening, editing and running the app once the project
+exists.
+
+`ci_post_clone.sh` also sets the build number from `CI_BUILD_NUMBER`. Local
+builds keep the number committed in `project.yml`.
 
 Release mode matters for the benchmark. Debug Swift string and collection work is
 often around 10x slower, and a debug number would argue for a different storage

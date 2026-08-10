@@ -2,8 +2,19 @@
 .swiftpm/
 xcuserdata/
 .DS_Store
-*.xcodeproj/project.xcworkspace/
-*.xcodeproj/xcuserdata/
+# The whole generated project, not just the parts Xcode writes into it.
+#
+# It used to be committed, with only project.pbxproj tracked and the workspace
+# and xcuserdata ignored beneath it, so the repo would open without XcodeGen
+# installed. That made project.yml and the project two sources of truth for the
+# same thing: change the spec, forget to regenerate, and the build uses the
+# stale one without complaining. Xcode Cloud now regenerates it on every build
+# via ci_scripts/ci_post_clone.sh, which removed the only argument for keeping
+# it. Run `xcodegen generate` after cloning.
+#
+# This supersedes the two narrower rules that lived here, and PeachMinimal's,
+# all of which this covers.
+*.xcodeproj/
 # Archives have been written into .build/ so far, which covered these by
 # accident rather than by intent. An xcarchive is a signed copy of the whole
 # app and has no business in the history.
@@ -12,4 +23,3 @@ DerivedData/
 # Where ci_scripts/ci_post_clone.sh unpacks its pinned XcodeGen. Written into
 # the repo root because that is the only writable place it can rely on.
 .ci-tools/
-PeachMinimal.xcodeproj/
