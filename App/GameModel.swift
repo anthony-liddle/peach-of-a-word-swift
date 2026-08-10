@@ -448,9 +448,39 @@ final class GameModel {
 
     /// Place a specific tile. A tile already on the stick is ignored, matching
     /// the web reducer's `ADD_TILE` guard.
+    /// A tile refused because it is already on the stick.
+    ///
+    /// The token exists so two refusals of the same tile in a row are two
+    /// events rather than one unchanged value, which a view can animate from.
+    struct Refusal: Equatable {
+        let tile: Int
+        let token: Int
+    }
+
+    private(set) var refusal: Refusal?
+    private var refusalCount = 0
+
     func addTile(_ id: Int) {
-        guard !composing.contains(id) else { return }
+        guard !composing.contains(id) else {
+            // Previously a silent return. A used tile now answers, because
+            // "nothing happened" is indistinguishable from a dropped tap, and
+            // on a rack with two of a letter this is an ordinary thing to do.
+            refusalCount += 1
+            refusal = Refusal(tile: id, token: refusalCount)
+            #if TAP_RECORDER
+            TapRecorder.shared.record(
+                .refused, tile: id, letter: tiles.first { $0.id == id }?.letter ?? "?"
+            )
+            #endif
+            Feel.refuse()
+            return
+        }
         composing.append(id)
+        #if TAP_RECORDER
+        TapRecorder.shared.record(
+            .commit, tile: id, letter: tiles.first { $0.id == id }?.letter ?? "?"
+        )
+        #endif
         Feel.tilePress()
     }
 

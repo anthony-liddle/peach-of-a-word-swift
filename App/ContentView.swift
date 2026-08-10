@@ -18,11 +18,13 @@ struct ContentView: View {
     /// At accessibility text sizes the fixed play surface cannot fit, so the
     /// whole screen falls back to scrolling. See `game`.
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    #if TAP_RECORDER
+    @Environment(\.scenePhase) private var scenePhase
+    #endif
 
     /// `storage` is injectable so a preview does not scribble on the real
     /// UserDefaults every time the canvas re-renders.
-    init(debugSeed: String? = nil,
-         storage: GameStorage = GameStorage(store: UserDefaultsStore())) {
+    init(debugSeed: String? = nil, storage: GameStorage = .appDefault) {
         self.debugSeed = debugSeed
         _model = State(initialValue: GameModel(storage: storage))
     }
@@ -91,7 +93,24 @@ struct ContentView: View {
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
         }
+        #if TAP_RECORDER
+        // The window-level probe, and the flush. Backgrounding is the natural
+        // end of a session: handing the phone over writes the log.
+        .background(TouchProbeInstaller().allowsHitTesting(false))
+        .onChange(of: scenePhase) { _, phase in
+            if phase != .active { TapRecorder.shared.flush() }
+        }
+        #endif
         .task {
+            #if TAP_RECORDER
+            // A session marker written immediately, so the log exists before any
+            // taps do. That is what makes "is the recorder actually live" a
+            // question answerable by pulling a file rather than by grepping a
+            // Release binary, which has produced a false negative in this repo
+            // before.
+            TapRecorder.shared.record(.marker)
+            TapRecorder.shared.flush()
+            #endif
             await model.load()
             #if DEBUG
             if let debugSeed { model.seedBoard(debugSeed) }
@@ -343,7 +362,18 @@ private struct TypeCase: View {
                     TileButton(
                         letter: tile.letter,
                         placed: model.isPlaced(id),
-                        action: { model.addTile(id) }
+                        action: { model.addTile(id) },
+                        // A refusal is animated from a token, so two refusals
+                        // of the same tile are two shakes rather than one.
+                        refusalToken: model.refusal?.tile == id
+                            ? (model.refusal?.token ?? 0) : 0,
+                        // Touch-down commit needs a gesture, and a gesture with
+                        // no minimum distance would fight the scroll view that
+                        // wraps the whole screen at accessibility sizes. That
+                        // path is already flagged as untested, so it keeps the
+                        // Button until it is looked at properly.
+                        commitOnTouchDown: !dynamicTypeSize.isAccessibilitySize,
+                        tileID: id
                     )
                 }
             }
@@ -359,6 +389,20 @@ private struct TileButton: View {
     let letter: String
     let placed: Bool
     let action: () -> Void
+    var refusalToken: Int = 0
+    var commitOnTouchDown: Bool = true
+    /// Only read by the tap recorder, and only present in that build.
+    var tileID: Int = -1
+
+    /// Pressed state, owned here rather than by a `ButtonStyle`, because the
+    /// commit now happens on touch down and the visual has to follow the same
+    /// event. A `Button` fires on touch **up**, which measured at 58ms after
+    /// the tile had already visibly depressed: the letter could not appear
+    /// until the finger lifted. Nothing was ever dropped, but the gap between
+    /// seeing the tile move and seeing the letter arrive is real.
+    @State private var pressing = false
+    @State private var shake: CGFloat = 0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var shape: RoundedRectangle {
         RoundedRectangle(cornerRadius: Cute.tileRadius, style: .continuous)
@@ -383,29 +427,78 @@ private struct TileButton: View {
     /// so it does not clamp the tiles exactly when they are meant to grow.
     @ScaledMetric(relativeTo: .largeTitle) private var maxTileHeight: CGFloat = 118
 
+    private var face: some View {
+        ZStack {
+            shape.fill(Cute.tileFace)
+            shape.stroke(Cute.tileEdge, lineWidth: 1)
+            Text(letter)
+                .font(CuteFont.display(glyphSize))
+                .foregroundStyle(placed ? Cute.inkFaint : Cute.ink)
+                .lineLimit(1)
+                .minimumScaleFactor(0.4)
+                .padding(4)
+        }
+        // Taller than wide. This is most of why they read as tiles rather
+        // than as buttons.
+        .aspectRatio(3.0 / 4.0, contentMode: .fit)
+        .frame(maxHeight: maxTileHeight)
+        .frame(minHeight: Cute.minTapTarget)
+    }
+
+    /// Commit on touch down, animation following.
+    ///
+    /// A `DragGesture` with no minimum distance is the only way to see touch
+    /// down in SwiftUI. The latch makes it fire once per touch rather than on
+    /// every movement update. Hit testing is taken from `contentShape` on the
+    /// unmoved geometry, so the target does not travel with the press
+    /// animation.
+    private var touchDownTile: some View {
+        face
+            .offset(y: pressing && !reduceMotion ? 3 : 0)
+            .background(
+                shape.fill(placed ? .clear : Cute.surfaceShadow)
+                    .offset(y: pressing && !reduceMotion ? 1 : 5)
+            )
+            .animation(reduceMotion ? nil : Feel.bounce, value: pressing)
+            .contentShape(shape)
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { _ in
+                        guard !pressing else { return }
+                        pressing = true
+                        #if TAP_RECORDER
+                        TapRecorder.shared.record(.press, tile: tileID, letter: letter)
+                        #endif
+                        action()
+                    }
+                    .onEnded { _ in pressing = false }
+            )
+            .accessibilityElement()
+            .accessibilityAddTraits(.isButton)
+            .accessibilityAction(.default, action)
+    }
+
     var body: some View {
-        Button(action: action) {
-            ZStack {
-                shape.fill(Cute.tileFace)
-                shape.stroke(Cute.tileEdge, lineWidth: 1)
-                Text(letter)
-                    .font(CuteFont.display(glyphSize))
-                    .foregroundStyle(placed ? Cute.inkFaint : Cute.ink)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.4)
-                    .padding(4)
+        Group {
+            if commitOnTouchDown {
+                touchDownTile
+            } else {
+                Button(action: action) { face }
+                    .buttonStyle(TilePressStyle(
+                        slabColour: placed ? .clear : Cute.surfaceShadow, shape: shape))
             }
-            // Taller than wide. This is most of why they read as tiles rather
-            // than as buttons.
-            .aspectRatio(3.0 / 4.0, contentMode: .fit)
-            .frame(maxHeight: maxTileHeight)
-            .frame(minHeight: Cute.minTapTarget)
         }
         // The slab now lives in the press style, so it can shorten as the tile
         // descends onto it rather than staying put while the tile moves.
-        .buttonStyle(TilePressStyle(slabColour: placed ? .clear : Cute.surfaceShadow,
-                                    shape: shape))
-        .disabled(placed)
+        // No longer `.disabled`. A used tile stays interactive so it can refuse
+        // audibly rather than swallowing the tap, which is the whole point of
+        // the change: silence was indistinguishable from a dropped tap.
+        .modifier(ShakeEffect(animatableData: shake))
+        .onChange(of: refusalToken) { _, token in
+            guard token != 0, !reduceMotion else { return }
+            shake = 0
+            withAnimation(.easeOut(duration: 0.22)) { shake = 1 }
+        }
         // A placed tile keeps its face and loses its slab, so it sits down into
         // the rack. 0.32 is the web's value: dimmed but still legible, which is
         // the difference between reading as unavailable and reading as absent.
@@ -589,4 +682,20 @@ private struct MessageLine: View {
 
 #Preview("Played board, mid game") {
     ContentView(debugSeed: "24", storage: GameStorage(store: InMemoryStore()))
+}
+
+
+/// Where the app's progress lives.
+///
+/// One place, so the instrumented build cannot accidentally be pointed at the
+/// real one. See `UserDefaultsStore.diagnostic` for why the diagnostic build
+/// gets its own suite.
+extension GameStorage {
+    static var appDefault: GameStorage {
+        #if TAP_RECORDER
+        GameStorage(store: UserDefaultsStore.diagnostic)
+        #else
+        GameStorage(store: UserDefaultsStore())
+        #endif
+    }
 }

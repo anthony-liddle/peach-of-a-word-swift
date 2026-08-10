@@ -46,6 +46,25 @@ enum Feel {
         UINotificationFeedbackGenerator().notificationOccurred(.success)
     }
 
+    /// A tile that cannot be picked, because it is already on the stick.
+    ///
+    /// **The one state a touch interface must never have is "nothing
+    /// happened".** A used tile was `.disabled`, so tapping it produced no
+    /// press, no haptic, no motion and no sound, which is indistinguishable
+    /// from the app missing the tap entirely. On the web that silence was
+    /// normal, because nothing ever gave feedback. Here every other tap
+    /// produces a physical response, so this particular silence reads as a
+    /// dropped tap, and the natural recovery is to delete and retype.
+    ///
+    /// Softer and duller than a tile press rather than sharper. This is a
+    /// refusal, not an error: picking the same tile twice is an ordinary thing
+    /// to do on a rack with two of a letter, and it should feel like a gentle
+    /// no rather than a telling off. Same reasoning as `reject`.
+    @MainActor
+    static func refuse() {
+        UIImpactFeedbackGenerator(style: .soft).impactOccurred(intensity: 0.45)
+    }
+
     /// A word rejected. Deliberately softer than a find rather than harsher:
     /// a wrong guess in a word game is ordinary, not a failure worth punishing.
     /// `.warning` was tried and felt like being told off.
@@ -250,17 +269,31 @@ extension View {
 struct TilePressStyle: ButtonStyle {
     let slabColour: Color
     let shape: RoundedRectangle
+    #if TAP_RECORDER
+    /// Identity for the log. Not used for anything else, and absent from a
+    /// normal build.
+    var tile: Int = -1
+    var letter: String = ""
+    #endif
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     func makeBody(configuration: Configuration) -> some View {
         let pressed = configuration.isPressed && !reduceMotion
-        configuration.label
+        return configuration.label
             // The slab shortens as the tile descends onto it, so the two move
             // together and the tile looks like it is travelling rather than
             // just shifting.
             .background(shape.fill(slabColour).offset(y: pressed ? 1 : 5))
             .offset(y: pressed ? 3 : 0)
             .animation(reduceMotion ? nil : Feel.bounce, value: configuration.isPressed)
+            #if TAP_RECORDER
+            // isPressed flips on touch DOWN, while the Button's action runs on
+            // touch UP. Recording both ends is what makes that gap visible.
+            .onChange(of: configuration.isPressed) { _, now in
+                TapRecorder.shared.record(now ? .buttonDown : .buttonUp,
+                                          tile: tile, letter: letter)
+            }
+            #endif
     }
 }
 
@@ -273,5 +306,26 @@ struct PillPressStyle: ButtonStyle {
         configuration.label
             .scaleEffect(configuration.isPressed && !reduceMotion ? 0.96 : 1)
             .animation(reduceMotion ? nil : Feel.bounce, value: configuration.isPressed)
+    }
+}
+
+/// A short horizontal shake, for a refused tile.
+///
+/// A `GeometryEffect` rather than an animated `offset`, so the shake is driven
+/// by one animatable number and cannot leave the tile parked off-centre if it is
+/// interrupted mid-travel. Three cycles, four points, over a fifth of a second:
+/// enough to read as a head shake, short enough not to delay the next tap.
+struct ShakeEffect: GeometryEffect {
+    var travel: CGFloat = 4
+    var cycles: CGFloat = 3
+    var animatableData: CGFloat
+
+    func effectValue(size: CGSize) -> ProjectionTransform {
+        ProjectionTransform(
+            CGAffineTransform(
+                translationX: travel * sin(animatableData * .pi * cycles * 2),
+                y: 0
+            )
+        )
     }
 }

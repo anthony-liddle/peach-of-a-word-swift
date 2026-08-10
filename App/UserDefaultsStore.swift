@@ -27,6 +27,29 @@ final class UserDefaultsStore: KeyValueStore {
         self.defaults = defaults
     }
 
+    #if TAP_RECORDER
+    /// A separate suite for the instrumented diagnostic build.
+    ///
+    /// The tap recorder is installed over the real app, sharing its bundle
+    /// identifier and therefore its `UserDefaults`. Without this, a diagnostic
+    /// session plays on the real board, consumes the real day, and writes to
+    /// the real streak. Two bad outcomes follow: a completed board leaves
+    /// nothing to test with, and a throwaway session can break a streak that
+    /// took days to build.
+    ///
+    /// So the instrumented build gets its own suite. It starts on a fresh
+    /// board with no history, and nothing it does is visible to the shipping
+    /// app, whose progress and streak sit untouched in the standard suite and
+    /// come back the moment a normal build is installed.
+    /// `UserDefaults` is documented as thread safe, and this wrapper adds no
+    /// mutable state of its own, so the isolation warning is answered rather
+    /// than silenced.
+    nonisolated(unsafe) static let diagnostic = UserDefaultsStore(
+        defaults: UserDefaults(suiteName: "com.anthonyliddle.peachofaword.tapdiag")
+            ?? .standard
+    )
+    #endif
+
     func data(forKey key: String) -> Data? {
         defaults.data(forKey: key)
     }

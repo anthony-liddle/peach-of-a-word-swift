@@ -1,6 +1,10 @@
-A daily eight letter puzzle. Tap the tiles to build a word, then tap Pick Word.
+Tiles now respond the moment you touch them, rather than when you lift your finger.
 
-Worth checking:
+A tile that is already in the word used to do nothing at all when tapped. It now gives a small shake and a soft bump, so it answers rather than staying silent.
+
+Nothing else has changed. Your board, your streak and your found words are all as they were.
+
+Worth checking, as always:
 - The board is the same one everyone gets today, and it changes at midnight.
 - Your words and your streak should survive a force quit.
 - Finding the eight letter word itself does something different from a normal find.
