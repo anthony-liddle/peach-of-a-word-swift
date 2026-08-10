@@ -3,7 +3,7 @@
 /// Each pass is a fresh shuffle of the pool, handed out one word at a time, so
 /// no word repeats until the pool is exhausted. Reaching the end reshuffles,
 /// and the first word of the new pass is forced to differ from the last of the
-/// old — the same boundary rule the daily cycle uses. The pool is the eligible
+/// old, the same boundary rule the daily cycle uses. The pool is the eligible
 /// daily calendar minus the excluded word, so a sub-floor word can never
 /// headline endless and endless can never serve the day's daily rack.
 ///
@@ -21,7 +21,7 @@
 ///     exactly, since two references share one cursor.
 ///
 /// The struct is used here because value semantics are Swift's default and the
-/// surprise — that handing a copy to someone else does not share the cursor —
+/// surprise (that handing a copy to someone else does not share the cursor)
 /// is the thing worth understanding early. The cost is real: `var` on every
 /// declaration, `inout` to pass it to a helper, a generic parameter that
 /// spreads to every type that mentions this one, and no way to share one stream

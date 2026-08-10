@@ -22,7 +22,7 @@ All five word lists are byte-identical to source (verified by md5 at copy time).
 | `beyond-size-70.txt` | 315,922 |
 | `beyond-size-95.txt` | 5,389 |
 | `daily-calendar.json` | 626 source words |
-| `meta.json` | — |
+| `meta.json` | n/a |
 
 The validation dictionary is `enable.txt` unioned with `scowl95-additions.txt`:
 **427,290 words**, disjoint by construction.
@@ -48,14 +48,14 @@ its counts describe a build that no longer ships. The widely-quoted "430,000
 words" figure comes from `meta.json.counts.boundary`.
 
 `Tests/PeachEngineTests/SmokeTests.swift` pins this divergence so it cannot
-quietly resolve itself. Not fixed here — the web repo is out of scope for this
+quietly resolve itself. Not fixed here, because the web repo is out of scope for this
 experiment.
 
 ## Excluded, by decision
 
-- `defs/` — 795 directories of Wiktionary reveal content. The reveal is out of
+- `defs/`: 795 directories of Wiktionary reveal content. The reveal is out of
   scope for this port.
-- `source-pool.json` — the eligibility tests build their own synthetic pools, so
+- `source-pool.json`: the eligibility tests build their own synthetic pools, so
   the real source pool earns no weight here.
 
 Neither is an oversight.

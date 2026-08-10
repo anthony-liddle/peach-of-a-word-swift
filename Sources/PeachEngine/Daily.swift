@@ -51,7 +51,7 @@ public func dayIndex(
 /// A well-distributed seed for a reshuffled cycle. Cycle 0 never reaches here.
 ///
 /// The TypeScript is `(cycle * 0x9e3779b1) >>> 0`. That is a DOUBLE multiply
-/// followed by a mod-2^32 coercion — NOT a wrapping 32-bit multiply. Writing
+/// followed by a mod-2^32 coercion, NOT a wrapping 32-bit multiply. Writing
 /// `UInt32(cycle) &* 0x9e37_79b1` here would look right and produce different
 /// numbers. Widening to Int64 first reproduces the JavaScript exactly, because
 /// the product stays well inside Double's 53-bit exact range for any cycle this
@@ -71,8 +71,8 @@ func cycleOrder(cycle: Int, n: Int) -> [Int] {
     var order = seededPermutation(n, seed: seedForCycle(cycle))
     if n < 2 { return order }
     // Recursive, exactly as the TypeScript is. Fine for the cycle depths this
-    // sees — one per full pass through a 626-word calendar, so roughly one
-    // every 20 months — and it keeps the port readable next to the original.
+    // sees (one per full pass through a 626-word calendar, so roughly one
+    // every 20 months), and it keeps the port readable next to the original.
     let previousLast = cycleOrder(cycle: cycle - 1, n: n)[n - 1]
     if order[0] == previousLast {
         order.swapAt(0, 1)

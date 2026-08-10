@@ -25,7 +25,7 @@ public let minSetSize = 15
 ///
 /// A Swift `enum` with a raw value. Unlike the TypeScript string-union it ports
 /// (`'set' | 'uncommon' | 'rare' | 'mythic'`), a `switch` over it is checked for
-/// exhaustiveness by the compiler — adding a rung later breaks every site that
+/// exhaustiveness by the compiler, so adding a rung later breaks every site that
 /// needs updating, rather than silently falling through.
 public enum Rung: String, Sendable, CaseIterable {
     case set, uncommon, rare, mythic
@@ -36,7 +36,7 @@ extension Rung {
     /// off-page find. A set word is the on-page baseline and carries no bonus.
     ///
     /// These pay for the discovery the game is built around, but stay modest
-    /// because the ladder denominator is the set points — a small, stable
+    /// because the ladder denominator is the set points: a small, stable
     /// scale. Measured on real racks, a bonus of 3/6/12 let four off-page hits
     /// top the ladder while the common words sat untouched, so these are tuned
     /// down to keep the guardrail honest: topping needs roughly 7 to 21

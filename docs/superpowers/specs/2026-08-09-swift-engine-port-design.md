@@ -105,7 +105,7 @@ Supporting pieces that come along because the above need them: `formability`,
 `letterCounts` is the hottest loop in the engine: `formableFrom` calls it once
 per candidate word, across 430k words. It is also the one place in this port
 where a value-versus-reference choice has a number attached to it, which makes
-it the best available teaching moment — felt rather than read about.
+it the best available teaching moment: felt rather than read about.
 
 So both get implemented: a 26-element `[Int8]` (heap-allocated per word, the
 literal translation of `Int8Array`) and a fixed-size value type (stack, no
@@ -131,12 +131,12 @@ Both are reported, not silently applied.
 Completion is not in `src/engine/` in the web repo. It is computed in the UI,
 twice:
 
-- `src/ui/share/shareResult.ts:56` — `tier.setTotal > 0 && tier.setFound >= tier.setTotal`
-- `src/ui/useGame.ts:602` — `active.tier.setFound + (result.rung === 'set' ? 1 : 0) >= active.tier.setTotal`
+- `src/ui/share/shareResult.ts:56`: `tier.setTotal > 0 && tier.setFound >= tier.setTotal`
+- `src/ui/useGame.ts:602`: `active.tier.setFound + (result.rung === 'set' ? 1 : 0) >= active.tier.setTotal`
 
 Two computations of the same fact. The second has no `setTotal > 0` guard. They
 cannot diverge today only because `MIN_SET_SIZE = 15` means `setTotal` is never
-zero — so they agree by an invariant enforced somewhere else entirely. That is
+zero, so they agree by an invariant enforced somewhere else entirely. That is
 precisely the pattern that produced the share points mismatch (360 against
 267).
 
@@ -151,7 +151,7 @@ get its own change.
 JavaScript's `Date` carries local-calendar accessors (`getFullYear`,
 `getMonth`, `getDate`). Swift's `Date` is a bare instant with none. Reaching
 for `Calendar.current` inside `dayIndex` would make the brief's required tests
-— a timezone well away from UTC, DST transitions in both directions —
+(a timezone well away from UTC, DST transitions in both directions)
 unwritable, and would make the suite depend on the machine's clock settings.
 
 Signature takes the zone as a parameter from the first line of Swift.
@@ -183,7 +183,7 @@ touching the web repo, emits `Fixtures/oracle.json`:
 Swift tests assert against the fixture. This turns both named risks from
 "a check" into "a claim with evidence behind it".
 
-**Contingency — watch this one.** The oracle is the best idea in the spec and
+**Contingency, watch this one.** The oracle is the best idea in the spec and
 it is also a Node script, a JSON schema, and cross-language assertions. That is
 infrastructure, not Swift, and this is a Swift experiment. If it starts eating
 the session, cut it to `dayIndex` only and hand-check `seededPermutation` and
@@ -196,9 +196,9 @@ If that cut is made, say so in the report.
 The two random paths use *different* JavaScript number semantics and must not
 be unified:
 
-- `mulberry32` uses `Math.imul` — int32 wrapping multiply. Ports to pure
+- `mulberry32` uses `Math.imul`, an int32 wrapping multiply. Ports to pure
   `UInt32` with `&+` / `&*` / `^` / `>>`.
-- `seedForCycle` uses `cycle * 0x9e3779b1 >>> 0` — a **Double** multiply, then
+- `seedForCycle` uses `cycle * 0x9e3779b1 >>> 0`, a **Double** multiply, then
   mod 2³². Porting this as `&*` would silently diverge.
 
 Both get confirmed against the oracle rather than trusted.
@@ -214,8 +214,8 @@ Seven files into `Data/`, roughly 8 MB, committed once and frozen:
 Deliberately excluded, and said so in the report so a later reader knows it was
 a decision rather than an oversight:
 
-- `defs/` — 795 directories of Wiktionary reveal content. Out of scope.
-- `source-pool.json` — the eligibility tests build their own synthetic pools.
+- `defs/`: 795 directories of Wiktionary reveal content. Out of scope.
+- `source-pool.json`: the eligibility tests build their own synthetic pools.
 
 ## Testing
 
@@ -249,7 +249,7 @@ New tests with no web counterpart:
 The brief asks for a number, not a solution.
 
 Load `enable.txt` + `scowl95-additions.txt`, time it, report it. Measured in
-**release** mode, not under `swift test` — debug Swift string and collection
+**release** mode, not under `swift test`, because debug Swift string and collection
 work is often around 10× slower, and a debug number would argue for SQLite on a
 lie. That number decides whether a sorted binary file or SQLite is needed later.
 
@@ -276,16 +276,16 @@ true yet. Add it if this graduates to a real port.
 
 - `git init`, default branch `main`
 - MIT LICENSE, copyright Anthony Liddle
-- `.gitignore` — Swift, not Node: `.build/`, `.swiftpm/`, `xcuserdata/`
-- `README.md` — one short paragraph saying this is a timeboxed experiment
+- `.gitignore`: Swift, not Node: `.build/`, `.swiftpm/`, `xcuserdata/`
+- `README.md`: one short paragraph saying this is a timeboxed experiment
   porting the Peach of a Word engine to find out whether Swift is worth
   continuing with, a pointer to the web repo as canonical, and the snapshot
   date and SHA. In three months the first question anyone asks is whether this
   was a commitment or a probe; the README should answer it.
-- `SNAPSHOT.md` — snapshot date, source SHA, `meta.json` generation date, and
+- `SNAPSHOT.md`: snapshot date, source SHA, `meta.json` generation date, and
   what was excluded.
 - Conventional commit messages written by hand. No commitlint, no husky, no
-  Biome, no dependabot — the global Node conventions do not apply to a Swift
+  Biome, no dependabot, because the global Node conventions do not apply to a Swift
   package and the tooling is not worth installing for this.
 
 ## Timebox and the report
@@ -305,15 +305,15 @@ The report is a deliverable, not an afterthought. It covers:
   cleaner. Both directions are informative.
 - Where a Swift type system would have caught a bug the TypeScript shipped.
   Material already in hand:
-  - The completion duplication above — found *by porting*, because
+  - The completion duplication above, found *by porting*, because
     reimplementing in a language with different defaults surfaces assumptions
     the original never had to state.
   - The stale `reachableScore` doc comment in `engine/types.ts`, which claims
     "every findable word scored by length plus its rarity bonus" while
-    `puzzle.ts` computes `bandScore(commonWords, 'set')` — set points, no
+    `puzzle.ts` computes `bandScore(commonWords, 'set')`: set points, no
     bonuses. No test catches it, because `tiers.test.ts` hand-builds its
     fixture.
-  - The `eligibility.ts` comment "never reimplement the set rules elsewhere" —
+  - The `eligibility.ts` comment "never reimplement the set rules elsewhere",
     the fossil of an earlier two-computations-agreeing-by-coincidence bug.
   - The share result, which could leak the daily answer until a discriminated
     union made it a compile error (`shareResult.ts`: `DailyShareResult` has no
@@ -325,7 +325,7 @@ The report is a deliverable, not an afterthought. It covers:
   only conclude in one direction, and the actual question is whether Antoine
   *wants* to write Swift. The friction is half the answer.
 - Whether the Swift `dayIndex` matches the web for the same instant, per the
-  oracle — and whether the oracle was cut down to `dayIndex` only.
+  oracle, and whether the oracle was cut down to `dayIndex` only.
 - The dictionary load number, in release mode, and the `[Int8]`-vs-fixed-size
   delta.
 - An honest read on whether continuing to a full port is worth it.

@@ -24,7 +24,7 @@ public struct TierStanding: Sendable, Equatable {
     public let score: Int
     /// Par: total set points available on the rack (the denominator).
     public let reachable: Int
-    /// score / reachable, 0 to 1 — and above 1 once off-page points overflow.
+    /// score / reachable, 0 to 1, and above 1 once off-page points overflow.
     public let fraction: Double
     /// Points from set (on-page) finds, for the two-color bar.
     public let setPoints: Int
@@ -95,8 +95,8 @@ public func computeTier(found: Set<String>, puzzle: Puzzle) -> TierStanding {
     }
 
     // `tiers[index + 1]` would trap on the last rank. Swift arrays do not
-    // return undefined for an out-of-bounds read the way JavaScript does — they
-    // crash — so the bound is checked explicitly and turned into an Optional.
+    // return undefined for an out-of-bounds read the way JavaScript does; they
+    // crash, so the bound is checked explicitly and turned into an Optional.
     let next = index + 1 < tiers.count
         ? NextRank(index: index + 1, threshold: tiers[index + 1].threshold)
         : nil

@@ -2,7 +2,7 @@
 ///
 /// A Swift `protocol` is the near-exact analogue of the TypeScript `interface`
 /// this ports. The difference that matters: a Swift type must *declare* that it
-/// conforms, whereas TypeScript interfaces are structural — anything with a
+/// conforms, whereas TypeScript interfaces are structural: anything with a
 /// matching shape satisfies them implicitly.
 public protocol WordSource {
     /// All words in this source, length >= the minimum, formable from the rack.
@@ -43,7 +43,7 @@ public struct Puzzle: Sendable, Equatable {
     public let rareWords: Set<String>
     /// Off-page finds valid in ENABLE but beyond SCOWL size 95. The top rung.
     public let mythicWords: Set<String>
-    /// Par: the total SET points available on this rack — every common word
+    /// Par: the total SET points available on this rack, every common word
     /// scored by length, source word included, with no rarity bonuses. The
     /// denominator the named points ladder runs against, so each rack is judged
     /// against its own ceiling.

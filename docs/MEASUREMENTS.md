@@ -25,14 +25,14 @@ measure".
 ## 1. Dictionary load
 
 The validation dictionary is `enable.txt` unioned with `scowl95-additions.txt`:
-**427,290 words**. (Not 430,172 — that figure comes from a stale `meta.json`.
+**427,290 words**. (Not 430,172; that figure comes from a stale `meta.json`.
 See `SNAPSHOT.md`.)
 
 | Step | Release | Debug | Debug penalty |
 |---|---|---|---|
 | read `enable.txt` (172,562 words) | 37.6 ms | 105.7 ms | 2.8× |
 | read `scowl95-additions.txt` (254,728) | 59.3 ms | 109.6 ms | 1.8× |
-| union the two into one array | 0.8 ms | 0.9 ms | — |
+| union the two into one array | 0.8 ms | 0.9 ms | n/a |
 | build `Set<String>` over 427,290 words | **11.8 ms** | 56.2 ms | 4.8× |
 | read `common-pool.txt` (10,879) | 2.3 ms | 5.0 ms | 2.2× |
 | read `beyond-size-70.txt` (315,922) | 72.3 ms | 133.6 ms | 1.8× |
