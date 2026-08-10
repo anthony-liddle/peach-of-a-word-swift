@@ -1876,3 +1876,103 @@ Two things, both needing a hand on the phone:
 - **The expanded chip target.** The `contentShape` plus negative padding trick
   is standard, and the layout is visibly correct, but whether a 24pt chip with a
   44pt hit region is comfortable to tap is a finger question.
+
+---
+
+# Part nine: the peak, and a haptic that was quietly a quarter strength
+
+2026-08-09. Punch list item 13, plus two fixes.
+
+## The completion celebration
+
+The rarest thing in the game was the least marked thing in it. Now:
+
+- **The crown card**: the crowned peach, "Peachy Keen Supreme" (the cute skin of
+  the web's `CROWN_NAMES`), and "Every common word the rack can spell, found."
+- **Confetti**: peaches, hearts, stars and sparkles in the cute palette, the
+  same vocabulary the rarity marks use. **This is the only place it appears**,
+  which is the hierarchy holding: completion is rare and gets the biggest visual
+  gesture, the source word is common and escalates by feel instead.
+- **The biggest haptic in the app.**
+
+**It does not end anything.** The off-page ladder is still open, the board stays
+live behind the sheet, and the button says "Keep playing" rather than "Done".
+Verified: no re-fire on relaunch, and dismissing returns to a playable board.
+
+**Where both moments can land on one submit** (finding the source word last,
+which also completes the set), **completion wins and the peach card is dropped
+rather than queued.** Two sheets in a row would turn the biggest moment in the
+game into paperwork.
+
+## The haptic was a quarter strength, and that was a bug
+
+"It reads as slightly more than a letter tap" was exactly right, and the cause
+was not taste.
+
+`hapticIntensityControl` is a **multiplier on the event's base intensity**, not
+an absolute value. The base was set to 0.25 and the curve climbed to 1.0, so the
+effective peak was 0.25 x 1.0. The crescendo really did top out barely above a
+tile tap. The base is now 1.0 and the curve does the shaping.
+
+Worth recording as a class of mistake: the code looked like it ramped to full
+intensity, the parameter names read as if it did, and nothing failed. Only
+feeling it on hardware surfaced it, which is the second time this project has
+found a bug that no test could have caught.
+
+**The four levels**, each unmistakably above the one below:
+
+| Level | Feel |
+|---|---|
+| Tile tap | Light impact at 0.45 |
+| Ordinary find | Success notification |
+| Source word | CoreHaptics: 0.5 s crescendo, 0.08 to 1.0, one sharp hit at the top |
+| Completion | CoreHaptics: 0.78 s build, then three accelerating hits and a final harder one, 1.1 s total |
+
+Completion is made larger than the source word by **duration and event count
+rather than by raw intensity**, because the source word is already a
+full-intensity crescendo and there is nowhere above 1.0 to go.
+
+## Two fixes
+
+**The tier caption wrapped and pushed the layout down mid-play.** Both fixes
+applied, as asked: the top-rank string is now just "Top rank" (the completion
+card explains the peak properly, so that sentence does not need to live in the
+caption permanently), and the row has a **reserved single-line height**, scaled
+with Dynamic Type but fixed at any given size. Shortening fixed today's string;
+the reserved height fixes the class, so no future wording can move the board
+under a thumb.
+
+**"toy, 1 points".** Fixed, and the class closed with it. Six strings were each
+pluralising by hand and only some remembered. Every counted noun now goes
+through one `counted(_:_:)` helper, **including the ones that cannot currently be
+one**, because "cannot currently be one" is the assumption that rots. There are
+no hand-rolled plurals left in the app.
+
+## A bug in my own confetti, found by looking
+
+The first version never appeared. `pieces` and `falling = true` were set in the
+same `onAppear`, so the views were created already in their final state: there
+was nothing to animate from, and forty-two pieces sat off the bottom of the
+screen from the first frame. Setting `falling` one runloop tick later fixes it.
+
+Confetti is confined to the sheet's bounds rather than the whole screen, because
+sheet content clips. At a medium detent that is still most of the lower screen
+and it reads clearly. Moving it above the sheet would mean not using a sheet.
+
+## Testing the hierarchy
+
+`-seedBoard hierarchy` seeds every set word except the source word and one
+other, so a single session reaches both remaining beats: find the source word
+for level three, then the last set word for level four, with tile taps and
+ordinary finds on the way.
+
+The phone currently has a **Debug** build so the flags work. The dictionary load
+is roughly 4x slower than Release, so the splash lingers; say the word and the
+Release build goes back.
+
+## What I still cannot verify
+
+The haptics, again. The simulator has none, so the four-level gradient remains a
+designed intention. The difference this time is that one specific bug in it has
+been found and fixed, so the thing being judged is a pattern that actually
+reaches full intensity rather than one that never did.
