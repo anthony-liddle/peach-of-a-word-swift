@@ -284,17 +284,27 @@ final class GameModel {
             picks += stride(puzzle.rareWords, keeping: 3)
             picks += stride(puzzle.mythicWords, keeping: 3)
         } else if let target = Int(spec), target > 0 {
-            // Spread proportionally across the bands so the rarity mix looks
-            // like real play rather than one colour repeated.
-            let bands = [puzzle.commonWords, puzzle.uncommonWords,
-                         puzzle.rareWords, puzzle.mythicWords]
-            let total = bands.reduce(0) { $0 + $1.count }
-            guard total > 0 else { return }
-            picks = bands.flatMap { band -> [String] in
-                let share = max(1, Int((Double(band.count) / Double(total) * Double(target)).rounded()))
-                return Array(band.sorted().prefix(share))
+            // Weighted toward the set, because that is what real play looks
+            // like: common words come first and off-page finds are the
+            // occasional bonus. An earlier version spread proportionally to
+            // BAND SIZE, which is dominated by the rare band, and produced
+            // boards with four set words against twenty off-page. That is a
+            // board no player would ever have.
+            let setShare = Int((Double(target) * 0.62).rounded())
+            picks = Array(puzzle.commonWords.sorted().prefix(setShare))
+
+            // The remainder favours the rungs in the order they are actually
+            // stumbled into: mostly uncommon, some rare, the odd mythic.
+            let remainder = max(0, target - picks.count)
+            let weights: [(Set<String>, Double)] = [
+                (puzzle.uncommonWords, 0.55),
+                (puzzle.rareWords, 0.33),
+                (puzzle.mythicWords, 0.12),
+            ]
+            for (band, weight) in weights {
+                let share = Int((Double(remainder) * weight).rounded())
+                picks += Array(band.sorted().prefix(share))
             }
-            picks = Array(picks.prefix(target))
         } else {
             return
         }
