@@ -67,6 +67,69 @@ jobs:
             -destination 'generic/platform=iOS Simulator' \
             build
 
+  # The UI tests, on their own job.
+  #
+  # They are the only instrument that can perform a gesture, and they earned
+  # their place three times in one session: they settled whether the touch-down
+  # commit conflicts with the scroll pan, produced the layout budget that killed
+  # a design premise, and detect which layout was chosen structurally rather
+  # than by a height threshold a squeeze could fool.
+  #
+  # Deliberately a separate job rather than folded into `test`. If they turn out
+  # to be flaky on a runner they fail on their own, and the check that gates
+  # merging and the check that gates delivery stay unaffected. That also means
+  # this job is NOT a required status check until it has a track record, which
+  # is a decision to revisit rather than a permanent state.
+  #
+  # The simulator is resolved at run time rather than named. A UI test needs a
+  # concrete device, so `generic/platform=iOS Simulator` will not do, and naming
+  # one failed on the first run: the runner had iPhone 17 and 17 Pro but not the
+  # 16 Pro that was asked for. Any name is a guess about a machine image that
+  # changes without notice, so the job asks the runner what it has.
+  ui-tests:
+    runs-on: macos-26
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Versions
+        run: xcodebuild -version
+
+      - name: Generate the Xcode project
+        run: ./ci_scripts/ci_post_clone.sh
+
+      # Its own scheme, so this cannot accidentally pull the unit tests in or
+      # push the UI tests into the app scheme that Xcode Cloud runs.
+      - name: UI tests
+        run: |
+          set -euo pipefail
+          # First available iPhone simulator, by UDID. Fails loudly if the image
+          # somehow has none, rather than falling back to something that is not
+          # a phone.
+          UDID=$(xcrun simctl list devices available \
+            | awk -F'[()]' '/^ *iPhone/ {print $2; exit}')
+          if [ -z "$UDID" ]; then
+            echo "no iPhone simulator available on this runner" >&2
+            xcrun simctl list devices available >&2
+            exit 1
+          fi
+          echo "using simulator $UDID"
+          xcodebuild test \
+            -project PeachOfAWord.xcodeproj \
+            -scheme PeachOfAWordUITests \
+            -destination "id=$UDID" \
+            -resultBundlePath .build/ui-tests.xcresult
+
+      # The result bundle carries the failure detail and any screenshots, which
+      # is most of the value when a UI test fails on a machine you cannot see.
+      - name: Keep the result bundle
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-test-results
+          path: .build/ui-tests.xcresult
+          retention-days: 7
+
   # The same build against an older SDK, and the only thing that can detect the
   # problem it exists for.
   #
