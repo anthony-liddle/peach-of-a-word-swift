@@ -266,24 +266,35 @@ private struct ComposingStick: View {
 // MARK: - Rack
 
 /// The rack. Each tile is a real button; a placed tile is disabled.
+///
+/// **Fixed columns, not adaptive.** The rack is always exactly eight tiles, and
+/// `.adaptive` means "fit as many as fit", which is for collections of unknown
+/// size. It negotiated, and it negotiated wrong: `@ScaledMetric` inflates the
+/// minimum width, so on a 390pt phone at anything above the default text size a
+/// fourth column stopped fitting and the rack split 3, 3, 2.
+///
+/// A fixed count makes that unrepresentable. Four columns at normal text sizes,
+/// three at accessibility sizes, and 4x4 or 3+3+2 are the only two shapes this
+/// can ever produce. The web does the same thing deliberately: four columns on
+/// phone, eight on desktop, never negotiated.
+///
+/// Adaptive is still right for the found-word chips, where the count genuinely
+/// varies.
 private struct TypeCase: View {
     let model: GameModel
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
-    // Adaptive columns so the grid reflows when Dynamic Type grows the tiles,
-    // rather than hardcoding four across. This is the CSS grid auto-fit
-    // equivalent and it is the one place the layout had to think.
-    // Sized so exactly four columns fit at full phone width, which is the
-    // 4x2 rack the game is built around. Removing the old 310pt width cap let a
-    // fifth column squeeze in and split the rack 5 and 3, which looked wrong.
-    // It still reflows at accessibility sizes, where the scaled minimum grows
-    // past what four columns can hold.
-    @ScaledMetric(relativeTo: .largeTitle) private var tileMinWidth: CGFloat = 78
+    /// Three columns at accessibility sizes is the reflow that was previously
+    /// happening by accident of available width. Now it is an explicit response
+    /// to Dynamic Type, which is what it always should have been.
+    private var columnCount: Int { dynamicTypeSize.isAccessibilitySize ? 3 : 4 }
+
+    private var columns: [GridItem] {
+        Array(repeating: GridItem(.flexible(), spacing: 9), count: columnCount)
+    }
 
     var body: some View {
-        LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: tileMinWidth), spacing: 9)],
-            spacing: 10
-        ) {
+        LazyVGrid(columns: columns, spacing: 10) {
             ForEach(model.rackOrder, id: \.self) { id in
                 if let tile = model.tiles.first(where: { $0.id == id }) {
                     TileButton(
@@ -295,20 +306,7 @@ private struct TypeCase: View {
             }
         }
         // Full width, matching the compose well above: that is the column the
-        // eye reads down, and a narrower rack inside it looked inset for no
-        // reason.
-        //
-        // The rack was previously capped at 310pt purely to make the tiles
-        // shorter, because with a fixed 3:4 ratio narrowing was the only lever
-        // available. The lever used instead is a **capped tile height**: the
-        // tile fills its column and its height is a scaled constant, so the
-        // width comes back without the height following it.
-        //
-        // The cost is that the tiles are no longer exactly 3:4. At full width on
-        // a 402pt phone a column is about 85pt, so a 102pt tile is roughly 5:6
-        // rather than 3:4. The web's are 79x105 at its narrower phone width, so
-        // this is a slightly squarer tile on a larger screen, which the brief
-        // allows and which keeps the rack full width.
+        // eye reads down.
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Letter tiles")
     }
@@ -332,10 +330,15 @@ private struct TileButton: View {
     // minimumScaleFactor is the backstop for the extreme sizes.
     @ScaledMetric(relativeTo: .largeTitle) private var glyphSize: CGFloat = 46
 
-    /// Capped rather than derived from the width, which is what lets the rack
-    /// run full width without the tiles growing taller. Scaled, so Dynamic Type
-    /// still grows them.
-    @ScaledMetric(relativeTo: .largeTitle) private var tileHeight: CGFloat = 102
+    /// An upper bound only, and deliberately generous.
+    ///
+    /// **Width is the driver and height follows it**, via the 3:4 ratio, from
+    /// whatever the fixed grid column gives. An earlier version inverted that:
+    /// the height was a fixed constant and the width was derived, which meant
+    /// each tile demanded a width the container could not supply four of. This
+    /// cap only bites on unusually wide layouts, and it scales with Dynamic Type
+    /// so it does not clamp the tiles exactly when they are meant to grow.
+    @ScaledMetric(relativeTo: .largeTitle) private var maxTileHeight: CGFloat = 118
 
     var body: some View {
         Button(action: action) {
@@ -349,11 +352,11 @@ private struct TileButton: View {
                     .minimumScaleFactor(0.4)
                     .padding(4)
             }
-            // Still taller than wide, which is most of why they read as tiles
-            // rather than as buttons, but the height is now a capped constant
-            // rather than a ratio of the width.
-            .frame(maxWidth: .infinity)
-            .frame(height: max(tileHeight, Cute.minTapTarget))
+            // Taller than wide. This is most of why they read as tiles rather
+            // than as buttons.
+            .aspectRatio(3.0 / 4.0, contentMode: .fit)
+            .frame(maxHeight: maxTileHeight)
+            .frame(minHeight: Cute.minTapTarget)
         }
         .buttonStyle(.plain)
         .disabled(placed)
