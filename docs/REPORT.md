@@ -1606,3 +1606,72 @@ exactly the kind of continuous-value tuning a live canvas is for.
   divider. Unchanged from last pass and still faithful to the web, but the count
   and the chips describe different populations in that one case.
 - The 38pt chip height, if it turns out to be uncomfortable in hand.
+
+## Regression: the rack split 3, 3, 2
+
+Caught on the device, not in the simulator, and the diagnosis was right.
+
+**Cause.** `.adaptive(minimum:)` asks "how many fit", and the minimum was a
+`@ScaledMetric` value. Above the default text size that minimum inflates, so on
+a 390pt phone a fourth column stopped fitting. It also had the inversion
+backwards: the tile height was a fixed constant and the width was derived from
+it, so each tile demanded a width the container could not supply four of.
+
+**Fix, both halves.**
+
+*Fixed columns, not adaptive.* The rack is always exactly eight tiles.
+`.adaptive` is for collections of unknown size, and it negotiated wrong. It is
+now `Array(repeating: GridItem(.flexible()), count: columnCount)` with
+`columnCount` of four, or three at accessibility sizes. **4+4 and 3+3+2 are the
+only two shapes this can produce**; 3, 3, 2 at normal sizes is unrepresentable.
+The web makes the same choice deliberately: four on phone, eight on desktop,
+never negotiated. Adaptive stays for the found-word chips, where the count
+genuinely varies.
+
+*Width drives, height follows.* The tile takes its width from the fixed column
+and derives height through the 3:4 ratio. `maxTileHeight` is now an upper bound
+only, and it is scaled so it does not clamp the tiles exactly when Dynamic Type
+means them to grow.
+
+The accessibility reflow to three columns is preserved and is now an **explicit
+response to Dynamic Type** rather than an accident of available width.
+
+**Verified** at three text sizes on a 402pt phone, and on a **375pt iPhone SE at
+the largest non-accessibility size**, which is narrower than the iPhone 13 this
+was reported on and is therefore the worst case. Four columns hold in all of
+them. Also confirmed on device.
+
+## Where the summary line lives
+
+It is the first child of `FoundListView`, inside the scroll region, so it scrolls
+with the list and belongs to it structurally.
+
+**It reads as belonging, now.** On a board with one word it sits directly beneath
+the rack with the length group under it and empty space below, which is right.
+
+The "floating directly above the controls" was a **symptom of the 3, 3, 2
+regression**, not a separate problem: a three-row rack squeezed the scroll region
+into a thin band just above the controls, and the summary was the only thing in
+it. With 4+4 restored the band is full height and the summary sits at the top of
+it.
+
+One honest caveat, not changed: because it scrolls, it leaves the screen as you
+scroll down, while what it describes (the whole board) does not change. Pinning
+it as a static header above the scroll region would make it a persistent status
+line. That is a real option and a different design, so it is flagged rather than
+taken.
+
+## Found while verifying, not fixed
+
+**On a 375pt phone at the largest non-accessibility text size, the found list is
+squeezed to about 27pt**, which is effectively nothing. The rack and controls
+fit, which is what was asked, but the list between them does not get usable room.
+
+This is a property of the fixed "screen mode" layout rather than anything the
+rack change introduced: the fallback to a single scrolling view triggers only at
+accessibility sizes, and XXXL is not one. Lowering that threshold would fix it
+but changes layout on every device at that size and needs its own verification
+pass, so it is reported rather than folded into a rack fix.
+
+Unlikely to bite on a 390pt iPhone 13 at normal text. Worth deciding on before
+v1.
