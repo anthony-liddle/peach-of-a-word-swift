@@ -1675,3 +1675,139 @@ pass, so it is reported rather than folded into a rack fix.
 
 Unlikely to bite on a 390pt iPhone 13 at normal text. Worth deciding on before
 v1.
+
+---
+
+# Part eight: feel
+
+2026-08-09. Punch list items 5, 6, 8 and the motion section, done together
+because they are one question: what it feels like to play.
+
+## The source-word celebration
+
+Built first, because it is the beat the game is about and everything else here
+is polish.
+
+Finding the source word now shows a sheet: the peach, **"You found the Peach of
+a Word!"** (the cute-theme line from web PR #76, the one Bea reacted to), the
+word large, the kicker **"The peach every word grew from"**, the points, and a
+Keep playing button. The feedback line under the compose well carries the same
+message.
+
+**A sheet, not an overlay.** Sheets drag to dismiss, which is what a phone
+does; the web's full-screen overlay is a web pattern. It opens at a medium
+detent so the board stays visible behind it, because on most days this fires in
+the opening seconds: the source word is what gets cracked on sight, and play
+continues straight after. It is a moment, not a gate.
+
+**No definition is faked.** iOS ships none pending the WordNet decision, so
+there is none on the card.
+
+**It did read thin without one**, and this is worth being direct about: a
+message, a word, a kicker and a number is not much for the game's biggest beat.
+So the card now also says **"27 words grew from it"**. That is not filler: it is
+`commonWords.count`, which the engine already computes, and it finishes the
+sentence the kicker starts. If real reveal content ever lands, this line should
+give way to it.
+
+**Does not re-fire on relaunch.** The celebration is set in `resolve` only, so a
+restored board does not re-celebrate a word found yesterday. Verified.
+
+## The peach
+
+**Ported as a path, not exported as an asset.** The transcription is from
+`public/favicon-cute.svg`, which is generated from `PEACH_MARK_PATHS` and is the
+same shape as the favicon, the OG card and the home-screen icons, so this is the
+game's mark rather than a second peach that looks nearly right.
+
+Path over asset because it is only eight primitives in a 100x100 box, so the
+transcription was cheap, and vector stays crisp at both the 13pt chip mark and
+the 96pt card without shipping raster sizes or adding an asset catalogue to a
+generated project.
+
+SVG is relative-cubic heavy and SwiftUI has no smooth-curve command, so each
+`S` and `s` segment has its first control point written out as the reflection of
+the previous one. That is the only fiddly part and it is commented in place.
+
+The face is dropped below card size: it turns to mud at 13pt, and the silhouette
+alone still reads as a peach. It appears in the found list, on the card, and on
+the splash.
+
+## Press feedback
+
+**Tiles press down onto their slab.** The web does `translateY(3px)` while the
+shadow collapses from `0 5px 0` to `0 1px 0`; here the slab shortens as the tile
+descends onto it, so the two move together and the tile travels rather than
+merely shifting. Implemented as a `ButtonStyle`, so the pressed state comes from
+the button and no gesture handling is written.
+
+The `--bounce` easing (`cubic-bezier(0.34, 1.56, 0.64, 1)`) is ported as intent
+rather than as values: a SwiftUI spring is the direct equivalent and a better
+tool for an overshoot.
+
+**Haptics, as a gradient rather than as a list of generators:**
+
+| Event | Feel |
+|---|---|
+| Tile press | Light impact. The most frequent tap in the app, so the lightest. |
+| Valid find | Success notification. |
+| Rejection | Rigid impact at 0.55 intensity. |
+| Source word | Heavy impact, then a medium one 120 ms later. |
+
+Two deliberate choices. **The rejection is softer than the find, not harsher**:
+a wrong guess in a word game is ordinary, not a failure worth punishing, and
+`.warning` was tried and felt like being told off. **The source word is a double
+beat** rather than a `.success`, because `.success` is what an ordinary find
+already gets and the hierarchy has to be felt without a screenshot to explain
+it.
+
+**Reduce Motion suppresses animation and keeps haptics.** They are separate
+accommodations: someone who finds motion nauseating still wants to feel the tap.
+
+## Taken and skipped from the stretch list
+
+**Taken:** the tier bar now fills rather than jumping, via a settle spring on the
+score.
+
+**Skipped, both because they fought:**
+
+- **The tile travelling from rack to well** via `matchedGeometryEffect`. The
+  effect needs matched identities on both sides, but a placed tile is not
+  removed from the rack, it is disabled in place and dimmed. Making it travel
+  means restructuring the rack so a placed tile genuinely leaves, which changes
+  the id-based composition model the whole thing rests on. Not worth it for
+  motion.
+- **A settle on the chip joining the list.** The chips live in a hand-written
+  `Layout`, which has no insertion transition of its own, and the list rebuilds
+  wholesale on each find. Doable, but it is a rewrite of the layout rather than
+  an animation.
+
+Both are real wins if revisited deliberately. Neither is a five-minute add,
+which is what the brief allowed for.
+
+## Two clarity fixes
+
+**The streak** said "flame, 6" and nothing said streak. It now says "6 days"
+next to the flame.
+
+**The splash** said "Loading the dictionary". It now carries the peach and the
+kicker, "A game about finding words in words", which is where that line belongs
+now it is off the play screen, and it is where the load hides anyway.
+
+## Verification
+
+Dynamic Type on the card **found a real problem**, which is now three passes
+running. At the largest accessibility size both the celebration line and the
+kicker truncated to one line with an ellipsis, because a sheet detent is a fixed
+height and the stack compressed into it. **Truncating the one line Bea reacted
+to is the worst possible outcome for this card.** Fixed by making the card
+scrollable, offering a large detent as well as medium, and giving the wrapping
+text `fixedSize` so it claims the height it needs.
+
+Also verified: the celebration end to end, no re-fire on relaunch, the peach at
+mark and card size, and Reduce Motion.
+
+**Not verified by me: the haptics.** The simulator has none, and there is no way
+to feel a spring through a screenshot. The gradient above is a designed
+intention, not a measured result, and it is the one part of this pass that needs
+a hand on the phone.
