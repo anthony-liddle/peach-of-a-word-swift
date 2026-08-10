@@ -146,6 +146,7 @@ struct ContentView: View {
                         TypeCase(model: model)
                         Controls(model: model)
                         MessageLine(feedback: model.feedback)
+                        pinnedSummary
                         foundList
                     }
                     .padding(.horizontal, 18)
@@ -173,8 +174,15 @@ struct ContentView: View {
                     TypeCase(model: model)
                         .padding(.top, 8)
 
-                    scrollingList
+                    // Pinned, above the scroll rather than inside it. The
+                    // scrolling list is the flexible element in this stack, so
+                    // it absorbs the height this takes and the rack and
+                    // controls keep their positions exactly.
+                    pinnedSummary
                         .padding(.top, 10)
+
+                    scrollingList
+                        .padding(.top, 6)
 
                     Controls(model: model)
                         .padding(.top, 10)
@@ -207,6 +215,17 @@ struct ContentView: View {
             if let puzzle = model.puzzle, let standing = model.standing {
                 FoundListView(puzzle: puzzle, found: model.found,
                               standing: standing, boardDate: model.boardDate)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// The status row, outside the scroll region.
+    private var pinnedSummary: some View {
+        Group {
+            if let puzzle = model.puzzle, let standing = model.standing, !model.found.isEmpty {
+                FoundSummary(puzzle: puzzle, found: model.found,
+                             standing: standing, boardDate: model.boardDate)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)

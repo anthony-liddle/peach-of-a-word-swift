@@ -62,7 +62,7 @@ struct FlowLayout: Layout {
 }
 
 /// One found word: its mark, the word, and what it was worth.
-private struct WordChip: View {
+struct WordChip: View {
     let found: FoundWord
     /// The chip's LAYOUT height, matching the web's `min-height: 24px`.
     ///
@@ -131,9 +131,25 @@ struct FoundListView: View {
     /// midnight has passed while the app stayed open.
     var boardDate: Date = Date()
 
+    init(puzzle: Puzzle, found: [String], standing: TierStanding,
+         boardDate: Date = Date()) {
+        self.puzzle = puzzle
+        self.found = found
+        self.standing = standing
+        self.boardDate = boardDate
+        self.words = classifyFound(found, in: puzzle)
+    }
+
     // One classification pass, shared by the summary and the groups, so a word
     // is never Rare in one readout and something else in the other.
-    private var words: [FoundWord] { classifyFound(found, in: puzzle) }
+    /// Classified once, at init.
+    ///
+    /// This was a computed property read eight times per render, so
+    /// `classifyFound` ran over every found word eight times for one pass of
+    /// the view. Measured at 43 microseconds over 75 words, so it was never the
+    /// input problem it was investigated as, and it is still the same
+    /// one-source-of-truth shape this project keeps hitting.
+    private let words: [FoundWord]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
@@ -144,7 +160,9 @@ struct FoundListView: View {
                     .frame(maxWidth: .infinity, alignment: .center)
                     .padding(.top, 24)
             } else {
-                summary
+                // The summary is no longer here. It is pinned above the scroll
+                // as `FoundSummary`, because a status line you have to scroll
+                // to find is not a status line.
                 ForEach(buildGroups(words, in: puzzle)) { group in
                     if !group.setWords.isEmpty || !group.offPageWords.isEmpty {
                         groupView(group)
@@ -155,84 +173,6 @@ struct FoundListView: View {
         }
     }
 
-    /// The completion count, then bare per-rung tallies.
-    ///
-    /// **Never a denominator on the rarity rungs.** Advertising how many
-    /// off-page words exist turns open-ended discovery into a grind. Completion
-    /// is the set, and that is the one place an "X of Y" belongs.
-    private var summary: some View {
-        let counts: [(WordCategory, String)] = [
-            (.uncommon, "Uncommon"), (.rare, "Rare"), (.mythic, "Mythic"),
-        ].compactMap { category, name in
-            let n = words.filter { $0.category == category }.count
-            return n > 0 ? (category, "\(n) \(name)") : nil
-        }
-
-        return VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 6) {
-                RarityMark(category: .set)
-                Text("\(standing.setFound) of \(counted(standing.setTotal, "word"))")
-                    .font(CuteFont.body(15, weight: "SemiBold", relativeTo: .subheadline))
-                    .foregroundStyle(Cute.ink)
-                    .monospacedDigit()
-                Spacer(minLength: 8)
-                shareButton
-            }
-            if !counts.isEmpty {
-                HStack(spacing: 6) {
-                    ForEach(Array(counts.enumerated()), id: \.offset) { index, entry in
-                        if index > 0 {
-                            Text("·").foregroundStyle(Cute.inkFaint)
-                        }
-                        HStack(spacing: 4) {
-                            RarityMark(category: entry.0)
-                            Text(entry.1)
-                        }
-                    }
-                }
-                .font(CuteFont.body(13, relativeTo: .footnote))
-                .foregroundStyle(Cute.inkSoft)
-            }
-        }
-        .accessibilityElement(children: .combine)
-    }
-
-    /// The daily share.
-    ///
-    /// Pulled into v1 from v2 for a reason specific to this game: the morning
-    /// ritual of sending the result is most of why it gets played, and moving
-    /// to an app without it would take that away.
-    ///
-    /// The text is built by the engine from a value that has no source word in
-    /// it, so a daily share cannot leak the answer. `ShareLink` gives the native
-    /// sheet for free.
-    private var shareButton: some View {
-        ShareLink(item: shareText) {
-            Label("Share", systemImage: "square.and.arrow.up")
-                .font(CuteFont.body(13, weight: "SemiBold", relativeTo: .footnote))
-                .foregroundStyle(Cute.accent)
-        }
-        .accessibilityLabel("Share today's result")
-    }
-
-    private var shareText: String {
-        let complete = isComplete(standing)
-        return buildShareText(DailyShareResult(
-            title: "Peach of a Word",
-            date: boardDate,
-            tierLabel: complete
-                ? Vocabulary.crownName
-                : Vocabulary.tierNames[min(standing.index, Vocabulary.tierNames.count - 1)],
-            setFound: standing.setFound,
-            setTotal: standing.setTotal,
-            uncommon: words.filter { $0.category == .uncommon }.count,
-            rare: words.filter { $0.category == .rare }.count,
-            mythic: words.filter { $0.category == .mythic }.count,
-            setPoints: standing.setPoints,
-            offPagePoints: standing.offPagePoints,
-            totalPoints: standing.score
-        ))
-    }
 
     private func groupView(_ group: LengthGroup) -> some View {
         VStack(alignment: .leading, spacing: 6) {
