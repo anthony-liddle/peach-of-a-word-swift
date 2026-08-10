@@ -520,6 +520,12 @@ retrofitting them was not asked for and would have eaten the timebox.
 
 ## What was built
 
+![The minimal app, 2026-08-09](images/minimal-app.png)
+
+That screenshot is the app at the end of this section and nowhere near what
+shipped. It is kept because it is the evidence this part of the report is about.
+The current app is in the README.
+
 An iOS app target in this repo, depending on the existing `PeachEngine`
 library. It launches, loads today's daily from the shipped calendar, shows the
 eight rack letters, accepts typed guesses through `validateGuess`, lists found

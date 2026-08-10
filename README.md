@@ -20,7 +20,7 @@ in `Data/` are a frozen snapshot, not a sync. See [SNAPSHOT.md](SNAPSHOT.md) for
 the date, the source commit, and one way the upstream metadata has already
 drifted from the files it describes.
 
-![The app running in the simulator](docs/images/minimal-app.png)
+<img src="docs/images/app.png" alt="A mid-game board: the tier meter partway to Ripening, eight letter tiles, and the found list showing set words and off-page finds" width="320">
 
 ## Running it
 
