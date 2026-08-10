@@ -43,7 +43,7 @@ struct CompletionCard: View {
                         // The cute skin for the completion crown, from the web's
                         // CROWN_NAMES. It sits above the six named ranks and is
                         // reached by word count, not by points.
-                        Text(cuteCrownName)
+                        Text(Vocabulary.crownName)
                             .font(CuteFont.display(26, relativeTo: .title))
                             .foregroundStyle(Cute.accent)
                             .multilineTextAlignment(.center)
@@ -57,7 +57,7 @@ struct CompletionCard: View {
                         // you do with them is pick. AppVocabularyTests asserts
                         // the string so the next drift fails a test rather
                         // than waiting to be noticed a fourth time.
-                        Text("Every common word these letters can grow, picked.")
+                        Text(Vocabulary.completionLine)
                             .font(CuteFont.body(15, relativeTo: .subheadline))
                             .foregroundStyle(Cute.inkSoft)
                             .multilineTextAlignment(.center)

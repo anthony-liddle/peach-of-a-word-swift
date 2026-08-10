@@ -75,9 +75,14 @@ and copyright notice travel with them, so the full licence for each is committed
 alongside: [`App/Fonts/OFL-Fredoka.txt`](App/Fonts/OFL-Fredoka.txt) and
 [`App/Fonts/OFL-Nunito.txt`](App/Fonts/OFL-Nunito.txt).
 
-## Owed
+## In the app
 
-The web version carries an in-app colophon, so a player can see this credit
-without leaving the game. This app does not have one yet. A file in a repository
-satisfies the SCOWL notice requirement, but it does not reach the person
-actually playing, and the web set the bar here. Tracked as outstanding.
+There is a colophon in the game itself, at the foot of the found list: "Words
+from ENABLE and SCOWL." and "Set in Fredoka and Nunito." A file in a repository
+satisfies SCOWL's notice requirement but says nothing to the person actually
+playing, and the web set the bar with an in-app credit.
+
+It carries **no Wiktionary line**, because no definitions ship. Crediting a
+source that is not used would be worse than saying nothing. If the definition
+reveal is ever ported, that line and the CC BY-SA terms above become owed
+together.

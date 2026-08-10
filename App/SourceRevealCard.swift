@@ -43,7 +43,7 @@ struct SourceRevealCard: View {
                 VStack(spacing: 8) {
                     // The line Bea reacted to, added in web PR #76 after her
                     // idea. It is the reason this beat exists.
-                    Text("You found the Peach of a Word!")
+                    Text(Vocabulary.sourceFound)
                         .font(CuteFont.display(22, relativeTo: .title2))
                         .foregroundStyle(Cute.accent)
                         .multilineTextAlignment(.center)
@@ -55,7 +55,7 @@ struct SourceRevealCard: View {
                         .lineLimit(1)
                         .minimumScaleFactor(0.5)
 
-                    Text("The peach every word grew from")
+                    Text(Vocabulary.revealKicker)
                         .font(CuteFont.body(15, relativeTo: .subheadline))
                         .italic()
                         .foregroundStyle(Cute.inkFaint)
@@ -81,7 +81,7 @@ struct SourceRevealCard: View {
                 .monospacedDigit()
 
                 Button(action: onDismiss) {
-                    Text("Keep playing")
+                    Text(Vocabulary.revealClose)
                         .font(CuteFont.body(15, weight: "SemiBold", relativeTo: .subheadline))
                         .tracking(2.1)
                         .textCase(.uppercase)
