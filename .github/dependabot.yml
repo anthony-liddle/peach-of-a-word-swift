@@ -1,0 +1,23 @@
+version: 2
+updates:
+  # GitHub Actions only.
+  #
+  # There is no package-manager ecosystem to watch here: the one SwiftPM
+  # dependency is this repository itself (`packages: PeachEngine: path: .`),
+  # and the word lists are a deliberately frozen snapshot rather than a
+  # dependency. See SNAPSHOT.md.
+  #
+  # XcodeGen is pinned by version and SHA-256 inside
+  # ci_scripts/ci_post_clone.sh, which Dependabot cannot see. Bumping it is a
+  # manual job: change both constants together, never the hash alone.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: chore(deps)
+    groups:
+      actions:
+        update-types:
+          - minor
+          - patch

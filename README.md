@@ -24,9 +24,11 @@ drifted from the files it describes.
 
 ## Running it
 
-Requires Swift 6.0+ and Xcode. The package targets **macOS 14 and iOS 17**. The
-iOS floor comes from the app's use of `@Observable` and `ContentUnavailableView`,
-not from the engine.
+Requires **Xcode 26 or newer** to build the app, and Swift 6.0+ for the engine
+alone. The package targets **macOS 14 and iOS 17**; that is the deployment
+floor, set by the app's use of `@Observable` and `ContentUnavailableView`, and
+is separate from the SDK it compiles against. See
+[CONTRIBUTING.md](CONTRIBUTING.md) for why the app target needs the newer SDK.
 
 ```bash
 # XcodeGen is required. The .xcodeproj is generated and is not in the repo.
