@@ -80,7 +80,14 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.anthonyliddle.peachofaword
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         MARKETING_VERSION: "1.0"
-        CURRENT_PROJECT_VERSION: "1"
+        # Build number, not version. App Store Connect permanently reserves
+        # every value it has accepted, so this has to rise before each upload
+        # even when nothing else changed. MARKETING_VERSION is the human one
+        # and only moves when the release does.
+        #
+        # 1 was uploaded on 2026-08-09, before ITSAppUsesNonExemptEncryption
+        # existed, so that build asks the export compliance question by hand.
+        CURRENT_PROJECT_VERSION: "2"
         SWIFT_VERSION: "6.0"
         TARGETED_DEVICE_FAMILY: "1"
         # Signing lives here rather than in Xcode's UI, because this project is
