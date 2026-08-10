@@ -1,0 +1,63 @@
+name: test
+
+# Xcode Cloud already builds and delivers main to TestFlight. This is the other
+# half: it runs on pull requests, before anything reaches main, and it runs the
+# engine suite, which Xcode Cloud does not.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# A second push to a PR makes the first run pointless. macOS runners are the
+# expensive kind, so cancel rather than queue.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    # macOS, because building an iOS app needs Xcode. Pinned rather than
+    # macos-latest: a runner image rolling forward to a new major Xcode is a
+    # change to what this repo is tested against, and it should be a commit.
+    runs-on: macos-15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Versions
+        run: |
+          swift --version
+          xcodebuild -version
+
+      # The engine suite. Pure Swift, no Xcode project involved, which is why
+      # it runs before the project is generated: a failure here is a real
+      # failure rather than a generation problem.
+      - name: swift test
+        run: swift test
+
+      # Generates PeachOfAWord.xcodeproj, which is not committed.
+      #
+      # Deliberately the same script Xcode Cloud runs, rather than a second
+      # copy of the same steps. It pins and checksums XcodeGen, and calling it
+      # here means every pull request exercises the script that delivers to
+      # TestFlight. CI_BUILD_NUMBER is unset, so it leaves the build number
+      # alone exactly as a local run does.
+      - name: Generate the Xcode project
+        run: ./ci_scripts/ci_post_clone.sh
+
+      # A simulator destination, so no signing is involved. Signing on a fork's
+      # pull request could not work anyway, and this is checking that the app
+      # compiles, not that it can be shipped. Xcode Cloud covers the signed
+      # device build.
+      - name: Build the app
+        run: |
+          xcodebuild \
+            -project PeachOfAWord.xcodeproj \
+            -scheme PeachOfAWord \
+            -configuration Release \
+            -destination 'generic/platform=iOS Simulator' \
+            build

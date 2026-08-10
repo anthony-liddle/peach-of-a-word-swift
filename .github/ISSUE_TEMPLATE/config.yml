@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Question about the game itself
+    url: https://github.com/anthony-liddle/peach-of-a-word-swift/discussions
+    about: How something works, or whether a word should count. Not a bug.
+  - name: The web version
+    url: https://github.com/anthony-liddle/peach-of-a-word/issues
+    about: This app is a port. Anything about the browser game belongs there.
