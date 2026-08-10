@@ -39,7 +39,7 @@ struct ContentView: View {
                 // it is also where the dictionary load hides.
                 VStack(spacing: 18) {
                     PeachMark().frame(width: 72, height: 72)
-                    Text("A game about finding words in words")
+                    Text(Vocabulary.mastheadSubline)
                         .font(CuteFont.body(12, weight: "SemiBold", relativeTo: .caption))
                         .tracking(4.4)
                         .textCase(.uppercase)
@@ -47,6 +47,13 @@ struct ContentView: View {
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 32)
                     ProgressView().tint(Cute.accent)
+                    // The loading line, which the app never had: a bare spinner
+                    // where the web says what is happening. The subline in the
+                    // continuous present, so the splash is the app doing the
+                    // thing it is about to invite you to do.
+                    Text(Vocabulary.loadingLine)
+                        .font(CuteFont.body(14, relativeTo: .subheadline))
+                        .foregroundStyle(Cute.inkFaint)
                 }
             case .failed(let message):
                 ContentUnavailableView(
@@ -272,7 +279,7 @@ private struct ComposingStick: View {
             shape.stroke(Cute.tileEdge, lineWidth: 1)
 
             if word.isEmpty {
-                Text("Pick letters to make a word")
+                Text(Vocabulary.inputPlaceholder)
                     .font(CuteFont.body(15, relativeTo: .subheadline))
                     .italic()
                     .tracking(0.6)
@@ -434,7 +441,7 @@ private struct Controls: View {
                     // Capping Delete is the simple approximation of that ratio
                     // and holds at phone widths, which is all this targets.
                     .frame(maxWidth: 116)
-                PillButton("Pick word", kind: .primary,
+                PillButton(Vocabulary.submitWord, kind: .primary,
                            disabled: model.composedWord.count < minWordLength) {
                     model.submit()
                 }
@@ -557,7 +564,7 @@ private struct MessageLine: View {
                 Text("\(word), \(counted(points, "point"))" + (rung == .set ? "" : " (\(rung.rawValue))"))
                     .foregroundStyle(rung == .set ? Cute.accent : Cute.discovery)
             case .sourceFound:
-                Text("You found the Peach of a Word!")
+                Text(Vocabulary.sourceFound)
                     .foregroundStyle(Cute.accent)
             case .rejected(let message):
                 Text(message).foregroundStyle(Cute.inkFaint)
