@@ -13,7 +13,36 @@ public let repositoryRoot: URL = URL(fileURLWithPath: #filePath)
     .deletingLastPathComponent()  // repo root
 
 /// Directory holding the frozen data snapshot. See SNAPSHOT.md.
-public let dataDirectory: URL = repositoryRoot.appendingPathComponent("Data")
+///
+/// The source tree first, then a bundled copy.
+///
+/// `#filePath` bakes in the path of the machine that compiled the package, and
+/// that path existing at *build* time does not mean it exists at *run* time.
+/// Xcode Cloud proved it: the build phase has the checkout at
+/// `/Volumes/workspace/repository`, the test phase does not, so every test
+/// reading a word list failed with "no such file" against a path that had been
+/// correct an hour earlier. The comment on `readWordList` already warned that an
+/// app bundle has no repo root; the same is true of a test bundle running
+/// somewhere else.
+///
+/// So this resolves at first use rather than at compile time, and falls back to
+/// a `Data` directory inside any loaded bundle. Nothing changes for `swift test`
+/// or the benchmark, which run from the source tree and take the first branch.
+public let dataDirectory: URL = resolveDataDirectory()
+
+private func resolveDataDirectory() -> URL {
+    let fromSource = repositoryRoot.appendingPathComponent("Data")
+    if FileManager.default.fileExists(atPath: fromSource.path) { return fromSource }
+    for bundle in Bundle.allBundles + Bundle.allFrameworks {
+        guard let resources = bundle.resourceURL else { continue }
+        let candidate = resources.appendingPathComponent("Data")
+        if FileManager.default.fileExists(atPath: candidate.path) { return candidate }
+    }
+    // Deliberately returns the source path rather than nil. A missing snapshot
+    // must fail loudly at the point of reading, naming the file it wanted,
+    // rather than being silently swapped for an empty directory.
+    return fromSource
+}
 
 /// Read a newline-delimited word list, trimming blanks.
 ///

@@ -150,6 +150,23 @@ targets:
     platform: iOS
     sources:
       - path: Tests/PeachEngineTests
+      # The three things the suite reads off disk, carried in the bundle.
+      #
+      # `swift test` runs from the source tree and finds them there. Xcode
+      # Cloud's test phase does not have the checkout that `#filePath` points
+      # at, so the first attempt failed 14 tests against paths under
+      # /Volumes/workspace/repository that had existed during the build an hour
+      # earlier. Copying them in is what makes the suite portable rather than
+      # source-tree bound. Folder references, so the directory names survive and
+      # the fallbacks can look for `Data/` and `App/` by name.
+      - path: Data
+        type: folder
+        buildPhase: resources
+      - path: App
+        type: folder
+        buildPhase: resources
+      - path: Fixtures/oracle.json
+        buildPhase: resources
     dependencies:
       - package: PeachEngine
         product: PeachEngine
