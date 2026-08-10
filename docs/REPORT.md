@@ -1342,3 +1342,157 @@ debug-only. It is flagged rather than folded in silently.
 - **No write-failure path.** The web wraps its write in a try/catch for quota
   errors. `UserDefaults.set` does not throw, so there is nothing to catch, but
   that also means a failure would be silent.
+
+---
+
+# Part six: the found list, the tier meter, and fitting the screen
+
+2026-08-09.
+
+## A screen, not a page
+
+The framing that shaped the layout work, and it is the right one. A page may be
+arrived at from anywhere, so it can afford a masthead announcing what it is. An
+app is already open, already named on the home screen, already the thing that
+was tapped. The kicker was not merely unnecessary, it was evidence of having
+ported a page.
+
+What changed:
+
+- **The kicker is gone.**
+- **The wordmark shrank** from 34pt to 22pt, keeping "Peach" in pink oblique
+  because that is the identifying mark.
+- **The tiles got shorter** by capping the rack at 310pt rather than letting it
+  span the full width. They keep the 3:4 ratio, so narrower is the only way to
+  make them shorter. That took roughly a fifth off the height.
+- **The controls got bigger**: 56pt for the primary pair, 46pt for the utility
+  pair, against a flat 44pt before. They are the most-used targets on the screen
+  and were previously the smallest.
+
+**The layout is now bottom-weighted**, which was offered as a proposal and is
+worth taking. The controls are pinned to the bottom in comfortable thumb reach,
+the found list takes the loose middle and scrolls, and the well and rack sit
+above it. Pages are top-weighted because they are read; phones are
+bottom-weighted because they are held.
+
+The alternative tried first was the obvious one: keep the source order (well,
+rack, controls, then list) and simply let the list scroll beneath. It works, but
+it wastes the best real estate on the phone. Putting the list between the rack
+and the controls costs nothing, because the list is the part being read rather
+than acted on, and it buys both thumb reach and the room the bigger buttons
+needed.
+
+**The rack and controls now fit without scrolling**, with the list scrolling
+between them.
+
+At accessibility text sizes none of that fits, so the whole screen falls back to
+a single scroll view. Both paths are verified, because this has been regressed
+once already by assuming rather than checking.
+
+## The tier meter
+
+Everything is read off `TierStanding`. Nothing is recomputed.
+
+The rank label in the display font with the bold points total on the same
+baseline-aligned row, a 12pt rounded track with a 1px ink border, and beneath it
+the percentage plus either the next rank or, at the top, "Top rank. The full set
+is the peak."
+
+**The two-tone fill is the part that matters** and it works: set points in the
+on-page pink, off-page points in the discovery purple, as two segments of one
+bar. On a realistic board it reads at a glance where the score came from, which
+is the whole point of it.
+
+**The streak now has a home.** It has been stored and read since persistence
+landed but nothing displayed it, because the toolbar was scoped out. It sits at
+the right of the percentage row as a flame and a count.
+
+## The found list
+
+Grouped by length, longest first, each group headed by the length and an "X of Y"
+of the **set** words of that length. Off-page finds appear in the group and are
+never counted in that denominator.
+
+Chips rather than rows, wrapping in a flow layout. **SwiftUI has no wrapping
+stack**, so this is the one piece of layout that had to be written by hand
+rather than expressed: a `Layout` conformance, about 40 lines, against the web's
+one line of `flex-wrap: wrap`. That is the largest single gap between the two
+platforms found so far in the view layer.
+
+Each word carries its mark and colour, and colour is never the only signal. The
+cute theme marks by glyph, so these are hearts, stars, sparkles and gems rather
+than the base theme's drawn squares and daggers, since cute is what v1 ships.
+The source word gets a peach.
+
+Off-page finds show their points inline. Set words do not: the group's "X of Y"
+already accounts for them, and a number on every chip would bury the ones that
+earned extra.
+
+**The "also found" divider** appears only on groups carrying both, exactly as the
+web has it.
+
+**The summary line never puts a denominator on a rarity rung.** "15 of 27 words"
+for completion, then bare tallies: "5 Uncommon, 3 Rare, 1 Mythic". Advertising
+how many off-page words exist would turn open-ended discovery into a grind.
+
+Words are real buttons with accessible labels and 44pt targets. The definition
+reveal is out of scope, so a tap does nothing yet, and it can drop in later
+without restructuring.
+
+## Did you use the preview canvas?
+
+**Yes, and then I stopped using it, for a reason worth recording.**
+
+The canvas worked exactly as it did last session. All three previews (empty, mid
+game, near completion) appeared as tabs, `debugSeed` populated the board without
+launch arguments, and the re-render was the ~3 seconds measured before. For
+laying out the screen it was clearly the right tool, and the first pass at the
+new layout was judged in it.
+
+**The problem was not the canvas, it was seeing it.** Reading it requires
+capturing the desktop, and `screencapture` kept returning other windows despite
+the frontmost check passing immediately beforehand. Twice it captured unrelated
+applications rather than Xcode. I deleted those captures and stopped, because
+grabbing whatever happens to be on someone's screen is not a reasonable way to
+verify a layout, and no amount of retry logic makes it one.
+
+So the second half of this work was verified with `simctl io screenshot`, which
+only ever contains the app. That loop is about 40 seconds against the canvas's 3,
+and the difference was felt: the seeding-realism fix and the truncation fix each
+cost a full rebuild where the canvas would have shown them immediately.
+
+**The honest summary for an agent doing visual work:** the canvas is the right
+tool and is genuinely fast, but an agent cannot reliably *see* it, because the
+only route is a desktop screenshot and that is neither targeted nor safe. A
+human at the machine has the canvas for free. This is the sharpest version yet
+of the pattern noted in parts three and four: **Xcode owns the interactive
+surface**, and the gap is not capability but observation.
+
+## Two things caught by looking
+
+**The first seeding spread was unrealistic.** `-seedBoard 24` allocated words in
+proportion to band size, and the rare band is enormous, so it produced a board
+with four set words against twenty off-page. No player has ever had that board.
+Reweighted to 62% set words with the remainder favouring uncommon over rare over
+mythic, which gives 15 of 27 set plus a scattering of off-page: a board that
+looks played.
+
+That matters beyond the seeding. The two-tone bar looked broken on the first
+board (a sliver of pink against a wall of purple) and looked right on the second.
+The bar was fine; the fixture was lying.
+
+**The tier caption truncated at accessibility sizes.** "Top rank. The full..."
+with the sentence lost. Fixed by letting it wrap to two lines rather than
+scaling and truncating. Caught only because the accessibility size was actually
+checked rather than assumed, which is now three sessions running where that
+check has found something.
+
+## Owed
+
+- **The definition reveal**, which the chips are already built for.
+- **The per-length grid** showing uncracked lengths, and the expandable rarity
+  panels. Both out of scope here.
+- **A group with only off-page finds** reads "0 of 2" above chips with no
+  divider, because the web's rule is "only when a group has both". Faithful, but
+  the count and the chips beneath still describe different populations in that
+  one case. Worth revisiting against real play.
