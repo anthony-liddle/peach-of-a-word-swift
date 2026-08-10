@@ -257,6 +257,9 @@ final class GameModel {
         // fires on a genuine find, so replaying it needs the day cleared first.
         if UserDefaults.standard.bool(forKey: "resetProgress") {
             found.removeAll()
+            // Otherwise a day that was already complete keeps `completionSeen`
+            // from load, and finishing the fresh board would celebrate nothing.
+            completionSeen = false
             foundDidChange()
         }
         // `-replaySource 1` clears the day and then plays the source word
@@ -266,6 +269,7 @@ final class GameModel {
         // directly into view.
         if UserDefaults.standard.bool(forKey: "replaySource"), let puzzle {
             found.removeAll()
+            completionSeen = false
             clear()
             for letter in puzzle.sourceWord { addLetter(String(letter)) }
             submit()
@@ -372,10 +376,27 @@ final class GameModel {
             return
         }
 
-        // Newest first, matching how a real find lands.
-        for word in picks where !found.contains(word) {
+        // **The day is cleared first.** Seeding means "the board is exactly
+        // this", so it overwrites rather than merges.
+        //
+        // The bug this fixes: seeding used to add to whatever was restored from
+        // storage, so on a day already saved as complete every seeded word was
+        // already present and the flag silently did nothing. The board looked
+        // untouched and the flag looked broken. A seed that no-ops when a save
+        // exists is worse than no seed, because it looks like it worked.
+        //
+        // Clearing here rather than requiring `-resetProgress` alongside it,
+        // because the correct behaviour should not depend on remembering to
+        // pass a second flag. `-resetProgress` still exists for an empty board.
+        found.removeAll()
+        for word in picks {
             found.insert(word, at: 0)
         }
+        // Recomputed from the SEEDED board, not carried over from the saved one.
+        // A seed that lands short of completion must still be able to celebrate
+        // when it is finished, and a seed that lands complete must not
+        // celebrate a peak that was not played.
+        completionSeen = isComplete(computeTier(found: Set(found), puzzle: puzzle))
         foundDidChange()
     }
     #endif
