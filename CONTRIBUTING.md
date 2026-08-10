@@ -13,7 +13,15 @@ xcodegen generate
 open PeachOfAWord.xcodeproj
 ```
 
-Swift 6.0+ and Xcode. The package targets macOS 14 and iOS 17.
+**Xcode 26 or newer** to build the app. The package targets macOS 14 and iOS 17,
+which is the deployment floor and a separate thing from the SDK it compiles
+against: `App/Feel.swift` calls UIKit's feedback generators from nonisolated
+functions, and those APIs are `@MainActor` in the iOS 18 SDK and `nonisolated`
+from the iOS 26 SDK. On Xcode 16.4 the app target does not compile. The app
+still runs on iOS 17.
+
+The engine has no such constraint. `swift test` passes on Swift 6.1, so
+`Sources/` and `Tests/` can be worked on with an older toolchain.
 
 ## The one rule that will catch you out
 

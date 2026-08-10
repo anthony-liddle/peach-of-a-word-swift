@@ -23,10 +23,20 @@ jobs:
     # macOS, because building an iOS app needs Xcode. Pinned rather than
     # macos-latest: a runner image rolling forward to a new major Xcode is a
     # change to what this repo is tested against, and it should be a commit.
-    runs-on: macos-15
+    #
+    # It must be 26. This was macos-15 for one run, whose Xcode 16.4 failed to
+    # compile App/Feel.swift: the UIKit feedback generators are @MainActor in
+    # the iOS 18 SDK and nonisolated from the iOS 26 SDK, and Feel calls them
+    # from nonisolated static functions. The engine is unaffected and
+    # `swift test` passed there, so this is the app target only. Building on an
+    # Xcode nobody ships with would have been testing a configuration that does
+    # not exist.
+    runs-on: macos-26
 
     steps:
-      - uses: actions/checkout@v4
+      # v5 rather than v4, which the runner reports as deprecated for still
+      # targeting Node.js 20.
+      - uses: actions/checkout@v5
 
       - name: Versions
         run: |
