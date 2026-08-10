@@ -54,6 +54,16 @@ targets:
         # the human-facing name has the spaces.
         CFBundleDisplayName: Peach of a Word
         UILaunchScreen: {}
+        # Declared here so App Store Connect stops asking on every single build.
+        # Without it, each upload sits in "Missing Compliance" until the export
+        # questionnaire is answered by hand, which is a per-build tax rather
+        # than a one-off.
+        #
+        # False is the honest answer, not a shortcut. The app makes no network
+        # calls at all: the word lists ship in the bundle, progress lives in
+        # UserDefaults, and the only cryptography anywhere near it is whatever
+        # the OS does underneath, which is exempt by definition.
+        ITSAppUsesNonExemptEncryption: false
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
         # Bundled fonts must be declared here or they are copied into the app
