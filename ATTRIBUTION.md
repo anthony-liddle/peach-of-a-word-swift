@@ -1,0 +1,83 @@
+# Attribution
+
+This app is built on public and openly licensed word data. Credit where it is
+due.
+
+This file is adapted from the web repo's `ATTRIBUTION.md` rather than copied.
+The two ship the same word lists but different typefaces, and this one ships no
+definitions at all, so three of the four sections below differ.
+
+## ENABLE word list (validation)
+
+The validation dictionary is ENABLE (Enhanced North American Benchmark
+LExicon). ENABLE is in the public domain and is the standard list for hobby
+word games. No restrictions apply.
+
+Shipped as `Data/enable.txt`.
+
+## SCOWL (common pool and source words)
+
+The common-word pool and the eight-letter source words are derived from SCOWL
+(Spell Checker Oriented Word Lists), compiled by Kevin Atkinson.
+
+> The collective work is Copyright 2000-2020 by Kevin Atkinson as well as any
+> of the copyrights mentioned below:
+>
+> Copyright 2000-2020 by Kevin Atkinson
+>
+> Permission to use, copy, modify, distribute and sell these word lists, the
+> associated scripts, the output created from the scripts, and its documentation
+> for any purpose is hereby granted without fee, provided that the above
+> copyright notice appears in all copies and that both that copyright notice and
+> this permission notice appear in supporting documentation. Kevin Atkinson
+> makes no representations about the suitability of this array for any purpose.
+> It is provided "as is" without express or implied warranty.
+
+The full SCOWL readme and the per-source copyrights are available at
+<http://wordlist.aspell.net/>.
+
+Shipped as `Data/scowl95-additions.txt`, `Data/common-pool.txt`,
+`Data/beyond-size-70.txt` and `Data/beyond-size-95.txt`. These are a frozen
+snapshot rather than a live sync; see [SNAPSHOT.md](SNAPSHOT.md) for the date
+and the source commit.
+
+## Wiktionary (definitions and etymologies)
+
+**Nothing in this repository is derived from Wiktionary, and no definition text
+ships in the app.** The web version pulls short definitions and etymologies at
+build time for its source-word reveal and its tappable per-word definitions.
+This app has neither: the source-word card names the word and never defines it,
+which was a deliberate constraint rather than an omission.
+
+This section exists so the constraint is recorded rather than forgotten. If the
+definition reveal is ever ported, Wiktionary text is licensed CC BY-SA 4.0, and
+that licence is share-alike: the derivative use has to be released under the
+same terms, and the attribution has to be visible in the app rather than only in
+a file like this one.
+
+- Source: <https://en.wiktionary.org/>
+- Licence: <https://creativecommons.org/licenses/by-sa/4.0/>
+
+## Fonts
+
+Set in **Fredoka** and **Nunito**, both under the SIL Open Font License 1.1.
+The web repo uses Fraunces and Spectral for its letterpress theme; this app
+ships only the cute theme, so it ships only that theme's two faces.
+
+- Fredoka: Copyright 2016 The Fredoka Project Authors
+  (<https://github.com/hafontia/Fredoka-One>)
+- Nunito: Copyright 2014 The Nunito Project Authors
+  (<https://github.com/googlefonts/nunito>)
+
+Unlike the web version, which fetches fonts at build time, this repository
+**redistributes the font binaries** in `App/Fonts/`. The OFL requires its text
+and copyright notice travel with them, so the full licence for each is committed
+alongside: [`App/Fonts/OFL-Fredoka.txt`](App/Fonts/OFL-Fredoka.txt) and
+[`App/Fonts/OFL-Nunito.txt`](App/Fonts/OFL-Nunito.txt).
+
+## Owed
+
+The web version carries an in-app colophon, so a player can see this credit
+without leaving the game. This app does not have one yet. A file in a repository
+satisfies the SCOWL notice requirement, but it does not reach the person
+actually playing, and the web set the bar here. Tracked as outstanding.

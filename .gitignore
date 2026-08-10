@@ -4,4 +4,9 @@ xcuserdata/
 .DS_Store
 *.xcodeproj/project.xcworkspace/
 *.xcodeproj/xcuserdata/
+# Archives have been written into .build/ so far, which covered these by
+# accident rather than by intent. An xcarchive is a signed copy of the whole
+# app and has no business in the history.
+*.xcarchive
+DerivedData/
 PeachMinimal.xcodeproj/
