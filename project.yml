@@ -54,6 +54,15 @@ targets:
         # the human-facing name has the spaces.
         CFBundleDisplayName: Peach of a Word
         UILaunchScreen: {}
+        # Point the plist at the build settings rather than repeating their
+        # values. XcodeGen writes literal defaults for both of these, so the
+        # settings below and the bundle drift apart silently: bumping
+        # CURRENT_PROJECT_VERSION alone left CFBundleVersion at 1, and the
+        # first upload of a "new" build would have been rejected as a
+        # duplicate with nothing in the project to explain why. They agreed
+        # up to now only because both happened to read 1.
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
         # Declared here so App Store Connect stops asking on every single build.
         # Without it, each upload sits in "Missing Compliance" until the export
         # questionnaire is answered by hand, which is a per-build tax rather
