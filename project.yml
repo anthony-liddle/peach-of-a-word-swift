@@ -115,3 +115,49 @@ targets:
         # simulator and blocks running on a real device.
         CODE_SIGN_STYLE: Automatic
         DEVELOPMENT_TEAM: 9ML46U556H
+    # Attach the package's test bundle to this target's scheme.
+    #
+    # Without this, `xcodebuild test -scheme PeachOfAWord` has nothing to run
+    # and Xcode Cloud's Test action fails with "no test bundles available to
+    # test". That failure stops the whole workflow, so the Archive that
+    # succeeded alongside it never gets distributed and no build reaches
+    # TestFlight.
+    scheme:
+      testTargets:
+        - PeachOfAWordTests
+      gatherCoverageData: false
+
+  # The engine suite, as an Xcode test bundle.
+  #
+  # The same files `swift test` runs, compiled a second way rather than copied.
+  # They live in the SwiftPM package, which the app target has no reason to know
+  # about, so GitHub Actions found them (`swift test`) and Xcode Cloud did not
+  # (`xcodebuild test` against a scheme with no testables). Two pipelines, two
+  # different answers to "are the tests passing", and the one that builds the
+  # archive was the one answering wrongly.
+  #
+  # Duplicating the run costs a couple of minutes of the monthly compute budget.
+  # A pipeline that archives untested code is worse than one that checks twice.
+  #
+  # A logic test bundle with no host application: nothing here launches the app
+  # or touches UIKit. `AppVocabularyTests` reads `App/*.swift` as text and the
+  # engine tests read `Data/` from `repositoryRoot`, both resolved from
+  # `#filePath` at compile time. That works under the simulator, which shares the
+  # build machine's filesystem, and would not on a device. These never run on a
+  # device.
+  PeachOfAWordTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: Tests/PeachEngineTests
+    dependencies:
+      - package: PeachEngine
+        product: PeachEngine
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: com.anthonyliddle.peachofaword.tests
+        SWIFT_VERSION: "6.0"
+        TARGETED_DEVICE_FAMILY: "1"
+        CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: 9ML46U556H
