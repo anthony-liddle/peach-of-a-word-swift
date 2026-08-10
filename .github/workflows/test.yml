@@ -81,8 +81,11 @@ jobs:
   # this job is NOT a required status check until it has a track record, which
   # is a decision to revisit rather than a permanent state.
   #
-  # A booted simulator is named explicitly rather than using a generic
-  # destination, because a UI test needs a device to drive.
+  # The simulator is resolved at run time rather than named. A UI test needs a
+  # concrete device, so `generic/platform=iOS Simulator` will not do, and naming
+  # one failed on the first run: the runner had iPhone 17 and 17 Pro but not the
+  # 16 Pro that was asked for. Any name is a guess about a machine image that
+  # changes without notice, so the job asks the runner what it has.
   ui-tests:
     runs-on: macos-26
 
@@ -99,10 +102,22 @@ jobs:
       # push the UI tests into the app scheme that Xcode Cloud runs.
       - name: UI tests
         run: |
+          set -euo pipefail
+          # First available iPhone simulator, by UDID. Fails loudly if the image
+          # somehow has none, rather than falling back to something that is not
+          # a phone.
+          UDID=$(xcrun simctl list devices available \
+            | awk -F'[()]' '/^ *iPhone/ {print $2; exit}')
+          if [ -z "$UDID" ]; then
+            echo "no iPhone simulator available on this runner" >&2
+            xcrun simctl list devices available >&2
+            exit 1
+          fi
+          echo "using simulator $UDID"
           xcodebuild test \
             -project PeachOfAWord.xcodeproj \
             -scheme PeachOfAWordUITests \
-            -destination 'platform=iOS Simulator,name=iPhone 16 Pro' \
+            -destination "id=$UDID" \
             -resultBundlePath .build/ui-tests.xcresult
 
       # The result bundle carries the failure detail and any screenshots, which
