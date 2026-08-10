@@ -6,7 +6,7 @@ import Testing
 struct SmokeTests {
     /// The word counts that actually parse out of the frozen snapshot.
     ///
-    /// These are NOT meta.json's counts — see `metaJSONIsStale` below. They are
+    /// These are NOT meta.json's counts; see `metaJSONIsStale` below. They are
     /// `wc -l` plus one, because none of the shipped lists ends in a newline.
     static let expectedCounts = [
         ("enable.txt", 172_562),
@@ -41,7 +41,7 @@ struct SmokeTests {
     /// with the curated dictionary patch applied. Nothing regenerated the
     /// metadata, so its counts describe a build that no longer ships. The
     /// brief's "430,000 words" comes from `meta.json.counts.boundary` (430,172)
-    /// and the real figure is 427,290 — close enough not to be noticed, which
+    /// and the real figure is 427,290, close enough not to be noticed, which
     /// is exactly what makes it the same failure mode as the completion
     /// duplication: two records of one fact, drifting quietly.
     ///
@@ -69,7 +69,7 @@ struct SmokeTests {
         #expect(meta.counts.boundary == 430_172)    // actual 427_290, -2_882
 
         // The claim under test: they disagree. If a future re-snapshot makes
-        // these match, delete this test — the drift will have been fixed.
+        // these match, delete this test, because the drift will have been fixed.
         let actualBoundary = try readWordList("enable.txt").count
             + readWordList("scowl95-additions.txt").count
         #expect(meta.counts.boundary != actualBoundary)

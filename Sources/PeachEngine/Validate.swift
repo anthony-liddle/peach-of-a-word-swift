@@ -5,7 +5,7 @@
 /// TypeScript, reading `.score` off a result requires narrowing by `kind`
 /// first, and the narrowing is a convention the compiler checks only where you
 /// remember to ask. Here, `score` does not exist except inside a `case .valid`
-/// binding — there is nothing to read on a `.tooShort`.
+/// binding: there is nothing to read on a `.tooShort`.
 ///
 /// The same shape is what stopped the daily share from leaking the answer in
 /// the web version: a union where the source word simply is not a field on the

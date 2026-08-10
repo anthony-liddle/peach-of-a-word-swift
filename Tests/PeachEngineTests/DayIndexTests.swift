@@ -9,7 +9,7 @@ struct DayIndexTests {
 
     /// Build a Date from local calendar components in a given zone. The Swift
     /// equivalent of JavaScript's `new Date(y, m, d, h, min)`, which silently
-    /// uses the machine's zone — the thing this port refuses to do.
+    /// uses the machine's zone, which is the thing this port refuses to do.
     func date(_ y: Int, _ m: Int, _ d: Int, _ h: Int = 12, _ min: Int = 0,
               zone: TimeZone) -> Date {
         var cal = Foundation.Calendar(identifier: .gregorian)

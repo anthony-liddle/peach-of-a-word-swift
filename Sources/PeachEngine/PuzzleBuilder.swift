@@ -44,7 +44,7 @@ public func createPuzzle(
     // Beyond 95. Set words never reach this far.
     let mythicWords = beyond95
 
-    // Par: the set points — every common word at length, source word included,
+    // Par: the set points, meaning every common word at length, source word included,
     // no rarity bonuses. The named ladder runs against this. Off-page finds
     // still earn their points into the score, so they climb faster and overflow
     // the bar past the top named rank, but they are NOT part of the

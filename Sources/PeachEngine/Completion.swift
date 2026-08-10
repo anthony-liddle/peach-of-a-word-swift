@@ -13,7 +13,7 @@
 ///       `setFound + (rung === 'set' ? 1 : 0) >= setTotal`   // no > 0 guard
 ///
 /// They agree today solely because `minSetSize = 15` makes an empty set
-/// impossible — an invariant enforced in a third file entirely. One function,
+/// impossible, an invariant enforced in a third file entirely. One function,
 /// one rule, one test.
 public func isComplete(_ standing: TierStanding) -> Bool {
     standing.setTotal > 0 && standing.setFound >= standing.setTotal

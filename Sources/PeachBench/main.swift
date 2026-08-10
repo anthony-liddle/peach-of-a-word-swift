@@ -21,9 +21,9 @@ func time<T>(_ label: String, _ body: () throws -> T) rethrows -> T {
 // ternary on it warns "will never be executed" on the dead branch. An if/else
 // on two separate statements says the same thing without the noise.
 if _isDebugAssertConfiguration() {
-    print("peach-bench — build: DEBUG (numbers are not decision-grade)")
+    print("peach-bench, build: DEBUG (numbers are not decision-grade)")
 } else {
-    print("peach-bench — build: RELEASE")
+    print("peach-bench, build: RELEASE")
 }
 print("")
 
@@ -78,7 +78,7 @@ print("  validation \(puzzle.validationWords.count), set \(puzzle.commonWords.co
 print("")
 
 print("=== Cold-start budget: what an app actually pays before first paint ===")
-// Everything above, from nothing, as a single measurement — the honest figure
+// Everything above, from nothing, as a single measurement: the honest figure
 // for "how long is the launch screen up if this happens synchronously".
 time("full load: 5 lists + validation Set, from cold") {
     let e = try! readWordList("enable.txt")

@@ -15,22 +15,22 @@ Every task's requirements implicitly include this section.
 - **Timebox: a couple of focused sessions.** If it runs long, STOP and write the report (Task 16). An honest "this took twice as long, here is why" is a better result than a finished port. The report is the deliverable, not the code.
 - **No SwiftUI, no view code, no app target, no persistence, no audio, no theming, no share, no widgets, no data pipeline.**
 - **Clear beats clever.** Antoine has never written Swift and is reading this to learn. When an unfamiliar Swift idiom appears for the first time, explain it in a brief `//` comment at the point of use.
-- **Every Swift concept with no TypeScript equivalent gets a documentation link** in the `docs/PORT-LOG.md` reading list — the Swift book, the API reference, or the evolution proposal, whichever actually explains it. Inline comments say what the code does; the links say where to understand why the language works that way. **Check every URL returns 200 before committing it** (`curl -s -o /dev/null -w '%{http_code}' -L <url>`); a reading list with dead links is worse than none. By Task 16 the section must stand alone as a reading list.
+- **Every Swift concept with no TypeScript equivalent gets a documentation link** in the `docs/PORT-LOG.md` reading list: the Swift book, the API reference, or the evolution proposal, whichever actually explains it. Inline comments say what the code does; the links say where to understand why the language works that way. **Check every URL returns 200 before committing it** (`curl -s -o /dev/null -w '%{http_code}' -L <url>`); a reading list with dead links is worse than none. By Task 16 the section must stand alone as a reading list.
 - **Never modify `~/Development/peach-of-a-word`.** It is read-only reference and stays canonical.
 - **`swift-tools-version: 6.2`, `platforms: [.macOS(.v26)]`.** Both are forced by `InlineArray` (Task 3), which is macOS 26+ and needs PackageDescription 6.2. Verified: tools-version 6.0 fails with `'v26' is unavailable`.
 - **Swift Testing, not XCTest.** `import Testing`, `@Suite`, `@Test`, `#expect`. `init` replaces `beforeEach`.
-- **Conventional commit messages, written by hand.** Types: feat, fix, docs, style, refactor, test, chore, build, ci, perf, revert. No commitlint, husky, Biome, or dependabot — those are Node conventions and do not apply here.
+- **Conventional commit messages, written by hand.** Types: feat, fix, docs, style, refactor, test, chore, build, ci, perf, revert. No commitlint, husky, Biome, or dependabot, because those are Node conventions and do not apply here.
 - **Commit after every task.** Frequent commits.
 - **Keep a running log** at `docs/PORT-LOG.md` (created in Task 1). Two kinds of row, and they are not the same kind of evidence:
-  - **Writer's column** — elapsed time, what was awkward to write, what was pleasant. This is the implementer reporting on the implementer.
-  - **Reader's column** — Antoine's reaction on reading the task's diff: did it make sense, did anything need looking up, did it hold interest. **This is the column the experiment actually turns on.** "Was Swift awkward for the agent writing it" is a fact about the agent; "was Swift legible and interesting to Antoine" is the question being asked.
+  - **Writer's column**: elapsed time, what was awkward to write, what was pleasant. This is the implementer reporting on the implementer.
+  - **Reader's column**: Antoine's reaction on reading the task's diff: did it make sense, did anything need looking up, did it hold interest. **This is the column the experiment actually turns on.** "Was Swift awkward for the agent writing it" is a fact about the agent; "was Swift legible and interesting to Antoine" is the question being asked.
   - **At every checkpoint, PROMPT for the reader's column explicitly.** Do not leave it to be remembered later; a blank reader's column cannot be reconstructed afterwards, and the report is worth less without it than without the timings.
-- Task 16 is written from this log, so do not skip it — reconstructing at the end is exactly the failure this experiment exists to avoid.
+- Task 16 is written from this log, so do not skip it, because reconstructing at the end is exactly the failure this experiment exists to avoid.
 - **Data snapshot is frozen.** Source commit `475edfc687b6bdce2a1186a80c801ae90bda3e57`, taken 2026-08-09.
 
 ## Naming decisions locked here
 
-The TypeScript `Dictionary` interface **cannot** keep its name: Swift's standard library owns `Dictionary`. It becomes `ValidationDictionary`. (Log this — it is report material for the "Swift friction" section.)
+The TypeScript `Dictionary` interface **cannot** keep its name: Swift's standard library owns `Dictionary`. It becomes `ValidationDictionary`. (Log this: it is report material for the "Swift friction" section.)
 
 Public API surface, referenced across tasks:
 
@@ -114,7 +114,7 @@ let package = Package(
 
 - [ ] **Step 3: Write the repo-path helper**
 
-The 8MB snapshot is deliberately NOT an SPM resource — resources get copied into
+The 8MB snapshot is deliberately NOT an SPM resource, because resources get copied into
 the test bundle on every build. Tests and the benchmark reach it by a path
 relative to their own source file instead.
 
@@ -201,7 +201,7 @@ struct SmokeTests {
 - [ ] **Step 7: Run the test to verify it passes**
 
 Run: `swift test`
-Expected: PASS, 1 test. If a count differs, the snapshot copied wrong — recopy rather than editing the expectation.
+Expected: PASS, 1 test. If a count differs, the snapshot copied wrong. Recopy rather than editing the expectation.
 
 - [ ] **Step 8: Write `SNAPSHOT.md`**
 
@@ -225,9 +225,9 @@ data drifted or the logic did. The SHA answers that in seconds.
 
 ## Excluded, by decision
 
-- `defs/` — 795 directories of Wiktionary reveal content. The reveal is out of
+- `defs/`: 795 directories of Wiktionary reveal content. The reveal is out of
   scope for this port.
-- `source-pool.json` — the eligibility tests build their own synthetic pools, so
+- `source-pool.json`: the eligibility tests build their own synthetic pools, so
   the real source pool earns no weight here.
 
 Neither is an oversight.
@@ -241,15 +241,15 @@ Neither is an oversight.
 An experiment, deliberately timeboxed. Not a product, not a v2.
 
 It ports the pure engine of [Peach of a Word](https://github.com/anthonyliddle/peach-of-a-word)
-— scoring, rarity classification, the tier ladder, completion, the daily
-calendar lookup, and puzzle construction — from TypeScript to Swift, to find out
+(scoring, rarity classification, the tier ladder, completion, the daily
+calendar lookup, and puzzle construction) from TypeScript to Swift, to find out
 two things: whether writing Swift is enjoyable, and how fast that actually goes.
 The engine was chosen because it is pure, framework-free, and fully unit-tested,
 so its existing test suite is an executable spec. That makes this an exercise in
 learning one thing (Swift) rather than two.
 
 **The web repo stays canonical.** Nothing here feeds back into it. The word
-lists in `Data/` are a frozen snapshot, not a sync — see [SNAPSHOT.md](SNAPSHOT.md)
+lists in `Data/` are a frozen snapshot, not a sync. See [SNAPSHOT.md](SNAPSHOT.md)
 for the date and source commit.
 
 No UI, no persistence, no audio, no theming, no data pipeline. Those are the
@@ -281,15 +281,15 @@ MIT. See [LICENSE](LICENSE).
 # Port log
 
 One line per task. Feeds docs/REPORT.md. Record honestly, including the parts
-that went badly — the friction is half the answer.
+that went badly: the friction is half the answer.
 
-## Writer's column — the agent's experience of writing it
+## Writer's column: the agent's experience of writing it
 
 | Task | Elapsed | Awkward to write | Pleasant to write |
 |---|---|---|---|
 | 1. Scaffolding | | | |
 
-## Reader's column — Antoine's experience of reading it
+## Reader's column: Antoine's experience of reading it
 
 The column the experiment turns on. Filled in at each checkpoint, from the
 prompt, not from memory. "Looked up" means: something in the diff that could not
@@ -395,7 +395,7 @@ struct TierLadderTests {
 - [ ] **Step 2: Run the tests to verify they fail**
 
 Run: `swift test`
-Expected: FAIL — `cannot find 'scoreWord' in scope` and similar.
+Expected: FAIL with `cannot find 'scoreWord' in scope` and similar.
 
 - [ ] **Step 3: Write `Config.swift`**
 
@@ -425,7 +425,7 @@ public let minSetSize = 15
 ///
 /// A Swift `enum` with a raw value. Unlike the TypeScript string-union it ports
 /// (`'set' | 'uncommon' | 'rare' | 'mythic'`), a `switch` over it is checked for
-/// exhaustiveness by the compiler — adding a rung later breaks every site that
+/// exhaustiveness by the compiler, so adding a rung later breaks every site that
 /// needs updating, rather than silently falling through.
 public enum Rung: String, Sendable, CaseIterable {
     case set, uncommon, rare, mythic
@@ -435,7 +435,7 @@ extension Rung {
     /// DRAFT, TUNABLE. The rarity bonus added on top of the length score for an
     /// off-page find. A set word is the on-page baseline and carries no bonus.
     /// These pay for discovery but stay modest, because the ladder denominator
-    /// is the set points — a small, stable scale.
+    /// is the set points: a small, stable scale.
     public var bonus: Int {
         switch self {
         case .set: 0
@@ -561,7 +561,7 @@ git commit -m "feat: port the scoring curve, rarity bonuses, and game config"
 
 Ports `src/engine/formability.ts`. Test source: `src/engine/formability.test.ts`.
 
-Two implementations of letter counting, deliberately. `letterCountsArray` is the literal translation of the TypeScript `Int8Array(26)` — a heap-allocated buffer per word. `LetterCounts` is a fixed-size value type that lives on the stack. `formableFrom` calls one of them once per candidate word across 430k words, so this is the one place in the port where a value-versus-reference choice has a number attached to it. Task 15 measures the difference.
+Two implementations of letter counting, deliberately. `letterCountsArray` is the literal translation of the TypeScript `Int8Array(26)`, a heap-allocated buffer per word. `LetterCounts` is a fixed-size value type that lives on the stack. `formableFrom` calls one of them once per candidate word across 430k words, so this is the one place in the port where a value-versus-reference choice has a number attached to it. Task 15 measures the difference.
 
 **Files:**
 - Create: `Sources/PeachEngine/Formability.swift`
@@ -629,7 +629,7 @@ struct FormableFromTests {
 - [ ] **Step 2: Run the tests to verify they fail**
 
 Run: `swift test`
-Expected: FAIL — `cannot find 'LetterCounts' in scope`.
+Expected: FAIL with `cannot find 'LetterCounts' in scope`.
 
 - [ ] **Step 3: Write `Formability.swift`**
 
@@ -785,7 +785,7 @@ struct ClassifyTests {
 - [ ] **Step 2: Run the tests to verify they fail**
 
 Run: `swift test`
-Expected: FAIL — `cannot find 'Puzzle' in scope`.
+Expected: FAIL with `cannot find 'Puzzle' in scope`.
 
 - [ ] **Step 3: Write `Types.swift`**
 
@@ -794,7 +794,7 @@ Expected: FAIL — `cannot find 'Puzzle' in scope`.
 ///
 /// A Swift `protocol` is the near-exact analogue of the TypeScript `interface`
 /// this ports. The difference that matters: a Swift type must *declare* that it
-/// conforms, whereas TypeScript interfaces are structural — anything with a
+/// conforms, whereas TypeScript interfaces are structural: anything with a
 /// matching shape satisfies them implicitly.
 public protocol WordSource {
     /// All words in this source, length >= the minimum, formable from the rack.
@@ -833,7 +833,7 @@ public struct Puzzle: Sendable, Equatable {
     public let rareWords: Set<String>
     /// Off-page finds valid in ENABLE but beyond SCOWL size 95. The top rung.
     public let mythicWords: Set<String>
-    /// Par: the total SET points available on this rack — every common word
+    /// Par: the total SET points available on this rack, every common word
     /// scored by length, source word included, with no rarity bonuses. The
     /// denominator the named points ladder runs against.
     ///
@@ -1005,7 +1005,7 @@ struct CreatePuzzleTests {
 - [ ] **Step 3: Run the tests to verify they fail**
 
 Run: `swift test`
-Expected: FAIL — `cannot find 'createPuzzle' in scope`.
+Expected: FAIL with `cannot find 'createPuzzle' in scope`.
 
 - [ ] **Step 4: Write `ListSource.swift`**
 
@@ -1097,7 +1097,7 @@ public func createPuzzle(
     // Beyond 95. Set words never reach this far.
     let mythicWords = beyond95
 
-    // Par: the set points — every common word at length, source word included,
+    // Par: the set points, meaning every common word at length, source word included,
     // no rarity bonuses. The named ladder runs against this. Off-page finds
     // still earn their points into the score, so they climb faster and overflow
     // the bar past the top named rank, but they are NOT part of the
@@ -1248,7 +1248,7 @@ struct TierTests {
 - [ ] **Step 2: Run the tests to verify they fail**
 
 Run: `swift test`
-Expected: FAIL — `cannot find 'computeTier' in scope`.
+Expected: FAIL with `cannot find 'computeTier' in scope`.
 
 - [ ] **Step 3: Write `Tiers.swift`**
 
@@ -1279,7 +1279,7 @@ public struct TierStanding: Sendable, Equatable {
     public let score: Int
     /// Par: total set points available on the rack (the denominator).
     public let reachable: Int
-    /// score / reachable, 0 to 1 — and above 1 once off-page points overflow.
+    /// score / reachable, 0 to 1, and above 1 once off-page points overflow.
     public let fraction: Double
     /// Points from set (on-page) finds, for the two-color bar.
     public let setPoints: Int
@@ -1332,8 +1332,8 @@ public func computeTier(found: Set<String>, puzzle: Puzzle) -> TierStanding {
     }
 
     // `tiers[index + 1]` would trap on the last rank. Swift arrays do not
-    // return undefined for an out-of-bounds read the way JavaScript does — they
-    // crash — so the bound is checked explicitly and turned into an Optional.
+    // return undefined for an out-of-bounds read the way JavaScript does; they
+    // crash, so the bound is checked explicitly and turned into an Optional.
     let next = index + 1 < tiers.count
         ? NextRank(index: index + 1, threshold: tiers[index + 1].threshold)
         : nil
@@ -1368,12 +1368,12 @@ git commit -m "feat: port computeTier and the named points ladder"
 
 ---
 
-### Task 7: Completion — the first deliberate deviation
+### Task 7: Completion, the first deliberate deviation
 
 No TypeScript engine counterpart. In the web repo, completion is computed in the UI, twice:
 
-- `src/ui/share/shareResult.ts:56` — `tier.setTotal > 0 && tier.setFound >= tier.setTotal`
-- `src/ui/useGame.ts:602` — `active.tier.setFound + (result.rung === 'set' ? 1 : 0) >= active.tier.setTotal`, with **no** `setTotal > 0` guard
+- `src/ui/share/shareResult.ts:56`: `tier.setTotal > 0 && tier.setFound >= tier.setTotal`
+- `src/ui/useGame.ts:602`: `active.tier.setFound + (result.rung === 'set' ? 1 : 0) >= active.tier.setTotal`, with **no** `setTotal > 0` guard
 
 They cannot diverge today only because `minSetSize = 15` guarantees `setTotal >= 15`. Two computations of the same fact, agreeing by an invariant enforced in a third file. The Swift side gets exactly one.
 
@@ -1436,7 +1436,7 @@ struct CompletionTests {
 - [ ] **Step 2: Run the tests to verify they fail**
 
 Run: `swift test`
-Expected: FAIL — `cannot find 'isComplete' in scope`.
+Expected: FAIL with `cannot find 'isComplete' in scope`.
 
 - [ ] **Step 3: Write `Completion.swift`**
 
@@ -1448,7 +1448,7 @@ Expected: FAIL — `cannot find 'isComplete' in scope`.
 /// words still unfound, and only this returns true when the page is clear.
 ///
 /// This function does not exist in the TypeScript engine. There, the same rule
-/// is inlined at two UI call sites — `share/shareResult.ts` and `useGame.ts` —
+/// is inlined at two UI call sites, `share/shareResult.ts` and `useGame.ts`,
 /// and only one of them guards `setTotal > 0`. They agree today solely because
 /// `minSetSize = 15` makes an empty set impossible, which is an invariant
 /// enforced in a third file entirely. One function, one rule, one test.
@@ -1548,7 +1548,7 @@ struct ValidateTests {
 - [ ] **Step 2: Run the tests to verify they fail**
 
 Run: `swift test`
-Expected: FAIL — `cannot find 'validateGuess' in scope`.
+Expected: FAIL with `cannot find 'validateGuess' in scope`.
 
 - [ ] **Step 3: Write `Validate.swift`**
 
@@ -1560,7 +1560,7 @@ Expected: FAIL — `cannot find 'validateGuess' in scope`.
 /// TypeScript, reading `.score` off a result requires narrowing by `kind`
 /// first, and the narrowing is a convention the compiler checks only where you
 /// remember to ask. Here, `score` does not exist except inside a `case .valid`
-/// binding — there is nothing to read on a `.tooShort`. The same shape is what
+/// binding: there is nothing to read on a `.tooShort`. The same shape is what
 /// stopped the daily share from leaking the answer in the web version: a union
 /// where the source word simply is not a field on the daily case.
 public enum GuessResult: Sendable, Equatable {
@@ -1699,7 +1699,7 @@ struct EligibilityTests {
 - [ ] **Step 2: Run the tests to verify they fail**
 
 Run: `swift test`
-Expected: FAIL — `cannot find 'sourceSetSize' in scope`.
+Expected: FAIL with `cannot find 'sourceSetSize' in scope`.
 
 - [ ] **Step 3: Write `Eligibility.swift`**
 
@@ -1781,7 +1781,7 @@ git commit -m "feat: port the source-word eligibility floor"
 
 Ports `src/engine/shuffle.ts` and `src/engine/calendar.ts`. Test sources: `src/engine/shuffle.test.ts`, `src/engine/calendar.test.ts`.
 
-The PRNG port is the one place where a plausible-looking translation silently produces different numbers. `mulberry32` uses `Math.imul` — int32 wrapping multiply — which maps to Swift's `&*` on `UInt32`. Task 11's oracle pins it; the expected values below were verified against Node before this plan was written.
+The PRNG port is the one place where a plausible-looking translation silently produces different numbers. `mulberry32` uses `Math.imul` (int32 wrapping multiply), which maps to Swift's `&*` on `UInt32`. Task 11's oracle pins it; the expected values below were verified against Node before this plan was written.
 
 **Files:**
 - Create: `Sources/PeachEngine/Shuffle.swift`
@@ -1884,7 +1884,7 @@ struct CalendarTests {
 - [ ] **Step 2: Run the tests to verify they fail**
 
 Run: `swift test`
-Expected: FAIL — `cannot find 'seededPermutation' in scope`.
+Expected: FAIL with `cannot find 'seededPermutation' in scope`.
 
 - [ ] **Step 3: Write `Shuffle.swift`**
 
@@ -1906,7 +1906,7 @@ public protocol RandomSource {
 /// Deterministic PRNG. Same seed, same stream.
 ///
 /// A faithful port of the JavaScript `mulberry32`, which is written in terms of
-/// `Math.imul` — a 32-bit wrapping multiply — and `>>> 0`, an unsigned 32-bit
+/// `Math.imul` (a 32-bit wrapping multiply) and `>>> 0`, an unsigned 32-bit
 /// coercion. Swift's `&*` and `&+` are the wrapping operators; the plain `*`
 /// and `+` would trap on overflow instead of wrapping, which is Swift being
 /// strict about something JavaScript silently does. Doing the arithmetic in
@@ -1980,7 +1980,7 @@ public func generateCalendar(
 - [ ] **Step 5: Run the tests to verify they pass**
 
 Run: `swift test`
-Expected: PASS. If `matchesJavaScript` fails, the PRNG port is wrong — fix the port, never the expected values.
+Expected: PASS. If `matchesJavaScript` fails, the PRNG port is wrong. Fix the port, never the expected values.
 
 - [ ] **Step 6: Log and commit**
 
@@ -1993,11 +1993,11 @@ git commit -m "feat: port the seeded shuffle and append-only calendar generator"
 
 ### Task 11: The TypeScript oracle
 
-No web counterpart — this is new infrastructure. It turns "does Swift match the web?" from a judgement into a measurement.
+No web counterpart: this is new infrastructure. It turns "does Swift match the web?" from a judgement into a measurement.
 
 **CUT APPLIED, 2026-08-09.** The contingency condition fired: the deliverable moved from "is Swift legible" to "could this ship", the reader is skimming, and this is the one task that is Node infrastructure rather than Swift. The oracle is therefore **`dayIndex` only**.
 
-`seededPermutation`, `cycleOrder`, and `seedForCycle` are instead covered by Node-verified values hardcoded directly in the Swift tests (Task 10 already carries `[9,19,7,…]`, the 50/123 prefix, `[4,3,0,2,1]`, and `[2654435761, 1013904226, 3668339987, 145972072]`; Task 13 adds `cycleOrder` cases the same way). That is weaker than a generated fixture in one specific respect — it does not regenerate if the TypeScript changes — and no weaker at all for catching a wrong port today, which is what the risk actually is.
+`seededPermutation`, `cycleOrder`, and `seedForCycle` are instead covered by Node-verified values hardcoded directly in the Swift tests (Task 10 already carries `[9,19,7,…]`, the 50/123 prefix, `[4,3,0,2,1]`, and `[2654435761, 1013904226, 3668339987, 145972072]`; Task 13 adds `cycleOrder` cases the same way). That is weaker than a generated fixture in one specific respect (it does not regenerate if the TypeScript changes) and no weaker at all for catching a wrong port today, which is what the risk actually is.
 
 `dayIndex` keeps the generator because it is where cross-language divergence genuinely lives and the only place with no hardcoded coverage. **Task 16 must report this cut.**
 
@@ -2276,7 +2276,7 @@ struct DayIndexTests {
 
     /// Build a Date from local calendar components in a given zone. The Swift
     /// equivalent of JavaScript's `new Date(y, m, d, h, min)`, which silently
-    /// uses the machine's zone — the thing this port refuses to do.
+    /// uses the machine's zone, which is the thing this port refuses to do.
     func date(_ y: Int, _ m: Int, _ d: Int, _ h: Int = 12, _ min: Int = 0,
               zone: TimeZone) -> Date {
         var cal = Foundation.Calendar(identifier: .gregorian)
@@ -2356,7 +2356,7 @@ struct DayIndexTests {
 - [ ] **Step 2: Run the tests to verify they fail**
 
 Run: `swift test`
-Expected: FAIL — `cannot find 'dayIndex' in scope`.
+Expected: FAIL with `cannot find 'dayIndex' in scope`.
 
 - [ ] **Step 3: Write `Daily.swift`**
 
@@ -2422,8 +2422,8 @@ The tempting Swift one-liner is
 Spot-check it against the faithful version on the oracle cases and note the
 result in `docs/PORT-LOG.md`. If it never diverges, that is itself a reportable
 finding: Foundation's calendar arithmetic is robust enough that the TypeScript's
-defensive UTC re-anchoring is unnecessary in Swift. Do not switch to it — the
-faithful port stays — but record what was learned.
+defensive UTC re-anchoring is unnecessary in Swift. Do not switch to it. The
+faithful port stays, but record what was learned.
 
 - [ ] **Step 6: Log and commit**
 
@@ -2539,7 +2539,7 @@ struct DailySourceWordTests {
 - [ ] **Step 2: Run the tests to verify they fail**
 
 Run: `swift test`
-Expected: FAIL — `cannot find 'dailySourceWord' in scope`.
+Expected: FAIL with `cannot find 'dailySourceWord' in scope`.
 
 - [ ] **Step 3: Append to `Daily.swift`**
 
@@ -2547,7 +2547,7 @@ Expected: FAIL — `cannot find 'dailySourceWord' in scope`.
 /// A well-distributed seed for a reshuffled cycle. Cycle 0 never reaches here.
 ///
 /// The TypeScript is `(cycle * 0x9e3779b1) >>> 0`. That is a DOUBLE multiply
-/// followed by a mod-2^32 coercion — NOT a wrapping 32-bit multiply. Writing
+/// followed by a mod-2^32 coercion, NOT a wrapping 32-bit multiply. Writing
 /// `UInt32(cycle) &* 0x9e37_79b1` here would look right and produce different
 /// numbers. Widening to Int64 first reproduces the JavaScript exactly, because
 /// the product stays well inside Double's 53-bit exact range for any cycle this
@@ -2607,7 +2607,7 @@ public func dailySourceWord(
 - [ ] **Step 4: Run the tests to verify they pass**
 
 Run: `swift test`
-Expected: PASS. If `matchesOracle` fails on `seedForCycle`, the `&*` mistake was made — fix the port, not the fixture.
+Expected: PASS. If `matchesOracle` fails on `seedForCycle`, the `&*` mistake was made. Fix the port, not the fixture.
 
 - [ ] **Step 5: Add a real-calendar sanity check**
 
@@ -2655,18 +2655,18 @@ Sequenced last among the engine tasks, deliberately: it is outside the brief's s
 
 This is the most interesting shape decision in the port. In TypeScript it is a closure capturing a mutable cursor. Swift offers two idiomatic answers with genuinely different semantics:
 
-- a `struct` with `mutating func next()` — value semantics, so a copy is an independent stream, and every holder must declare it `var`;
-- a `final class` with `func next()` — reference semantics, matching the closure's behaviour exactly, since two references share one cursor.
+- a `struct` with `mutating func next()`: value semantics, so a copy is an independent stream, and every holder must declare it `var`;
+- a `final class` with `func next()`: reference semantics, matching the closure's behaviour exactly, since two references share one cursor.
 
 The plan uses the **struct**, because value semantics are Swift's default and the surprise of "a copy is a separate stream" is the thing worth feeling.
 
-**The randomness has to be generic for that to be true.** A `rng: @escaping () -> Double` parameter would smuggle reference semantics back in: a closure captures its state by reference, so a copy of the struct would share the caller's generator and the two streams would diverge the moment either crossed a pass boundary. That is why Task 10 defines `RandomSource` as a protocol with a `mutating` requirement, and why `EndlessSource` is generic over it and stores it as a `var`. This is subtle and easy to get wrong — the whole reason it is spelled out here rather than left to the executor.
+**The randomness has to be generic for that to be true.** A `rng: @escaping () -> Double` parameter would smuggle reference semantics back in: a closure captures its state by reference, so a copy of the struct would share the caller's generator and the two streams would diverge the moment either crossed a pass boundary. That is why Task 10 defines `RandomSource` as a protocol with a `mutating` requirement, and why `EndlessSource` is generic over it and stores it as a `var`. This is subtle and easy to get wrong, which is the whole reason it is spelled out here rather than left to the executor.
 
 **Write down in `docs/PORT-LOG.md` how the value-semantics constraint actually felt**: the generic parameter, the `var` on every declaration, and whether a `final class` would have been the more honest translation.
 
 **Files:**
 - Create: `Sources/PeachEngine/EndlessSource.swift`
-- Modify: `Sources/PeachEngine/Shuffle.swift` (nothing to change — `RandomSource` and `Mulberry32` already land in Task 10)
+- Modify: `Sources/PeachEngine/Shuffle.swift` (nothing to change, since `RandomSource` and `Mulberry32` already land in Task 10)
 - Create: `Tests/PeachEngineTests/EndlessSourceTests.swift`
 
 **Interfaces:**
@@ -2814,7 +2814,7 @@ struct EndlessSourceTests {
 - [ ] **Step 2: Run the tests to verify they fail**
 
 Run: `swift test`
-Expected: FAIL — `cannot find 'EndlessSource' in scope`.
+Expected: FAIL with `cannot find 'EndlessSource' in scope`.
 
 - [ ] **Step 3: Write `EndlessSource.swift`**
 
@@ -2824,7 +2824,7 @@ Expected: FAIL — `cannot find 'EndlessSource' in scope`.
 /// Each pass is a fresh shuffle of the pool, handed out one word at a time, so
 /// no word repeats until the pool is exhausted. Reaching the end reshuffles,
 /// and the first word of the new pass is forced to differ from the last of the
-/// old — the same boundary rule the daily cycle uses. The pool is the eligible
+/// old, the same boundary rule the daily cycle uses. The pool is the eligible
 /// daily calendar minus the excluded word, so a sub-floor word can never
 /// headline endless and endless can never serve the day's daily rack.
 ///
@@ -2842,7 +2842,7 @@ Expected: FAIL — `cannot find 'EndlessSource' in scope`.
 ///     exactly, since two references share one cursor.
 ///
 /// The struct is used here because value semantics are Swift's default and the
-/// surprise — that handing a copy to someone else does not share the cursor —
+/// surprise (that handing a copy to someone else does not share the cursor)
 /// is the thing worth understanding early. The cost is real: `var` on every
 /// declaration, `inout` to pass it to a helper, a generic parameter that
 /// spreads to every type that mentions this one, and no way to share one stream
@@ -2961,7 +2961,7 @@ func time<T>(_ label: String, _ body: () throws -> T) rethrows -> T {
     return result
 }
 
-print("peach-bench — release mode: \(!_isDebugAssertConfiguration())")
+print("peach-bench, release mode: \(!_isDebugAssertConfiguration())")
 print("")
 print("=== Dictionary load ===")
 
@@ -3000,7 +3000,7 @@ let arrayHits = time("[Int8] (heap allocation per word)") { () -> Int in
     }
     return hits
 }
-precondition(inlineHits == arrayHits, "the two shapes disagree — they are not the same function")
+precondition(inlineHits == arrayHits, "the two shapes disagree; they are not the same function")
 print("  formable words: \(inlineHits)")
 print("")
 
@@ -3025,7 +3025,7 @@ print("  validation \(puzzle.validationWords.count), set \(puzzle.commonWords.co
 swift run peach-bench
 ```
 
-Expected: it works, and the numbers are large. Note them — the debug-versus-release gap is itself worth reporting.
+Expected: it works, and the numbers are large. Note them, because the debug-versus-release gap is itself worth reporting.
 
 - [ ] **Step 3: Run it in release**
 
@@ -3063,7 +3063,7 @@ The actual deliverable. Written from `docs/PORT-LOG.md` and `docs/MEASUREMENTS.m
 
 **Files:**
 - Create: `docs/REPORT.md`
-- Modify: `README.md` (link the report — the link is already written in Task 1)
+- Modify: `README.md` (link the report; the link is already written in Task 1)
 
 **Interfaces:**
 - Consumes: `docs/PORT-LOG.md`, `docs/MEASUREMENTS.md`.
@@ -3075,14 +3075,14 @@ From the log, not from memory: roughly how long the whole thing took, and which 
 
 - [ ] **Step 2: Write "Swift concepts that came up"**
 
-Cover at least: Optionals, value versus reference semantics, protocols against interfaces, error handling, and the collection APIs. For each, say whether it was awkward coming from TypeScript, and be specific — a sentence about a concrete moment beats a paragraph of generality.
+Cover at least: Optionals, value versus reference semantics, protocols against interfaces, error handling, and the collection APIs. For each, say whether it was awkward coming from TypeScript, and be specific: a sentence about a concrete moment beats a paragraph of generality.
 
 - [ ] **Step 3: Write "what TypeScript made easier"**
 
 Candidates observed while planning; confirm or correct each from actual experience:
 
 - Structural typing. Swift needs an explicit `: WordSource` conformance where TypeScript accepts any matching shape.
-- `Dictionary` was not an available name — Swift's standard library owns it.
+- `Dictionary` was not an available name, because Swift's standard library owns it.
 - `InlineArray` forced `swift-tools-version: 6.2` and a macOS 26 platform floor. An availability annotation is a Swift-ism TypeScript has no analogue for.
 - Array indexing traps rather than returning `undefined`, so `tiers[index + 1]` needed an explicit bounds check.
 - `&*` versus `*`: wrapping arithmetic must be asked for by name.
@@ -3106,9 +3106,9 @@ Candidates; confirm or correct each:
 
 Four are already in hand from planning; add anything found while porting:
 
-1. **Completion computed twice, in the UI.** `shareResult.ts:56` guards `setTotal > 0`; `useGame.ts:602` does not. They agree only because `minSetSize = 15` — an invariant enforced in a third file. Found *by porting*, because the port had to ask where the function lived. Not fixed here; it gets its own change in the web repo.
+1. **Completion computed twice, in the UI.** `shareResult.ts:56` guards `setTotal > 0`; `useGame.ts:602` does not. They agree only because `minSetSize = 15`, an invariant enforced in a third file. Found *by porting*, because the port had to ask where the function lived. Not fixed here; it gets its own change in the web repo.
 2. **The stale `reachableScore` doc comment** in `engine/types.ts`, claiming "every findable word scored by length plus its rarity bonus" while `puzzle.ts` computes set points only. No test catches it, because `tiers.test.ts` hand-builds its fixture.
-3. **`eligibility.ts`'s "never reimplement the set rules elsewhere"** — the fossil of an earlier two-computations-agreeing-by-coincidence bug.
+3. **`eligibility.ts`'s "never reimplement the set rules elsewhere"**: the fossil of an earlier two-computations-agreeing-by-coincidence bug.
 4. **The share result** that could leak the daily answer until a discriminated union made it a compile error.
 
 - [ ] **Step 7: Write the risk findings**
@@ -3119,7 +3119,7 @@ Four are already in hand from planning; add anything found while porting:
 - [ ] **Step 8: Write "what stands between this and a shipped app"**
 
 **The section the experiment is actually for.** The engine is the half that
-ports cleanly; everything hard is downstream of it. Scope this honestly — an
+ports cleanly; everything hard is downstream of it. Scope this honestly: an
 optimistic estimate here is worse than useless, because it is the number a
 decision gets made on.
 
@@ -3132,7 +3132,7 @@ routinely conflated and the gap between them is large:
   disclosures, ongoing maintenance. This is the far bar.
 
 For each item below: a rough effort figure, what in the web version carries
-over and what does not, and — separately marked — whether it is a genuine
+over and what does not, and, separately marked, whether it is a genuine
 **blocker** or merely **work**. Most of it is work. Say which few are not.
 
 | Area | Cover at minimum |
@@ -3146,7 +3146,7 @@ over and what does not, and — separately marked — whether it is a genuine
 | Apple Developer Program | Cost, enrolment time, and whether identity verification is a step that can stall. |
 | Provisioning and signing | What Xcode automatic signing handles and what it does not. |
 | TestFlight | Internal versus external testing, and which one reaching Bea actually requires. |
-| App Store review | Guidelines that plausibly bite a dictionary word game. Consider at least: minimum functionality, age rating given that a 427k-word dictionary contains words a rating questionnaire asks about (note the existing slur denylist), and third-party content licensing — Wiktionary is CC BY-SA 4.0, SCOWL and ENABLE have their own terms. Flag the licensing question as something to verify rather than asserting an answer. |
+| App Store review | Guidelines that plausibly bite a dictionary word game. Consider at least: minimum functionality, age rating given that a 427k-word dictionary contains words a rating questionnaire asks about (note the existing slur denylist), and third-party content licensing: Wiktionary is CC BY-SA 4.0, SCOWL and ENABLE have their own terms. Flag the licensing question as something to verify rather than asserting an answer. |
 
 Anything genuinely uncertain gets marked as uncertain. "I do not know whether X
 passes review" is a more useful sentence than a confident guess.
@@ -3161,7 +3161,7 @@ collapsing them is how an experiment gets misread:
 2. **Could it realistically reach the App Store?** The far bar. Separate answer.
 3. **Was the engine port fast, and what does that predict?** From the writer's
    column. Be explicit that the engine is the *easy* half and that its speed is
-   weak evidence about the UI half — the whole reason this port was scoped to
+   weak evidence about the UI half, which is the whole reason this port was scoped to
    pure logic is that pure logic is where a new language is least painful.
 
 Then one paragraph on whether continuing is worth it, given that the question
@@ -3193,7 +3193,7 @@ Do not claim the suite passes without running it and reading the output.
 
 **Verified before writing, not assumed:** `InlineArray` compiles on this toolchain and forces `swift-tools-version: 6.2` + `.macOS(.v26)`; the `Mulberry32` port reproduces Node's `seededPermutation(20, 7)`, `(50, 123)`, and `(5, 0x5e1ec7ed)` exactly; `seedForCycle` via `Int64` reproduces Node's `[2654435761, 1013904226, 3668339987, 145972072]`; the `dayIndex` port matches Node on all ten `America/Los_Angeles` DST instants; Swift Testing's `arguments:` works in a package built this way; `EndlessSource<R: RandomSource>` genuinely forks on copy across a pass boundary, and the `static let` fixtures (`Fixture.puzzle`, `OracleFixture.shared`) initialize without a Swift 6 concurrency complaint.
 
-**Checked and found not to be a problem:** the `cal.dateComponents([.day], from: startOfDay, to: startOfDay)` one-liner was hunted for divergence from the faithful `dayIndex` port across `America/Santiago`, `Asia/Beirut`, `America/Havana`, and `Asia/Amman` — all midnight-DST-transition zones — and never diverged. Task 12 keeps the faithful port anyway (it mirrors the TypeScript) but records the finding rather than re-investigating.
+**Checked and found not to be a problem:** the `cal.dateComponents([.day], from: startOfDay, to: startOfDay)` one-liner was hunted for divergence from the faithful `dayIndex` port across `America/Santiago`, `Asia/Beirut`, `America/Havana`, and `Asia/Amman`, all midnight-DST-transition zones, and never diverged. Task 12 keeps the faithful port anyway (it mirrors the TypeScript) but records the finding rather than re-investigating.
 
 **Hand-derived values, since confirmed against Node:** Task 12's `twoEpochs`
 (220 and 47), the `zoneMatters` instant (`1788609600` = 2026-09-05T12:00:00Z),

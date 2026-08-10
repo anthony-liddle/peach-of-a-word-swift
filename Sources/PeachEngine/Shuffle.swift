@@ -15,7 +15,7 @@ public protocol RandomSource {
 /// Deterministic PRNG. Same seed, same stream.
 ///
 /// A faithful port of the JavaScript `mulberry32`, which is written in terms of
-/// `Math.imul` — a 32-bit wrapping multiply — and `>>> 0`, an unsigned 32-bit
+/// `Math.imul` (a 32-bit wrapping multiply) and `>>> 0`, an unsigned 32-bit
 /// coercion. Swift's `&*` and `&+` are the wrapping operators; the plain `*`
 /// and `+` would trap on overflow instead of wrapping, which is Swift being
 /// strict about something JavaScript does silently. Doing the arithmetic in
