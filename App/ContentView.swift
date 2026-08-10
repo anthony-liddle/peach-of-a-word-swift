@@ -18,6 +18,11 @@ struct ContentView: View {
     /// At accessibility text sizes the fixed play surface cannot fit, so the
     /// whole screen falls back to scrolling. See `game`.
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+    /// The smallest found list worth calling a list: a group heading and a row
+    /// of chips. Scales with Dynamic Type, because a floor in fixed points
+    /// would itself be crushed at large sizes.
+    @ScaledMetric(relativeTo: .body) private var minimumListHeight: CGFloat = 52
     #if TAP_RECORDER
     @Environment(\.scenePhase) private var scenePhase
     #endif
@@ -137,60 +142,105 @@ struct ContentView: View {
     /// one scroll view instead. Dynamic Type has been regressed here once
     /// already by assuming rather than checking, so both paths are verified.
     private var game: some View {
-        Group {
-            if dynamicTypeSize.isAccessibilitySize {
-                ScrollView {
-                    VStack(spacing: 14) {
-                        header
-                        ComposingStick(word: model.composedWord)
-                        TypeCase(model: model)
-                        Controls(model: model)
-                        MessageLine(feedback: model.feedback)
-                        pinnedSummary
-                        foundList
-                    }
-                    .padding(.horizontal, 18)
-                    .padding(.vertical, 8)
-                }
-            } else {
-                // Explicit spacing rather than one uniform VStack gap, because
-                // the gaps are not all the same job: feedback belongs tight to
-                // the well it reports on, and the rack wants less room beneath
-                // it than the uniform 12pt was giving it.
-                VStack(spacing: 0) {
-                    header
-                    ComposingStick(word: model.composedWord)
-                        .padding(.top, 12)
-                    // Feedback lives here, directly under the well it reports
-                    // on, and it lives here permanently. It previously sat
-                    // between the rack and the list, immediately above the
-                    // summary line, where the two read as one slot alternating
-                    // between a count and a message. They are different things:
-                    // the summary describes the board, this describes the last
-                    // submission. Both now have a fixed home and neither moves
-                    // as words are found.
-                    MessageLine(feedback: model.feedback)
-                        .padding(.top, 6)
-                    TypeCase(model: model)
-                        .padding(.top, 8)
-
-                    // Pinned, above the scroll rather than inside it. The
-                    // scrolling list is the flexible element in this stack, so
-                    // it absorbs the height this takes and the rack and
-                    // controls keep their positions exactly.
-                    pinnedSummary
-                        .padding(.top, 10)
-
-                    scrollingList
-                        .padding(.top, 6)
-
-                    Controls(model: model)
-                        .padding(.top, 10)
-                }
-                .padding(.horizontal, 18)
-                .padding(.top, 4)
-            }
+        // Decided by available height, not by text size.
+        //
+        // It used to switch on `isAccessibilitySize`, which is a proxy for
+        // "does this fit", and the proxy was measured wrong in both directions:
+        // an SE and an iPhone 15 differ by 3pt across and 185pt down, and it is
+        // the 185 that decides. At the largest text size the fixed furniture
+        // needs roughly 1180pt against 852 on an iPhone 15 and 667 on an SE, so
+        // it genuinely cannot fit at the top of the range on either. Below that
+        // it often can, and every size that fits now keeps the fixed rack.
+        //
+        // `ViewThatFits` asks the question directly: take the fixed layout if
+        // its ideal height fits, otherwise scroll everything. The minimum height
+        // on the found list is what makes "fits" mean "fits with a list worth
+        // having" rather than "fits with the list crushed to nothing", which is
+        // the bug this replaces.
+        ViewThatFits(in: .vertical) {
+            fixedLayout
+            scrollingFallback
         }
+    }
+
+    /// The rack and controls are fixed furniture; only the list scrolls.
+    ///
+    /// The touch-down commit is safe here because the rack is not inside a
+    /// scroll view, so nothing has to guess whether a finger is tapping or
+    /// panning. That is the whole reason this layout is preferred wherever it
+    /// fits: it is the one that keeps input responsive.
+    private var fixedLayout: some View {
+        // Explicit spacing rather than one uniform VStack gap, because the gaps
+        // are not all the same job: feedback belongs tight to the well it
+        // reports on, and the rack wants less room beneath it than the uniform
+        // 12pt was giving it.
+        VStack(spacing: 0) {
+            header
+            ComposingStick(word: model.composedWord)
+                .padding(.top, 12)
+            // Feedback lives here, directly under the well it reports on, and
+            // it lives here permanently. It previously sat between the rack and
+            // the list, immediately above the summary line, where the two read
+            // as one slot alternating between a count and a message.
+            MessageLine(feedback: model.feedback)
+                .padding(.top, 6)
+            TypeCase(model: model, commitOnTouchDown: true)
+                .padding(.top, 8)
+
+            // Pinned, above the scroll rather than inside it.
+            pinnedSummary
+                .padding(.top, 10)
+
+            scrollingList
+                // The floor. Without it the list is the flexible element and
+                // absorbs every shortfall, which is how it reached zero height
+                // on an SE at xxxLarge while the layout still called itself a
+                // fit. With it, a squeeze past this point falls to the
+                // scrolling layout instead of silently deleting the list.
+                // Ideal as well as minimum, and this is the load-bearing part.
+                // A ScrollView proposes its whole content as its ideal height,
+                // so the found list offered every word it had, the fixed layout
+                // measured as enormous, and ViewThatFits rejected it at every
+                // size including the default. Pinning the ideal to the floor
+                // makes the question "does the furniture plus a usable list
+                // fit", which is the question actually being asked.
+                .frame(minHeight: minimumListHeight,
+                       idealHeight: minimumListHeight,
+                       maxHeight: .infinity)
+                .padding(.top, 6)
+
+            Controls(model: model)
+                .padding(.top, 10)
+        }
+        .padding(.horizontal, 18)
+        .padding(.top, 4)
+    }
+
+    /// Everything scrolls, for when the fixed layout genuinely cannot fit.
+    ///
+    /// The rack is inside the scroll view here, so the touch-down commit is off:
+    /// `RackScrollTests` measured that forcing it on stops the view scrolling
+    /// and inserts a letter. A player in this layout keeps the slower tiles, and
+    /// that is now a known cost of a layout that only appears when nothing else
+    /// will fit.
+    private var scrollingFallback: some View {
+        ScrollView {
+            VStack(spacing: 14) {
+                header
+                ComposingStick(word: model.composedWord)
+                TypeCase(model: model, commitOnTouchDown: false)
+                Controls(model: model)
+                MessageLine(feedback: model.feedback)
+                pinnedSummary
+                foundList
+            }
+            .padding(.horizontal, 18)
+            .padding(.vertical, 8)
+        }
+        // So content past the fold can be screenshotted. Without it the whole
+        // screen is one scroll view at these sizes, simctl cannot scroll, and
+        // anything below the fold could only be reasoned about.
+        .modifier(DebugScrollAnchor())
     }
 
     private var header: some View {
@@ -363,6 +413,9 @@ private struct ComposingStick: View {
 /// varies.
 private struct TypeCase: View {
     let model: GameModel
+    /// Whether this rack sits in a fixed layout, and can therefore commit on
+    /// touch down. See `effectiveCommitOnTouchDown`.
+    let commitOnTouchDown: Bool
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     /// Three columns at accessibility sizes is the reflow that was previously
@@ -372,16 +425,21 @@ private struct TypeCase: View {
 
     /// Whether tiles commit on touch down.
     ///
-    /// Off at accessibility sizes, where the whole screen is a scroll view and
-    /// a zero-distance drag on a tile fires before the system can know whether
-    /// the finger is tapping or starting a scroll. That was a reasoned call,
-    /// never observed, which is what `RackScrollTests` exists to settle. The
-    /// override lets one swipe be run against both configurations.
-    private var commitOnTouchDown: Bool {
+    /// **Tied to the layout, not to the text size.** A zero-distance drag on a
+    /// tile fires before the system can know whether the finger is tapping or
+    /// starting a scroll, so it is only safe when the rack is not inside a
+    /// scroll view. `RackScrollTests` measured what happens otherwise: the view
+    /// stops scrolling entirely and a letter is inserted.
+    ///
+    /// It used to be keyed off `isAccessibilitySize`, which was a proxy for
+    /// "is the rack in a scroll view". The proxy was wrong in both directions,
+    /// so the caller now says which layout it is, and every player whose rack is
+    /// fixed gets the responsiveness fix regardless of their text size.
+    private var effectiveCommitOnTouchDown: Bool {
         #if DEBUG
         if UserDefaults.standard.bool(forKey: "forceTouchDown") { return true }
         #endif
-        return !dynamicTypeSize.isAccessibilitySize
+        return commitOnTouchDown
     }
 
     private var columns: [GridItem] {
@@ -405,7 +463,7 @@ private struct TypeCase: View {
                         // wraps the whole screen at accessibility sizes. That
                         // path is already flagged as untested, so it keeps the
                         // Button until it is looked at properly.
-                        commitOnTouchDown: commitOnTouchDown,
+                        commitOnTouchDown: effectiveCommitOnTouchDown,
                         tileID: id
                     )
                 }
