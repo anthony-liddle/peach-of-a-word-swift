@@ -24,18 +24,13 @@ jobs:
     # macos-latest: a runner image rolling forward to a new major Xcode is a
     # change to what this repo is tested against, and it should be a commit.
     #
-    # It must be 26. This was macos-15 for one run, whose Xcode 16.4 failed to
-    # compile App/Feel.swift: the UIKit feedback generators are @MainActor in
-    # the iOS 18 SDK and nonisolated from the iOS 26 SDK, and Feel calls them
-    # from nonisolated static functions. The engine is unaffected and
-    # `swift test` passed there, so this is the app target only. Building on an
-    # Xcode nobody ships with would have been testing a configuration that does
-    # not exist.
+    # 26 because that is what actually ships this app: it matches Xcode Cloud
+    # and the machine it is developed on, so a green run here means the thing
+    # that reaches TestFlight compiles. The older SDK is covered by
+    # build-oldest-sdk below, which is a different question.
     runs-on: macos-26
 
     steps:
-      # v5 rather than v4, which the runner reports as deprecated for still
-      # targeting Node.js 20.
       - uses: actions/checkout@v7
 
       - name: Versions
@@ -64,6 +59,47 @@ jobs:
       # compiles, not that it can be shipped. Xcode Cloud covers the signed
       # device build.
       - name: Build the app
+        run: |
+          xcodebuild \
+            -project PeachOfAWord.xcodeproj \
+            -scheme PeachOfAWord \
+            -configuration Release \
+            -destination 'generic/platform=iOS Simulator' \
+            build
+
+  # The same build against an older SDK, and the only thing that can detect the
+  # problem it exists for.
+  #
+  # App/Feel.swift compiled on Xcode 26 and failed on Xcode 16.4, because UIKit's
+  # feedback generators changed from @MainActor to nonisolated between the two
+  # SDKs. Nothing catches that class of drift by inspection: the API exists in
+  # both SDKs, so the deployment-target availability checks pass, no
+  # `@available` guard is involved, and grep has nothing to look for. The only
+  # detector is a compiler with the older SDK.
+  #
+  # This matters because the deployment floor is iOS 17. An app that only builds
+  # on the newest Xcode has a newest-toolchain requirement whether or not anyone
+  # wrote it down, and the failure surfaces when a runner image moves rather
+  # than when the mistake is made.
+  #
+  # A separate job rather than a matrix on `test`, deliberately: a matrix would
+  # rename the status check to `test (macos-26)` and silently detach the
+  # required check in branch protection.
+  build-oldest-sdk:
+    runs-on: macos-15
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Versions
+        run: xcodebuild -version
+
+      - name: Generate the Xcode project
+        run: ./ci_scripts/ci_post_clone.sh
+
+      # No `swift test` here. The engine is SDK independent and running it twice
+      # would buy nothing; this job is only asking whether the app compiles.
+      - name: Build the app against the older SDK
         run: |
           xcodebuild \
             -project PeachOfAWord.xcodeproj \

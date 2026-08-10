@@ -18,13 +18,30 @@ enum Feel {
     /// CoreHaptics patterns, because a discrete generator call cannot build and
     /// an escalation that does not build reads as just another tap.
 
+    // Every function below is @MainActor, including the three that did not
+    // need to be to compile here.
+    //
+    // UIKit's feedback generators are @MainActor in the iOS 18 SDK and
+    // nonisolated from the iOS 26 SDK. Calling them from a nonisolated static
+    // func therefore builds on Xcode 26 and fails on Xcode 16.4, which is how
+    // this file quietly acquired a newest-toolchain requirement that the rest
+    // of the app does not have. The deployment floor was moved down to iOS 17
+    // deliberately; a source file that only compiles against the newest SDK
+    // walks part of that back by accident.
+    //
+    // The annotation is also just true. These touch the haptics hardware from
+    // UIKit and every caller is GameModel, which is already @MainActor, so
+    // nothing changes at runtime and no call site needed touching.
+
     /// Picking up a tile. The lightest thing in the app, because it happens
     /// most: eight or more per word.
+    @MainActor
     static func tilePress() {
         UIImpactFeedbackGenerator(style: .light).impactOccurred(intensity: 0.58)
     }
 
     /// A word accepted. Clearly more than a tile, clearly less than the peach.
+    @MainActor
     static func find() {
         UINotificationFeedbackGenerator().notificationOccurred(.success)
     }
@@ -32,6 +49,7 @@ enum Feel {
     /// A word rejected. Deliberately softer than a find rather than harsher:
     /// a wrong guess in a word game is ordinary, not a failure worth punishing.
     /// `.warning` was tried and felt like being told off.
+    @MainActor
     static func reject() {
         UIImpactFeedbackGenerator(style: .rigid).impactOccurred(intensity: 0.5)
     }
