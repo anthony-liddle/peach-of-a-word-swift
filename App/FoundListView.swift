@@ -10,8 +10,11 @@ struct FlowLayout: Layout {
     // The web uses `gap: 0.3rem 0.75rem`: a small row gap and a larger column
     // gap. The asymmetry is the point. An equal gap makes wrapped rows read as
     // separate lines rather than as one continuous flow of words.
+    //
+    // Rows are sized from the chips' own heights, which are now sized from the
+    // text rather than from a tap target. See `WordChip`.
     var horizontalSpacing: CGFloat = 12
-    var verticalSpacing: CGFloat = 2
+    var verticalSpacing: CGFloat = 5
 
     /// Split the subviews into rows that fit the proposed width.
     private func rows(_ subviews: Subviews, width: CGFloat) -> [[(Int, CGSize)]] {
@@ -61,14 +64,26 @@ struct FlowLayout: Layout {
 /// One found word: its mark, the word, and what it was worth.
 private struct WordChip: View {
     let found: FoundWord
-    /// A deliberate trade against the 44pt guideline.
+    /// The chip's LAYOUT height, matching the web's `min-height: 24px`.
     ///
-    /// At 44 the chip box is more than twice the height of its text, so wrapped
-    /// rows sat far apart and read as separate lines rather than as flowing
-    /// words. 38 keeps a comfortable target (the chips are wide, and the
-    /// smallest dimension is the one the guideline is really about) while
-    /// closing the row pitch by a quarter.
-    @ScaledMetric(relativeTo: .body) private var target: CGFloat = 38
+    /// This is not the tap target. The touch region is expanded separately
+    /// below, so a small chip carries a large one without inflating the row.
+    ///
+    /// **Why 24 and not 44, on the record rather than as a quietly lowered
+    /// standard.** 44pt is Apple's figure for standalone controls. WCAG 2.5.8
+    /// sets 24 by 24 as the minimum and carves out an explicit exception for
+    /// inline targets constrained by the line height of surrounding text, which
+    /// is exactly what these are: words in a flowing paragraph, not buttons in
+    /// a row. Sizing them as standalone controls gave roughly 30pt of box
+    /// around 20pt of text and broke the flow the list depends on. The web
+    /// settled the same question the same way, and its 24px chips are tapped
+    /// daily on a phone without complaint.
+    @ScaledMetric(relativeTo: .body) private var chipHeight: CGFloat = 24
+
+    /// How far the touch region extends past the chip on each side, taking the
+    /// effective target to roughly 44pt without costing a single point of row
+    /// height.
+    @ScaledMetric(relativeTo: .body) private var touchInset: CGFloat = 10
 
     var body: some View {
         Button {
@@ -91,8 +106,12 @@ private struct WordChip: View {
                         .monospacedDigit()
                 }
             }
-            .frame(minHeight: target)
+            .frame(minHeight: chipHeight)
+            // Grow, claim the grown bounds as the hit region, then collapse the
+            // layout back. The touch area stays large; the row does not.
+            .padding(.vertical, touchInset)
             .contentShape(Rectangle())
+            .padding(.vertical, -touchInset)
         }
         .buttonStyle(.plain)
         .accessibilityLabel(

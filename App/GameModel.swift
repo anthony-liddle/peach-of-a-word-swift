@@ -231,6 +231,24 @@ final class GameModel {
                 submit()
             }
         }
+        // `-resetProgress 1` wipes today's saved words so the board starts
+        // empty and the source word can be found for real. The celebration only
+        // fires on a genuine find, so replaying it needs the day cleared first.
+        if UserDefaults.standard.bool(forKey: "resetProgress") {
+            found.removeAll()
+            foundDidChange()
+        }
+        // `-replaySource 1` clears the day and then plays the source word
+        // through the ordinary path: compose it tile by tile and submit. That
+        // means the haptic, the feedback line, the card and the save all happen
+        // exactly as they would in play, rather than the card being poked
+        // directly into view.
+        if UserDefaults.standard.bool(forKey: "replaySource"), let puzzle {
+            found.removeAll()
+            clear()
+            for letter in puzzle.sourceWord { addLetter(String(letter)) }
+            submit()
+        }
         // `-seedBoard almost` or `-seedBoard 24`.
         if let spec = UserDefaults.standard.string(forKey: "seedBoard") {
             seedBoard(spec)
