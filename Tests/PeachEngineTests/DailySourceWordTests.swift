@@ -71,7 +71,7 @@ struct DailySourceWordTests {
     //
     // These values came out of Node. The plan's oracle contingency was applied
     // (the generated fixture covers dayIndex only), so the PRNG paths are
-    // pinned by hardcoded Node output instead — same tripwire, no extra
+    // pinned by hardcoded Node output instead: same tripwire, no extra
     // infrastructure. See docs/REPORT.md.
     @Test("matches the TypeScript seedForCycle exactly",
           arguments: [(1, UInt32(2_654_435_761)), (2, 1_013_904_226),
