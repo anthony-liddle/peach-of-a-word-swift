@@ -104,6 +104,27 @@ final class GameModel {
         self.storage = storage
     }
 
+    /// "Now", shiftable in debug builds by `-dayOffset N`.
+    ///
+    /// The daily rollover is the core loop of a daily game and had never run in
+    /// life: every session so far has been the same puzzle on the same day.
+    /// Shifting the date here drives the whole chain the way a real midnight
+    /// would: a new day index, a new source word from the calendar, a new
+    /// storage key, the streak comparison, and the fourteen-day prune.
+    ///
+    /// What this does NOT exercise is the one call to `Date()` itself, which is
+    /// Foundation rather than our code. A real clock change is still worth doing
+    /// once on a device; see docs/REPORT.md.
+    nonisolated static var now: Date {
+        #if DEBUG
+        let offset = UserDefaults.standard.integer(forKey: "dayOffset")
+        if offset != 0 {
+            return Foundation.Calendar.current.date(byAdding: .day, value: offset, to: Date()) ?? Date()
+        }
+        #endif
+        return Date()
+    }
+
     /// Bound directly to the debug text field, so this one is `var`. Tapping is
     /// the primary path; this stays only because it makes headless testing of
     /// arbitrary strings possible.
@@ -204,7 +225,7 @@ final class GameModel {
             // moves, NOT off dailyEpoch, which a calendar regeneration can
             // re-anchor. Keying on the daily epoch would renumber every stored
             // day and cost a streak. See StorageEpochTests.
-            let day = dayIndex(Date(), epoch: storageEpoch, timeZone: .current)
+            let day = dayIndex(Self.now, epoch: storageEpoch, timeZone: .current)
             storageDayIndex = day
             found = storage.loadDayProgress(dayIndex: day, sourceWord: p.sourceWord)
             streak = storage.currentStreak(todayIndex: day)
@@ -575,7 +596,7 @@ extension GameModel {
                 // player's local midnight.
                 let word = try dailySourceWord(
                     calendar: calendar,
-                    date: Date(),
+                    date: now,
                     epoch: dailyEpoch,
                     timeZone: .current
                 )

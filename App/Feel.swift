@@ -21,7 +21,7 @@ enum Feel {
     /// Picking up a tile. The lightest thing in the app, because it happens
     /// most: eight or more per word.
     static func tilePress() {
-        UIImpactFeedbackGenerator(style: .light).impactOccurred(intensity: 0.45)
+        UIImpactFeedbackGenerator(style: .light).impactOccurred(intensity: 0.58)
     }
 
     /// A word accepted. Clearly more than a tile, clearly less than the peach.

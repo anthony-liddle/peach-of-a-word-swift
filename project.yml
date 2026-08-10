@@ -10,9 +10,17 @@
 # Regenerate with: xcodegen generate
 # The generated .xcodeproj is committed too, so the repo opens without xcodegen.
 
-name: PeachMinimal
+name: PeachOfAWord
 options:
-  bundleIdPrefix: com.anthonyliddle.peachofaword
+  # The bundle identifier is `com.anthonyliddle.peachofaword`, set explicitly
+  # below rather than composed from a prefix plus the target name.
+  #
+  # It was `com.anthonyliddle.peachofaword.PeachMinimal`, which carried a
+  # scaffold name into a permanent identity. Changing it AFTER an install makes
+  # iOS treat the app as a different one: the existing copy stays, orphaned,
+  # with its saved progress unreachable. Free to change today, and expensive the
+  # moment there is a streak worth keeping, so it is being settled now.
+  bundleIdPrefix: com.anthonyliddle
   # iOS 17 is the floor for this app: @Observable and ContentUnavailableView are
   # both iOS 17, and nothing here needs anything newer. It was briefly 26.0,
   # which only InlineArray in PeachEngine required. See docs/MEASUREMENTS.md.
@@ -25,7 +33,7 @@ packages:
     path: .
 
 targets:
-  PeachMinimal:
+  PeachOfAWord:
     type: application
     platform: iOS
     sources:
@@ -35,12 +43,16 @@ targets:
       - path: Data
         type: folder
         buildPhase: resources
+      - path: App/Assets.xcassets
     dependencies:
       - package: PeachEngine
         product: PeachEngine
     info:
       path: App/Info.plist
       properties:
+        # What the home screen shows. The target is PeachOfAWord for tooling;
+        # the human-facing name has the spaces.
+        CFBundleDisplayName: Peach of a Word
         UILaunchScreen: {}
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
@@ -54,7 +66,9 @@ targets:
     settings:
       base:
         GENERATE_INFOPLIST_FILE: NO
-        PRODUCT_NAME: PeachMinimal
+        PRODUCT_NAME: PeachOfAWord
+        PRODUCT_BUNDLE_IDENTIFIER: com.anthonyliddle.peachofaword
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         MARKETING_VERSION: "0.1"
         CURRENT_PROJECT_VERSION: "1"
         SWIFT_VERSION: "6.0"
