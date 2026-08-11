@@ -38,6 +38,18 @@ jobs:
           swift --version
           xcodebuild -version
 
+      # The word lists in Data/ are a committed copy of an orchard release,
+      # which is what keeps builds offline and off the compute-hour budget. The
+      # cost of a committed copy is that it can drift from the release it claims
+      # to be, so the claim gets checked. Offline and no network: it hashes the
+      # committed files against the pins in the script.
+      #
+      # This ran nowhere before, and the gap it closes is documented: meta.json
+      # described a build that no longer shipped for six weeks, and the numbers
+      # reached a published essay.
+      - name: Lexicon drift check
+        run: tools/update-lexicon.sh --check
+
       # The engine suite. Pure Swift, no Xcode project involved, which is why
       # it runs before the project is generated: a failure here is a real
       # failure rather than a generation problem.
