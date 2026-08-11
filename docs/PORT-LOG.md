@@ -139,3 +139,52 @@ fixed, because the web repo is out of scope.
 
 Minor, but it means `wc -l` under-reports every list by one, and any tooling
 that counts lines rather than parsed entries inherits the same off-by-one.
+
+## The frozen snapshot, and what replaced it (2026-08-11)
+
+`SNAPSHOT.md` is deleted as of this date. It described a mechanism that no
+longer exists: `Data/` was a hand-copied freeze, "never synced, only
+re-snapshotted deliberately", with its provenance recorded as a source commit in
+a markdown file and its integrity as an md5 someone ran once at copy time.
+
+`Data/` is now a committed copy of a pinned [orchard](https://github.com/anthony-liddle/orchard)
+release, fetched by `tools/update-lexicon.sh`, verified at two levels of
+checksum, and checked in CI on every build. The version is pinned in the script
+rather than described in prose, which is the difference: the old record could
+disagree with the files and nothing would notice, and this one cannot.
+
+Its findings are kept here, because they are the reason several guards exist.
+
+**The counts `meta.json` claimed, against what actually shipped.** Generated
+2026-06-24, lists re-baked 2026-08-03 with the curated patch applied, and
+nothing regenerated the metadata for six weeks.
+
+| Count | `meta.json` said | Actually shipped | Out by |
+|---|---|---|---|
+| enable | 172,727 | 172,562 | -165 |
+| scowl95Additions | 257,445 | 254,728 | -2,717 |
+| common | 10,861 | 10,879 | +18 |
+| beyond70 | 318,691 | 315,922 | -2,769 |
+| beyond95 | 5,399 | 5,389 | -10 |
+| **boundary** | **430,172** | **427,290** | **-2,882** |
+| sourcePool | 707 | 793 | +86 |
+| definitionsCovered | 23,555 | 24,833 | +1,278 |
+
+**This escaped the repository.** A published essay quoted 430,172, in a section
+called "When Metrics Lie". Corrected since, in both the essay and the data.
+
+**And the numbers were never wrong, which is why they survived.** 430,172 is
+exactly the unpatched boundary, 172,727 plus 257,445, measured. It was accurate
+about the input while the artifact described the output, and both were
+internally correct. A number that is exactly right about the wrong thing gets
+past scrutiny that a merely stale one would not.
+
+`SmokeTests.metaJSONMatchesShippedLists` exists because of this. It was written
+asserting the drift, inverted rather than deleted when the drift was fixed, and
+within days it caught the same defect arriving through a new door: the update
+command wrote the lists and nothing rewrote the metadata. Deleting it would have
+let that ship silently.
+
+**One quirk worth keeping:** none of the shipped lists ends in a newline, so
+`wc -l` reports one fewer than each file contains. Every count here is a parsed
+count.
