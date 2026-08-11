@@ -34,20 +34,30 @@ struct SmokeTests {
         #expect(Set(boundary).count == 427_290)
     }
 
-    /// meta.json's counts do not describe the shipped files, and this test
-    /// pins that rather than papering over it.
+    /// meta.json's counts describe the files in this snapshot.
     ///
-    /// meta.json was generated 2026-06-24; the lists were re-baked 2026-08-03
-    /// with the curated dictionary patch applied. Nothing regenerated the
-    /// metadata, so its counts describe a build that no longer ships. The
-    /// brief's "430,000 words" comes from `meta.json.counts.boundary` (430,172)
-    /// and the real figure is 427,290, close enough not to be noticed, which
-    /// is exactly what makes it the same failure mode as the completion
-    /// duplication: two records of one fact, drifting quietly.
+    /// This test used to assert the opposite. `metaJSONIsStale` pinned a real
+    /// defect: meta.json was generated 2026-06-24, the lists were re-baked
+    /// 2026-08-03 with the curated patch applied, and nothing regenerated the
+    /// metadata, so every count described a build that no longer shipped. The
+    /// boundary was out by 2,882 words, and the figure escaped into a published
+    /// essay as "430,000 words" when the real number was 427,290.
     ///
-    /// Recorded as a finding, not fixed. The web repo is out of scope here.
-    @Test("meta.json's counts are stale relative to the shipped lists")
-    func metaJSONIsStale() throws {
+    /// Fixed upstream 2026-08-11: `pnpm data:bake` now rewrites meta.json from
+    /// the artifacts it produces, and `src/data/meta.test.ts` asserts every
+    /// count against the committed file it describes. This snapshot was taken
+    /// after that fix, so the claim inverts.
+    ///
+    /// Kept rather than deleted, which its predecessor's own comment suggested.
+    /// A deleted test leaves this repo with no opinion about a file it ships,
+    /// and the web-side guard cannot see a snapshot copied wrong. This one can.
+    /// It is the check that catches a partial re-snapshot, lists updated and
+    /// metadata forgotten, which is the exact shape of the original bug.
+    ///
+    /// Derived, never hardcoded. Literal expectations here would be a third
+    /// record of the same fact and would rot the way meta.json did.
+    @Test("meta.json's counts describe the lists in this snapshot")
+    func metaJSONMatchesShippedLists() throws {
         struct Meta: Codable {
             struct Counts: Codable {
                 let enable: Int
@@ -62,16 +72,17 @@ struct SmokeTests {
         let url = dataDirectory.appendingPathComponent("meta.json")
         let meta = try JSONDecoder().decode(Meta.self, from: try Data(contentsOf: url))
 
-        #expect(meta.counts.enable == 172_727)      // actual 172_562, -165
-        #expect(meta.counts.common == 10_861)       // actual  10_879, +18
-        #expect(meta.counts.beyond70 == 318_691)    // actual 315_922, -2_769
-        #expect(meta.counts.beyond95 == 5_399)      // actual   5_389, -10
-        #expect(meta.counts.boundary == 430_172)    // actual 427_290, -2_882
+        let enable = try readWordList("enable.txt").count
+        let additions = try readWordList("scowl95-additions.txt").count
 
-        // The claim under test: they disagree. If a future re-snapshot makes
-        // these match, delete this test, because the drift will have been fixed.
-        let actualBoundary = try readWordList("enable.txt").count
-            + readWordList("scowl95-additions.txt").count
-        #expect(meta.counts.boundary != actualBoundary)
+        #expect(meta.counts.enable == enable)
+        #expect(meta.counts.scowl95Additions == additions)
+        #expect(meta.counts.common == (try readWordList("common-pool.txt").count))
+        #expect(meta.counts.beyond70 == (try readWordList("beyond-size-70.txt").count))
+        #expect(meta.counts.beyond95 == (try readWordList("beyond-size-95.txt").count))
+
+        // The boundary is the union the app assembles, and the pair is disjoint
+        // by construction, so it is the sum.
+        #expect(meta.counts.boundary == enable + additions)
     }
 }
