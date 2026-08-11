@@ -2,10 +2,15 @@ import SwiftUI
 
 /// The credit, in the app rather than only in the repository.
 ///
-/// `ATTRIBUTION.md` records the terms and satisfies SCOWL's requirement that its
-/// notice travel with the word lists, but a file in a repository says nothing to
-/// the person actually playing, and the web set the bar with an in-app credit.
-/// This is that, ported.
+/// `ATTRIBUTION.md` records the terms, but a file in a repository says nothing
+/// to the person actually playing, and the web set the bar with an in-app
+/// credit. This is that, ported.
+///
+/// The notice itself travels in `Data/ATTRIBUTION.md`, which is inside the
+/// folder reference bundled into the app, so SCOWL's requirement that its notice
+/// appear in all copies is met by the copy rather than by the repository. Until
+/// 2026-08-11 that directory instead held a copy of the app's MIT `LICENSE`,
+/// which read as though it licensed word lists nobody here owns.
 ///
 /// **No Wiktionary line.** The web credits it for definitions and etymologies;
 /// this app ships none, and the source-word card names the word without ever

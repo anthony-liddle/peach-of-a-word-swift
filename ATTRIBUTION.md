@@ -3,6 +3,11 @@
 This app is built on public and openly licensed word data. Credit where it is
 due.
 
+**The notice that ships is `Data/ATTRIBUTION.md`.** This file is the fuller
+record and lives in the repository; that one sits inside the folder reference
+bundled into the app, so SCOWL's notice travels with the copy of the word lists
+rather than staying behind here. Keep the two in step when either changes.
+
 This file is adapted from the web repo's `ATTRIBUTION.md` rather than copied.
 The two ship the same word lists but different typefaces, and this one ships no
 definitions at all, so three of the four sections below differ.
