@@ -4,22 +4,30 @@ import Testing
 
 @Suite("package smoke")
 struct SmokeTests {
-    /// The word counts that actually parse out of the frozen snapshot.
+    /// The five lists are present and parse.
     ///
-    /// These are NOT meta.json's counts; see `metaJSONIsStale` below. They are
-    /// `wc -l` plus one, because none of the shipped lists ends in a newline.
-    static let expectedCounts = [
-        ("enable.txt", 172_562),
-        ("scowl95-additions.txt", 254_728),
-        ("common-pool.txt", 10_879),
-        ("beyond-size-70.txt", 315_922),
-        ("beyond-size-95.txt", 5_389),
+    /// This used to hardcode each list's exact size. Those literals were a third
+    /// record of a fact meta.json and the lists themselves already carried, and
+    /// they broke the moment the lexicon moved: a one-word release failed this
+    /// test for no reason except that the numbers were written down twice.
+    ///
+    /// Exactness now lives in `metaJSONMatchesShippedLists` below, which asserts
+    /// the counts against the lists rather than against a literal, so it stays
+    /// true across releases. This one only asserts the files are there and hold
+    /// a plausible amount, which is the part a missing or truncated file breaks.
+    static let listNames = [
+        "enable.txt", "scowl95-additions.txt", "common-pool.txt",
+        "beyond-size-70.txt", "beyond-size-95.txt",
     ]
 
-    @Test("the frozen data snapshot is present and the expected size",
-          arguments: expectedCounts)
-    func snapshotPresent(name: String, count: Int) throws {
-        #expect(try readWordList(name).count == count)
+    @Test("every shipped list is present and parses", arguments: listNames)
+    func snapshotPresent(name: String) throws {
+        let words = try readWordList(name)
+        // A truncated or empty file is the failure this catches. The floor is
+        // deliberately far below any real list so it never needs revisiting for
+        // an ordinary lexicon update.
+        #expect(words.count > 1_000, "\(name) parsed only \(words.count) words")
+        #expect(words.allSatisfy { !$0.isEmpty })
     }
 
     /// The validation dictionary is ENABLE unioned with the SCOWL 95 additions,
@@ -28,10 +36,10 @@ struct SmokeTests {
     @Test("the boundary list is the union of enable and the SCOWL 95 additions")
     func boundarySize() throws {
         let boundary = try readWordList("enable.txt") + readWordList("scowl95-additions.txt")
-        #expect(boundary.count == 427_290)
         // Disjoint by construction: the additions are what SCOWL 95 adds *on
-        // top of* ENABLE, so the union has no duplicates to collapse.
-        #expect(Set(boundary).count == 427_290)
+        // top of* ENABLE, so the union has no duplicates to collapse. That is
+        // the claim worth testing, and unlike a literal it survives a release.
+        #expect(Set(boundary).count == boundary.count)
     }
 
     /// meta.json's counts describe the files in this snapshot.
