@@ -93,9 +93,11 @@ times.
 
 ## Word data
 
-`Data/` is a frozen snapshot, not a sync. See [SNAPSHOT.md](SNAPSHOT.md) before
-changing anything in it, and [ATTRIBUTION.md](ATTRIBUTION.md) for the terms the
-lists carry.
+`Data/` is a committed copy of a pinned orchard release, not something derived
+here and not a hand-taken snapshot. Never edit those files directly: change the
+word data in orchard, cut a release, then run `tools/update-lexicon.sh` and
+review the diff. `tools/update-lexicon.sh --check` runs in CI and fails if the
+committed copies drift from the release they claim to be.
 
 ## Reporting a bug in the game
 

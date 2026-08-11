@@ -43,8 +43,8 @@ The full SCOWL readme and the per-source copyrights are available at
 
 Shipped as `Data/scowl95-additions.txt`, `Data/common-pool.txt`,
 `Data/beyond-size-70.txt` and `Data/beyond-size-95.txt`. These are a frozen
-snapshot rather than a live sync; see [SNAPSHOT.md](SNAPSHOT.md) for the date
-and the source commit.
+committed copy of a pinned orchard release; see `tools/update-lexicon.sh` for
+the version and its checksums.
 
 ## Wiktionary (definitions and etymologies)
 

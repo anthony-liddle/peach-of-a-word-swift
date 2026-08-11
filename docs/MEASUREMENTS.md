@@ -26,7 +26,7 @@ measure".
 
 The validation dictionary is `enable.txt` unioned with `scowl95-additions.txt`:
 **427,290 words**. (Not 430,172; that figure comes from a stale `meta.json`.
-See `SNAPSHOT.md`.)
+See `tools/update-lexicon.sh` for the pinned release.)
 
 | Step | Release | Debug | Debug penalty |
 |---|---|---|---|

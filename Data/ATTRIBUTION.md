@@ -13,7 +13,7 @@ It also sits here rather than only at the repository root because `Data/` is
 bundled into the app as a folder reference, so the notice now travels inside
 every copy of the lists rather than staying behind in the repository. SCOWL asks
 for exactly that. See the root `ATTRIBUTION.md` for the fuller record, and
-`SNAPSHOT.md` for the snapshot date and source commit.
+`tools/update-lexicon.sh` for the pinned release and its checksums.
 
 ## ENABLE (`enable.txt`)
 

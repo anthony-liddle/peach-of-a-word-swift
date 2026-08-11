@@ -16,9 +16,11 @@ puzzle construction. The engine has no UI, no I/O and no framework dependencies,
 which is why it carries 102 tests and the app carries none.
 
 **The web repo stays canonical.** Nothing here feeds back into it. The word lists
-in `Data/` are a frozen snapshot, not a sync. See [SNAPSHOT.md](SNAPSHOT.md) for
-the date, the source commit, and one way the upstream metadata has already
-drifted from the files it describes.
+in `Data/` are a committed copy of a pinned [orchard](https://github.com/anthony-liddle/orchard)
+release, fetched and checksum-verified by `tools/update-lexicon.sh`. They are not
+derived here and not hand-copied: run that script to move to a new release, and
+`--check` to verify the committed copies still match the pinned one. CI runs the
+check on every build.
 
 <img src="docs/images/app.png" alt="A mid-game board: the tier meter partway to Ripening, eight letter tiles, and the found list showing set words and off-page finds" width="320">
 

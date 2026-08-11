@@ -24,8 +24,8 @@
 # of a committed copy is that it can drift from the release it claims to be,
 # which is what --check exists for. CI runs it, so drift becomes a failing job
 # rather than a discovery six weeks later. That failure mode is not theoretical
-# here: SNAPSHOT.md documents meta.json describing a build that no longer
-# shipped, for six weeks, with the numbers quoted into a published essay.
+# here: meta.json described a build that no longer shipped, for six weeks, with
+# the numbers quoted into a published essay. See docs/PORT-LOG.md.
 # ---------------------------------------------------------------------------
 #
 # INTEGRITY. Two levels, because they answer different questions. The archive's
@@ -133,8 +133,8 @@ done
 # meta.json's list counts are recomputed from what was just written.
 #
 # This step was missing from the first version of this script, and its absence
-# reintroduced the exact defect SNAPSHOT.md documents: meta.json describing a
-# build that no longer ships. Previously meta.json travelled with the lists as
+# reintroduced the exact defect recorded in docs/PORT-LOG.md: meta.json
+# describing a build that no longer ships. Previously meta.json travelled with the lists as
 # one snapshot, so copying the lists copied the counts. Now this script writes
 # the lists and nothing else does, so the obligation moved here with them.
 #
