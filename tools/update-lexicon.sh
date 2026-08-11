@@ -42,15 +42,15 @@
 set -euo pipefail
 
 REPO="anthony-liddle/orchard"
-VERSION="v1.0.2"
+VERSION="v1.1.1"
 ARCHIVE="lexicon.tar.gz"
-ARCHIVE_SHA256="65cd01f592fb83d22d2c4228743f985f144ce55cec8e55386c600365826a204b"
+ARCHIVE_SHA256="f9ddc588ff0a9c66271922ce8e8251cf2edfdf50abccd563e95bb04abb039778"
 
 # sha256 per file, as published in the release's checksums.txt.
 FILES=(
   "enable.txt:689618c5348c28738ae3453575518e459bc0804c0f3cc3ad8c4af6b2441ea4e0"
   "scowl95-additions.txt:dbc6347327b3237b2a5ebb22f55227b193be386d882da1863add2d1353233b7c"
-  "common-pool.txt:560c246b7a078889b5b4a84df67f8f9bc833e778c28259ee36950603fc3db361"
+  "common-pool.txt:10fa33188c8de4fc0d047f0993165365e12d6e739e1072a1275ee94c1fab928f"
   "beyond-size-70.txt:4af0676fdd320c86889e5fc06a2bff4b06a5052e16d3442e60000dc9fa0ba285"
   "beyond-size-95.txt:8b4a39ab5b62739ffe4d8408117e3d4fe8f2e8ae271fb0deaae1666eaca5e257"
 )
