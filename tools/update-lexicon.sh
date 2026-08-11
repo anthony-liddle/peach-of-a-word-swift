@@ -42,9 +42,9 @@
 set -euo pipefail
 
 REPO="anthony-liddle/orchard"
-VERSION="v1.0.0"
+VERSION="v1.0.2"
 ARCHIVE="lexicon.tar.gz"
-ARCHIVE_SHA256="d6881a72879165cd7e511a860975324c16cb8d732a5080101e65b34a2cb7ba8f"
+ARCHIVE_SHA256="65cd01f592fb83d22d2c4228743f985f144ce55cec8e55386c600365826a204b"
 
 # sha256 per file, as published in the release's checksums.txt.
 FILES=(
@@ -129,6 +129,46 @@ for entry in "${FILES[@]}"; do
   cp "$UNPACKED/$name" "$DATA_DIR/$name"
   echo "  wrote  $name"
 done
+
+# meta.json's list counts are recomputed from what was just written.
+#
+# This step was missing from the first version of this script, and its absence
+# reintroduced the exact defect SNAPSHOT.md documents: meta.json describing a
+# build that no longer ships. Previously meta.json travelled with the lists as
+# one snapshot, so copying the lists copied the counts. Now this script writes
+# the lists and nothing else does, so the obligation moved here with them.
+#
+# Caught by SmokeTests.metaJSONMatchesShippedLists on the round-trip test, which
+# is the test that was inverted rather than deleted precisely so it would keep
+# having an opinion about this file.
+#
+# Only the six list counts change. sourcePool and definitionsCovered describe
+# the crown pool and the definition bundles, neither of which this app ships,
+# and they are carried through untouched rather than invented.
+say "recomputing meta.json list counts"
+python3 - "$DATA_DIR" <<'PYEOF'
+import json, sys, pathlib
+data = pathlib.Path(sys.argv[1])
+def count(name):
+    return len([w for w in (data / name).read_text().split("\n") if w.strip()])
+meta_path = data / "meta.json"
+meta = json.loads(meta_path.read_text())
+enable = count("enable.txt")
+additions = count("scowl95-additions.txt")
+meta["counts"].update({
+    "enable": enable,
+    "scowl95Additions": additions,
+    "boundary": enable + additions,
+    "common": count("common-pool.txt"),
+    "beyond70": count("beyond-size-70.txt"),
+    "beyond95": count("beyond-size-95.txt"),
+})
+# No trailing newline: the web's serialiseMeta writes
+# JSON.stringify(meta, null, 2) and nothing after it, and these two files
+# must stay byte-identical.
+meta_path.write_text(json.dumps(meta, indent=2))
+print(f"  meta.json rewritten: {enable + additions:,} boundary words")
+PYEOF
 
 # Data/ATTRIBUTION.md is this repo's own, written to carry the SCOWL notice
 # inside the app bundle, and is not overwritten from the archive. The archive
