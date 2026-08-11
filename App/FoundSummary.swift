@@ -66,6 +66,11 @@ struct FoundSummary: View {
                     .font(CuteFont.body(15, weight: "SemiBold", relativeTo: .subheadline))
                     .foregroundStyle(Cute.ink)
                     .monospacedDigit()
+                    // A stable handle for the UI tests. They used to find this
+                    // label by its exact text, which embeds the day's set size,
+                    // so the query only matched on days whose crown happened to
+                    // have that many words. See UITests/LayoutBudget.swift.
+                    .accessibilityIdentifier("FoundSummaryCount")
                 Spacer(minLength: 8)
                 ShareSummaryButton(puzzle: puzzle, found: found,
                                    standing: standing, boardDate: boardDate)
