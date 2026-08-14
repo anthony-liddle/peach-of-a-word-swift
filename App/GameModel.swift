@@ -74,6 +74,16 @@ final class GameModel {
     private(set) var feedbackSeq = 0
     private(set) var loadMilliseconds: Double = 0
 
+    /// What the reveal card shows for each crown, keyed by word.
+    ///
+    /// Empty until the corpus ships, which is the state this repository is in
+    /// today: `Data/etymology.tsv` is Wiktionary text under CC BY-SA 4.0 and is
+    /// not committed. `readSourceEntries` treats a missing file as empty rather
+    /// than as an error, so this is a normal empty dictionary and not a failure
+    /// the launch path has to catch. The card renders each section only when it
+    /// has content, so an empty table is exactly the card that ships now.
+    private(set) var sourceEntries: [String: SourceEntry] = [:]
+
     /// The celebration currently on screen, if any.
     ///
     /// Two beats share this slot, and the hierarchy decides which wins when both
@@ -87,12 +97,12 @@ final class GameModel {
     var moment: Moment?
 
     enum Moment: Identifiable {
-        case sourceWord(word: String, points: Int)
+        case sourceWord(word: String)
         case completion(setTotal: Int, score: Int)
 
         var id: String {
             switch self {
-            case .sourceWord(let word, _): "source-\(word)"
+            case .sourceWord(let word): "source-\(word)"
             case .completion: "completion"
             }
         }
@@ -227,6 +237,7 @@ final class GameModel {
         var built: Result<Puzzle, Error>?
         let elapsed = await clock.measure {
             built = await Self.buildTodaysPuzzle()
+            sourceEntries = await Self.loadSourceEntries()
         }
 
         // 1 millisecond is 1e15 attoseconds. An earlier version of this scaled
@@ -630,7 +641,7 @@ final class GameModel {
             found.insert(word, at: 0)
             if isSourceWord {
                 feedback = .sourceFound
-                moment = .sourceWord(word: word, points: score)
+                moment = .sourceWord(word: word)
                 Feel.sourceWord()
             } else {
                 feedback = .accepted(word: word, points: score, rung: rung)
@@ -712,6 +723,25 @@ extension GameModel {
             } catch {
                 return .failure(error)
             }
+        }.value
+    }
+
+    /// Read the reveal corpus off the main thread, from the app bundle.
+    ///
+    /// Its own detached task rather than a return value bolted onto
+    /// `buildTodaysPuzzle`, because the two answer different questions: that one
+    /// builds the game and must fail loudly if the word lists are missing, and
+    /// this one fetches something the card can do without. Folding them together
+    /// would put a `Result` around a load that cannot fail.
+    ///
+    /// The bundle path is `bundledDataDirectory()` for the same reason the word
+    /// lists use it: the engine's default `dataDirectory` is derived from
+    /// `#filePath` and resolves only on the machine that compiled the package,
+    /// which the iOS Simulator makes look correct and a device does not.
+    nonisolated static func loadSourceEntries() async -> [String: SourceEntry] {
+        await Task.detached(priority: .userInitiated) {
+            guard let data = try? bundledDataDirectory() else { return [:] }
+            return readSourceEntries(in: data)
         }.value
     }
 
