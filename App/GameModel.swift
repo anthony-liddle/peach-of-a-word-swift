@@ -235,6 +235,12 @@ final class GameModel {
     func load() async {
         let clock = ContinuousClock()
         var built: Result<Puzzle, Error>?
+        // The corpus read is inside the measurement deliberately: it is part of
+        // what launch costs, and a load timer that excludes half the load is
+        // worse than one that grows. Note that it does grow. Today the file is
+        // absent and this is one failed stat; the day it ships,
+        // loadMilliseconds gains the parse, and the numbers in
+        // docs/MEASUREMENTS.md were taken before it existed.
         let elapsed = await clock.measure {
             built = await Self.buildTodaysPuzzle()
             sourceEntries = await Self.loadSourceEntries()
