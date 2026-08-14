@@ -35,9 +35,12 @@ final class GameModel {
 
         /// What the message line says, in one place.
         ///
-        /// Lifted out of the row's `body` so the string has a home that is not
-        /// a view. The row is where it is drawn, not where it is decided, and
-        /// what the slot can say is now a question with one answer to read.
+        /// The visible row and the VoiceOver announcement both read this, so
+        /// they cannot drift into saying different things, and the announcement
+        /// is never the shortened or truncated form. Truncation is something a
+        /// frame does to a drawing at a text size that cannot fit it; it is not
+        /// something that happens to the string, and the channel that does not
+        /// have a width should not inherit the width's problems.
         var message: String? {
             switch self {
             case .none: nil
@@ -55,6 +58,20 @@ final class GameModel {
     private(set) var found: [String] = []
     private(set) var feedback: Feedback = .none
 
+    /// How many submits have been resolved. Bumped on every one, including a
+    /// submit whose outcome repeats the last.
+    ///
+    /// It exists so the message can be announced to VoiceOver, and it has to
+    /// exist because `Feedback` is `Equatable`: rejecting the same word twice
+    /// produces an equal value, which is not a change, so nothing downstream
+    /// fires and the second rejection is silent. That is exactly the case a
+    /// player who cannot see the line is most likely to hit, since they have no
+    /// way to notice they retyped the same word.
+    ///
+    /// The web hit this and answered it the same way, with `seq` on its
+    /// announcement (`useGame.ts`, `bump(prev, body)`). A counter rather than a
+    /// timestamp, so it stays deterministic and testable.
+    private(set) var feedbackSeq = 0
     private(set) var loadMilliseconds: Double = 0
 
     /// The celebration currently on screen, if any.
@@ -602,6 +619,7 @@ final class GameModel {
 
     private func resolve(_ result: GuessResult?) {
         guard let result else { return }
+        feedbackSeq += 1
 
         // An exhaustive switch over the engine's enum. Adding a case to
         // GuessResult would fail to compile here rather than silently falling

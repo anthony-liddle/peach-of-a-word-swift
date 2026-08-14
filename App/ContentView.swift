@@ -115,6 +115,21 @@ struct ContentView: View {
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
         }
+        // The feedback line, spoken.
+        //
+        // `MessageLine` is hidden from the accessibility tree, so before this
+        // there was no way to hear a rejected guess at all. Posted here rather
+        // than from the row because the row is instantiated twice, once per arm
+        // of the `ViewThatFits`, and the root is instantiated once.
+        //
+        // Keyed on the counter rather than on `feedback` itself: the same word
+        // rejected twice produces an equal value, which is not a change, and a
+        // player who cannot see the line is exactly the player who has no way
+        // to notice they submitted it again. See `GameModel.feedbackSeq`.
+        .onChange(of: model.feedbackSeq) {
+            guard let message = model.feedback.message else { return }
+            AccessibilityNotification.Announcement(message).post()
+        }
         #if TAP_RECORDER
         // The window-level probe, and the flush. Backgrounding is the natural
         // end of a session: handing the phone over writes the log.
@@ -762,6 +777,22 @@ private struct PillButton: View {
 /// shove into a truncation, so the copy is cut to fit the reserved line too.
 /// See `Vocabulary` and `GameModel.resolve` for what each string had to become.
 ///
+/// **VoiceOver has never heard this line, and now it does.** The row is hidden
+/// from the accessibility tree, which was defensible while it wrapped: the
+/// sentence stayed whole on screen and the slot added nothing to swipe past.
+/// Reserving the height changed that bargain. The visible line can now shrink
+/// and, at the largest text sizes, truncate, so it is the only channel for the
+/// information and it is a lossy one. The people most likely to be at those
+/// sizes are the people most likely to be using VoiceOver, which is the wrong
+/// way round. So the message is announced, from the same `Feedback.message` the
+/// row renders, which is what makes the announcement carry the whole string no
+/// matter what the row does to fit it.
+///
+/// The announcement is posted from `ContentView.body` rather than from here,
+/// and that is load bearing: this view is instantiated twice, once in each arm
+/// of the `ViewThatFits`, so announcing from inside it would be betting that
+/// SwiftUI never runs `onChange` on the arm it measured and discarded. The root
+/// exists exactly once, so there is no bet to lose.
 private struct MessageLine: View {
     let feedback: GameModel.Feedback
 
