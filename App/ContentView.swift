@@ -115,6 +115,21 @@ struct ContentView: View {
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
         }
+        // The feedback line, spoken.
+        //
+        // `MessageLine` is hidden from the accessibility tree, so before this
+        // there was no way to hear a rejected guess at all. Posted here rather
+        // than from the row because the row is instantiated twice, once per arm
+        // of the `ViewThatFits`, and the root is instantiated once.
+        //
+        // Keyed on the counter rather than on `feedback` itself: the same word
+        // rejected twice produces an equal value, which is not a change, and a
+        // player who cannot see the line is exactly the player who has no way
+        // to notice they submitted it again. See `GameModel.feedbackSeq`.
+        .onChange(of: model.feedbackSeq) {
+            guard let message = model.feedback.message else { return }
+            AccessibilityNotification.Announcement(message).post()
+        }
         #if TAP_RECORDER
         // The window-level probe, and the flush. Backgrounding is the natural
         // end of a session: handing the phone over writes the log.
@@ -751,29 +766,85 @@ private struct PillButton: View {
 ///
 /// It previously echoed the compose well's placeholder, so "Pick letters to make
 /// a word" appeared twice on screen. On the web this line only ever carries a
-/// find or a rejection. The height is reserved either way so feedback never
-/// shifts the layout.
+/// find or a rejection.
+///
+/// **The height is reserved, which it previously only claimed to be.** The
+/// frame said `minHeight: 20`, and a minimum is a floor, not a reservation: the
+/// rejection for an unformable word wrapped to two lines and pushed the rack,
+/// the summary and the list down, mid-play, at the exact moment a finger was
+/// heading for a tile. Same defect the tier caption had, same fix, and the
+/// second half of it matters as much as the first: reserving alone turns the
+/// shove into a truncation, so the copy is cut to fit the reserved line too.
+/// See `Vocabulary` and `GameModel.resolve` for what each string had to become.
+///
+/// **VoiceOver has never heard this line, and now it does.** The row is hidden
+/// from the accessibility tree, which was defensible while it wrapped: the
+/// sentence stayed whole on screen and the slot added nothing to swipe past.
+/// Reserving the height changed that bargain. The visible line can now shrink
+/// and, at the largest text sizes, truncate, so it is the only channel for the
+/// information and it is a lossy one. The people most likely to be at those
+/// sizes are the people most likely to be using VoiceOver, which is the wrong
+/// way round. So the message is announced, from the same `Feedback.message` the
+/// row renders, which is what makes the announcement carry the whole string no
+/// matter what the row does to fit it.
+///
+/// The announcement is posted from `ContentView.body` rather than from here,
+/// and that is load bearing: this view is instantiated twice, once in each arm
+/// of the `ViewThatFits`, so announcing from inside it would be betting that
+/// SwiftUI never runs `onChange` on the arm it measured and discarded. The root
+/// exists exactly once, so there is no bet to lose.
 private struct MessageLine: View {
     let feedback: GameModel.Feedback
 
-    var body: some View {
-        Group {
-            switch feedback {
-            case .none:
-                Text(" ")
-            case .accepted(let word, let points, let rung):
-                Text("\(word), \(counted(points, "point"))" + (rung == .set ? "" : " (\(rung.rawValue))"))
-                    .foregroundStyle(rung == .set ? Cute.accent : Cute.discovery)
-            case .sourceFound:
-                Text(Vocabulary.sourceFound)
-                    .foregroundStyle(Cute.accent)
-            case .rejected(let message):
-                Text(message).foregroundStyle(Cute.inkFaint)
-            }
+    /// The reserved height for the message row. One line of Nunito at 15pt
+    /// measures 21, and `@ScaledMetric` grows that with Dynamic Type, so the
+    /// row still gets bigger as the text does. What it will not do is get
+    /// bigger because of what the row happens to say.
+    @ScaledMetric(relativeTo: .callout) private var messageHeight: CGFloat = 21
+
+    private var tint: Color {
+        switch feedback {
+        case .none: Cute.inkFaint
+        case .accepted(_, _, let rung): rung == .set ? Cute.accent : Cute.discovery
+        case .sourceFound: Cute.accent
+        case .rejected: Cute.inkFaint
         }
-        .font(CuteFont.body(15, relativeTo: .callout))
-        .frame(maxWidth: .infinity, minHeight: 20)
-        .accessibilityHidden(true)
+    }
+
+    var body: some View {
+        // A space rather than an empty string, so the row has a baseline to
+        // sit on whatever else changes.
+        Text(feedback.message ?? " ")
+            .foregroundStyle(tint)
+            .font(CuteFont.body(15, relativeTo: .callout))
+            // 0.6 is the tier caption's allowance, and it buys a real amount
+            // here. Measured in Nunito at 339pt of content, which is 375pt of
+            // phone less the 18pt margins. That is the 13 mini, and it is the
+            // binding case rather than the SE for a reason worth writing down:
+            // the SE takes the scrolling fallback at every text size, so the
+            // fixed layout never exists there, while the mini is narrow AND
+            // tall enough to keep it. Widening this bound to a 402pt phone
+            // would be measuring the wrong device.
+            //
+            // At AX5 the two shortened rejections need 0.78 and 0.81, and the
+            // off-page find messages 0.65 and 0.72. Two strings still land
+            // under 0.6 and will truncate: the source-word line (0.56), kept
+            // deliberately because it is the game's one loaded sentence and a
+            // sheet is opening behind it anyway, and an eight-letter uncommon
+            // find (0.56), which is a format rather than a phrase. Dropping
+            // the floor to fit them would put a 24pt glyph in front of someone
+            // who asked for 43, which looks like it worked.
+            .lineLimit(1)
+            .minimumScaleFactor(0.6)
+            // Min and max both, which is how `frame` spells an exact height
+            // while taking the full width. There is no `maxWidth:height:`.
+            .frame(maxWidth: .infinity,
+                   minHeight: messageHeight, maxHeight: messageHeight)
+            // Still hidden as an element, and now that is a choice rather than
+            // a gap: the announcement above is the channel, and leaving the row
+            // in the tree as well would mean hearing every message twice, once
+            // when it lands and again on the next swipe past it.
+            .accessibilityHidden(true)
     }
 }
 

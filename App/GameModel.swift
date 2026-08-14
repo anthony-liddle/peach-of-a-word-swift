@@ -32,6 +32,24 @@ final class GameModel {
         case accepted(word: String, points: Int, rung: Rung)
         case sourceFound
         case rejected(String)
+
+        /// What the message line says, in one place.
+        ///
+        /// The visible row and the VoiceOver announcement both read this, so
+        /// they cannot drift into saying different things, and the announcement
+        /// is never the shortened or truncated form. Truncation is something a
+        /// frame does to a drawing at a text size that cannot fit it; it is not
+        /// something that happens to the string, and the channel that does not
+        /// have a width should not inherit the width's problems.
+        var message: String? {
+            switch self {
+            case .none: nil
+            case .accepted(let word, let points, let rung):
+                "\(word), \(counted(points, "point"))" + (rung == .set ? "" : " (\(rung.rawValue))")
+            case .sourceFound: Vocabulary.sourceFound
+            case .rejected(let text): text
+            }
+        }
     }
 
     private(set) var phase: Phase = .loading
@@ -39,6 +57,21 @@ final class GameModel {
     /// Newest first, so the list reads as a history of what you just found.
     private(set) var found: [String] = []
     private(set) var feedback: Feedback = .none
+
+    /// How many submits have been resolved. Bumped on every one, including a
+    /// submit whose outcome repeats the last.
+    ///
+    /// It exists so the message can be announced to VoiceOver, and it has to
+    /// exist because `Feedback` is `Equatable`: rejecting the same word twice
+    /// produces an equal value, which is not a change, so nothing downstream
+    /// fires and the second rejection is silent. That is exactly the case a
+    /// player who cannot see the line is most likely to hit, since they have no
+    /// way to notice they retyped the same word.
+    ///
+    /// The web hit this and answered it the same way, with `seq` on its
+    /// announcement (`useGame.ts`, `bump(prev, body)`). A counter rather than a
+    /// timestamp, so it stays deterministic and testable.
+    private(set) var feedbackSeq = 0
     private(set) var loadMilliseconds: Double = 0
 
     /// The celebration currently on screen, if any.
@@ -586,6 +619,7 @@ final class GameModel {
 
     private func resolve(_ result: GuessResult?) {
         guard let result else { return }
+        feedbackSeq += 1
 
         // An exhaustive switch over the engine's enum. Adding a case to
         // GuessResult would fail to compile here rather than silently falling
@@ -606,10 +640,25 @@ final class GameModel {
             // the intended precedence.
             foundDidChange()
         case .tooShort:
-            feedback = .rejected("Too short. Three letters or more.")
+            // The rule without the scolding. "Too short." said nothing the
+            // rest of the sentence did not, and cost 204pt of width at AX5 to
+            // say it, which is the whole difference between a line that fits
+            // the reserved height and one that truncates: 0.81 against 0.55,
+            // measured against a 0.6 floor.
+            //
+            // The full stop stays, because the other two rejections have one
+            // and all three land in the same slot. It costs 9.8pt at AX5,
+            // which is 0.83 to 0.81, and buys the slot one voice.
+            feedback = .rejected("Three letters or more.")
             Feel.reject()
         case .notAWord:
-            feedback = .rejected("Not a word you can make from these letters.")
+            // Shortened to fit the message line's reserved height. The web has
+            // no cute value to copy: `themeCopy.ts` deliberately leaves the
+            // rejections unskinned, and the plain string at `useGame.ts:238`
+            // ("Not in the word list. Try another.") is longer than what it
+            // would replace and names the other half of the case. Same
+            // information, a third of the width.
+            feedback = .rejected("Not from these letters.")
             Feel.reject()
         case .alreadyFound:
             feedback = .rejected("Already found.")

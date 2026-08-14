@@ -41,7 +41,17 @@ final class LayoutBudget: XCTestCase {
     /// this is actually played on, at the text size it is actually played at,
     /// keeps the fixed rack. Everything else in the sweep is information; this
     /// is the line.
-    func testDefaultSizeOnATallPhoneKeepsTheFixedRack() {
+    ///
+    /// **`throws`, and the `try` is not optional.** This read `try?
+    /// XCTSkipIf(...)`, and `try?` discards the thrown skip: the test did not
+    /// skip on a short phone, it ran the assertion anyway and failed, for a
+    /// reason that has nothing to do with what it asserts. Latent only because
+    /// the runners happened to be tall, and CI takes the first iPhone image the
+    /// runner has (`test.yml`), so which phone that is was never decided. A
+    /// test that fails for the wrong reason is the same family of problem as a
+    /// test that passes for the wrong reason, which is what this suite exists
+    /// to avoid.
+    func testDefaultSizeOnATallPhoneKeepsTheFixedRack() throws {
         let app = XCUIApplication()
         app.launchArguments = ["-resetProgress", "1", "-seedBoard", "almost",
                                "-UIPreferredContentSizeCategoryName",
@@ -51,7 +61,7 @@ final class LayoutBudget: XCTestCase {
         XCTAssertTrue(summaryProbe.waitForExistence(timeout: 15),
                       "the app never rendered the found summary")
         let win = app.windows.firstMatch.frame
-        try? XCTSkipIf(win.height < 800, "not a tall phone; the sweep covers short ones")
+        try XCTSkipIf(win.height < 800, "not a tall phone; the sweep covers short ones")
         let summary = app.staticTexts["FoundSummaryCount"]
         let shuffle = app.buttons["Shuffle"]
         XCTAssertTrue(summary.waitForExistence(timeout: 15))
