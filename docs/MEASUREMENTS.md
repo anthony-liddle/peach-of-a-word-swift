@@ -50,6 +50,20 @@ affect it. The 12 ms difference is run-to-run variation and machine state, not a
 regression. Recorded rather than smoothed so the two configurations are directly
 comparable.
 
+**Both numbers predate the reveal corpus, and `loadMilliseconds` has since grown
+to cover it.** As of 2026-08-14 the app also reads `Data/etymology.tsv` at
+launch, 820 rows and 216 KB, and `GameModel.load` measures that read inside the
+same clock as the puzzle build. So the figure the app reports at runtime is no
+longer measuring the same thing these two rows measured, and a comparison across
+that date is not like for like.
+
+The corpus read was put inside the measurement on purpose: a load timer that
+excludes half the load is worse than one that grows. What has not been done is
+re-running this table, because the number these rows exist to answer is whether
+the word lists need a different storage format, and the corpus does not bear on
+that. If launch ever feels slow again, re-measure both parts separately rather
+than reading the runtime figure as if it were this table's.
+
 ### What this decides
 
 The brief asked whether a sorted binary file or SQLite would be needed. **On
