@@ -12,10 +12,18 @@ import SwiftUI
 /// 2026-08-11 that directory instead held a copy of the app's MIT `LICENSE`,
 /// which read as though it licensed word lists nobody here owns.
 ///
-/// **No Wiktionary line.** The web credits it for definitions and etymologies;
-/// this app ships none, and the source-word card names the word without ever
-/// defining it. Crediting a source that is not used would be worse than saying
-/// nothing.
+/// **The Wiktionary line, added 2026-08-14 with the content it credits.** This
+/// comment used to explain the opposite: the web credited Wiktionary for
+/// definitions and etymologies, this app shipped none, and crediting a source
+/// that is not used would be worse than saying nothing. That was right while it
+/// was true. The reveal corpus now ships as `Data/etymology.tsv` under CC BY-SA
+/// 4.0, so the credit is owed, and share-alike means owed to the player rather
+/// than only to `ATTRIBUTION.md`.
+///
+/// The reveal card carries the same credit underneath the content itself. Both,
+/// deliberately: the card credits what is on screen at the moment it is on
+/// screen, and this credits the app as a whole to someone who never finds a
+/// crown.
 ///
 /// It sits at the foot of the found list, which is the quietest place the app
 /// has: reachable by scrolling past everything, never on the play surface. That
@@ -25,6 +33,7 @@ struct Colophon: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
             Text("Words from ENABLE and SCOWL.")
+            Text("Definitions and etymologies from Wiktionary, CC BY-SA 4.0.")
             Text(Vocabulary.typeCredit)
         }
         .font(CuteFont.body(11, relativeTo: .caption2))
@@ -37,7 +46,9 @@ struct Colophon: View {
         // its own does not.
         .accessibilityElement(children: .combine)
         .accessibilityLabel(
-            "Credits. Words from ENABLE and SCOWL. \(Vocabulary.typeCredit)"
+            "Credits. Words from ENABLE and SCOWL. "
+            + "Definitions and etymologies from Wiktionary, CC BY-SA 4.0. "
+            + Vocabulary.typeCredit
         )
     }
 }

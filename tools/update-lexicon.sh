@@ -42,7 +42,7 @@
 set -euo pipefail
 
 REPO="anthony-liddle/orchard"
-VERSION="v1.1.1"
+VERSION="v1.2.0"
 
 # ---------------------------------------------------------------------------
 # THE ARCHIVES THIS REPOSITORY TAKES FROM A RELEASE.
@@ -67,21 +67,23 @@ VERSION="v1.1.1"
 # that does not exist. If etymology ever releases on its own cadence, this is
 # where that changes, and the change is a fifth field.
 #
-# **Adding the etymology corpus.** orchard publishes `etymology.tar.gz`
-# (820 entries, 73KB, `etymology/etymology.tsv` inside). It is NOT listed here,
-# for two reasons, and neither is an oversight:
+# **The etymology row is the licensing act, and it has been taken.** The corpus
+# is Wiktionary text under CC BY-SA 4.0, 820 entries covering all 626 calendar
+# crowns. It was listed here on 2026-08-14, on Antoine's decision, after the
+# option space was established as: Wiktionary or no etymology at all. See
+# `Definitions Source Decision.md`. Shipping it obliges the attribution in
+# `Data/ATTRIBUTION.md`, which travels inside the bundle, and that obligation is
+# discharged in the same change rather than owed after it.
 #
-#   1. It is not in any published release yet. It exists on orchard's main from
-#      "feat(etymology): acquire and publish etymology as its own release asset"
-#      but v1.1.1 predates that commit, so there is no tag to pin.
-#   2. The corpus is Wiktionary text under CC BY-SA 4.0 and whether it ships
-#      inside the app binary is an open decision.
-#
-# Everything that reads the corpus is committed and tested. Adding it here is
-# one row, and the row is the licensing act.
+# **On the two hashes moving differently.** v1.2.0 changed lexicon.tar.gz's
+# archive hash and none of its five file hashes, because tar is not reproducible
+# across packings and the words did not change. That is the expected shape of a
+# release that only repacked. If a file hash ever needs editing on such a
+# release, something is wrong; do not edit it to make a check pass.
 # ---------------------------------------------------------------------------
 ARCHIVES=(
-  "lexicon.tar.gz|f9ddc588ff0a9c66271922ce8e8251cf2edfdf50abccd563e95bb04abb039778|lexicon|enable.txt:689618c5348c28738ae3453575518e459bc0804c0f3cc3ad8c4af6b2441ea4e0,scowl95-additions.txt:dbc6347327b3237b2a5ebb22f55227b193be386d882da1863add2d1353233b7c,common-pool.txt:10fa33188c8de4fc0d047f0993165365e12d6e739e1072a1275ee94c1fab928f,beyond-size-70.txt:4af0676fdd320c86889e5fc06a2bff4b06a5052e16d3442e60000dc9fa0ba285,beyond-size-95.txt:8b4a39ab5b62739ffe4d8408117e3d4fe8f2e8ae271fb0deaae1666eaca5e257"
+  "lexicon.tar.gz|8b69d0fa292f76d8268a4b41f381d5542b84bf84e5ea6a84486370a84618ec16|lexicon|enable.txt:689618c5348c28738ae3453575518e459bc0804c0f3cc3ad8c4af6b2441ea4e0,scowl95-additions.txt:dbc6347327b3237b2a5ebb22f55227b193be386d882da1863add2d1353233b7c,common-pool.txt:10fa33188c8de4fc0d047f0993165365e12d6e739e1072a1275ee94c1fab928f,beyond-size-70.txt:4af0676fdd320c86889e5fc06a2bff4b06a5052e16d3442e60000dc9fa0ba285,beyond-size-95.txt:8b4a39ab5b62739ffe4d8408117e3d4fe8f2e8ae271fb0deaae1666eaca5e257"
+  "etymology.tar.gz|82932bf8e693e6807055b2423206b42bc8ff08625b10bc53ba12eae986640f73|etymology|etymology.tsv:3f4b5ecec04d64a0958e0a1628d6e50e98044be5a7fbb807e9d89899b406cd6b"
 )
 
 # Split one ARCHIVES row into the four globals the loops below read.
@@ -188,9 +190,18 @@ done
 # is the test that was inverted rather than deleted precisely so it would keep
 # having an opinion about this file.
 #
-# Only the six list counts change. sourcePool and definitionsCovered describe
-# the crown pool and the definition bundles, neither of which this app ships,
-# and they are carried through untouched rather than invented.
+# Only the six list counts change. sourcePool and definitionsCovered are carried
+# through untouched rather than invented, but the reason has narrowed: it used
+# to be that neither described anything this app ships, and half of that is no
+# longer true. definitionsCovered counts the 24,877-row definition corpus, which
+# is still not shipped here. sourcePool counts the 793 crown candidates, and this
+# app now ships etymology for 820 words including all 626 the calendar can deal.
+#
+# No key is added for that coverage, deliberately. meta.json has to stay
+# byte-identical with the web's serialiseMeta output, so a new key here is a
+# change to the other repository as well, and nothing reads it: the coverage
+# claim is asserted by ShippedSourceEntriesTests against the corpus itself,
+# which cannot go stale the way a recorded number can.
 say "recomputing meta.json list counts"
 python3 - "$DATA_DIR" <<'PYEOF'
 import json, sys, pathlib
