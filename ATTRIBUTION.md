@@ -48,17 +48,26 @@ the version and its checksums.
 
 ## Wiktionary (definitions and etymologies)
 
-**Nothing in this repository is derived from Wiktionary, and no definition text
-ships in the app.** The web version pulls short definitions and etymologies at
-build time for its source-word reveal and its tappable per-word definitions.
-This app has neither: the source-word card names the word and never defines it,
-which was a deliberate constraint rather than an omission.
+The source-word reveal shows a short definition and an etymology, from the
+English Wiktionary, licensed **CC BY-SA 4.0**. The corpus ships as
+`Data/etymology.tsv`: 820 entries covering all 626 calendar crowns, taken from a
+pinned orchard release. See `tools/update-lexicon.sh` for the version and its
+checksums.
 
-This section exists so the constraint is recorded rather than forgotten. If the
-definition reveal is ever ported, Wiktionary text is licensed CC BY-SA 4.0, and
-that licence is share-alike: the derivative use has to be released under the
-same terms, and the attribution has to be visible in the app rather than only in
-a file like this one.
+That licence is share-alike, so the derivative use is released under the same
+terms and the attribution is visible in the app rather than only in a file like
+this one. Two places carry it: the reveal card, underneath the content, and the
+colophon at the foot of the found list.
+
+**What this section used to say.** Until 2026-08-14 it read "Nothing in this
+repository is derived from Wiktionary, and no definition text ships in the app",
+and recorded that the card named the word and never defined it as a deliberate
+constraint rather than an omission. It is rewritten rather than deleted because
+the constraint was real and the reason it lifted is worth keeping: etymology has
+no permissive source. Every open etymology dataset is a Wiktionary derivative
+and inherits CC BY-SA, so the choice was this licence or no etymology at all.
+The tappable per-word definitions the web also ships are still not here; that is
+a larger corpus and a separate decision.
 
 - Source: <https://en.wiktionary.org/>
 - Licence: <https://creativecommons.org/licenses/by-sa/4.0/>
@@ -87,7 +96,8 @@ from ENABLE and SCOWL." and "Set in Fredoka and Nunito." A file in a repository
 satisfies SCOWL's notice requirement but says nothing to the person actually
 playing, and the web set the bar with an in-app credit.
 
-It carries **no Wiktionary line**, because no definitions ship. Crediting a
-source that is not used would be worse than saying nothing. If the definition
-reveal is ever ported, that line and the CC BY-SA terms above become owed
-together.
+Since 2026-08-14 it carries a third line crediting Wiktionary, because the
+reveal now ships definitions and etymologies. It read "no Wiktionary line,
+because no definitions ship" before that, on the grounds that crediting a source
+that is not used would be worse than saying nothing. The line and the content
+landed together, which is the only order that is ever correct.

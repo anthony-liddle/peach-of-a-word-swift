@@ -41,17 +41,29 @@ Atkinson, version 2020.12.07 (classic v1).
 The full SCOWL readme and the per-source copyrights are at
 <http://wordlist.aspell.net/>.
 
-## Not shipped here
+## Wiktionary (definitions and etymologies)
 
-**No Wiktionary content is in this directory.** The web version credits
-Wiktionary for definitions and etymologies under CC BY-SA 4.0, and ships them in
-`defs/` and `source-pool.json`. This app ships neither: the source-word card
-names the word without defining it. Crediting a source that is not used would be
-worse than saying nothing, which is the same reasoning `App/Colophon.swift`
-gives for leaving the Wiktionary line out of the in-app credit.
+`etymology.tsv` in this directory holds a short definition and an etymology for
+820 words, covering every crown the game can deal. The text is from the English
+Wiktionary and is licensed **Creative Commons Attribution-ShareAlike 4.0**.
 
-If definitions ever land here, this file and the colophon both need the CC BY-SA
-line, and share-alike terms will apply to the definition text.
+- Source: <https://en.wiktionary.org/>
+- Licence: <https://creativecommons.org/licenses/by-sa/4.0/>
+
+Share-alike applies to that text: a derivative of it has to be released under
+the same terms, and the attribution has to be visible to the player rather than
+only in a file like this one. It is. The reveal card carries the credit
+underneath the content it credits, and the colophon at the foot of the found
+list carries it for the app as a whole.
+
+**This section used to say the opposite**, and the earlier wording is worth
+knowing rather than overwriting silently. Until 2026-08-14 this file recorded
+that no Wiktionary content was in this directory, that the source-word card
+named the word without defining it, and that crediting a source that was not
+used would be worse than saying nothing. All of that was true, and it was the
+same reasoning `App/Colophon.swift` gave for omitting its Wiktionary line. What
+changed is the content, not the reasoning: the corpus now ships, so the credit
+is owed, and it is given.
 
 ## Derived files
 
