@@ -95,11 +95,10 @@ struct ContentView: View {
         .sheet(item: $model.moment) { moment in
             Group {
                 switch moment {
-                case .sourceWord(let word, let points):
+                case .sourceWord(let word):
                     SourceRevealCard(
                         word: word,
-                        points: points,
-                        wordsGrown: model.puzzle?.commonWords.count ?? 0
+                        entry: model.sourceEntries[word]
                     ) { model.moment = nil }
                 case .completion(let setTotal, let score):
                     CompletionCard(setTotal: setTotal, score: score) { model.moment = nil }

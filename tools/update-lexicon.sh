@@ -43,17 +43,55 @@ set -euo pipefail
 
 REPO="anthony-liddle/orchard"
 VERSION="v1.1.1"
-ARCHIVE="lexicon.tar.gz"
-ARCHIVE_SHA256="f9ddc588ff0a9c66271922ce8e8251cf2edfdf50abccd563e95bb04abb039778"
 
-# sha256 per file, as published in the release's checksums.txt.
-FILES=(
-  "enable.txt:689618c5348c28738ae3453575518e459bc0804c0f3cc3ad8c4af6b2441ea4e0"
-  "scowl95-additions.txt:dbc6347327b3237b2a5ebb22f55227b193be386d882da1863add2d1353233b7c"
-  "common-pool.txt:10fa33188c8de4fc0d047f0993165365e12d6e739e1072a1275ee94c1fab928f"
-  "beyond-size-70.txt:4af0676fdd320c86889e5fc06a2bff4b06a5052e16d3442e60000dc9fa0ba285"
-  "beyond-size-95.txt:8b4a39ab5b62739ffe4d8408117e3d4fe8f2e8ae271fb0deaae1666eaca5e257"
+# ---------------------------------------------------------------------------
+# THE ARCHIVES THIS REPOSITORY TAKES FROM A RELEASE.
+#
+# One row per release asset, four fields separated by `|`:
+#
+#   archive | archive-sha256 | directory inside the archive | files
+#
+# and `files` is a comma-separated list of `name:sha256`, exactly as the
+# release's checksums.txt publishes them.
+#
+# **Why two delimiters rather than one.** The obvious form nests colons all the
+# way down, and it cannot be parsed by the `${row%%:*}` / `${row##*:}` pair this
+# script already uses to pull a name and a hash apart, because those take the
+# first and last colon of the whole row. Splitting the outer fields on `|` keeps
+# the inner `name:sha256` in exactly the shape those two expansions already
+# read, so the parsing below is the parsing that was here before, wrapped in one
+# more loop. Bash has no nested arrays; this is the cheapest honest stand-in.
+#
+# One VERSION for every row, deliberately. Both assets are cut from the same
+# orchard tag, so a per-archive version would be a knob describing a situation
+# that does not exist. If etymology ever releases on its own cadence, this is
+# where that changes, and the change is a fifth field.
+#
+# **Adding the etymology corpus.** orchard publishes `etymology.tar.gz`
+# (820 entries, 73KB, `etymology/etymology.tsv` inside). It is NOT listed here,
+# for two reasons, and neither is an oversight:
+#
+#   1. It is not in any published release yet. It exists on orchard's main from
+#      "feat(etymology): acquire and publish etymology as its own release asset"
+#      but v1.1.1 predates that commit, so there is no tag to pin.
+#   2. The corpus is Wiktionary text under CC BY-SA 4.0 and whether it ships
+#      inside the app binary is an open decision.
+#
+# Everything that reads the corpus is committed and tested. Adding it here is
+# one row, and the row is the licensing act.
+# ---------------------------------------------------------------------------
+ARCHIVES=(
+  "lexicon.tar.gz|f9ddc588ff0a9c66271922ce8e8251cf2edfdf50abccd563e95bb04abb039778|lexicon|enable.txt:689618c5348c28738ae3453575518e459bc0804c0f3cc3ad8c4af6b2441ea4e0,scowl95-additions.txt:dbc6347327b3237b2a5ebb22f55227b193be386d882da1863add2d1353233b7c,common-pool.txt:10fa33188c8de4fc0d047f0993165365e12d6e739e1072a1275ee94c1fab928f,beyond-size-70.txt:4af0676fdd320c86889e5fc06a2bff4b06a5052e16d3442e60000dc9fa0ba285,beyond-size-95.txt:8b4a39ab5b62739ffe4d8408117e3d4fe8f2e8ae271fb0deaae1666eaca5e257"
 )
+
+# Split one ARCHIVES row into the four globals the loops below read.
+read_archive_row() {
+  IFS='|' read -r ROW_ARCHIVE ROW_SHA256 ROW_DIR ROW_FILES <<< "$1"
+  [ -n "$ROW_ARCHIVE" ] && [ -n "$ROW_SHA256" ] && [ -n "$ROW_DIR" ] && [ -n "$ROW_FILES" ] \
+    || fail "malformed ARCHIVES row: $1"
+  # The comma-separated file list, as an array of name:sha256 pairs.
+  IFS=',' read -r -a ROW_FILE_LIST <<< "$ROW_FILES"
+}
 
 say() { echo "[lexicon] $*"; }
 fail() { echo "[lexicon] ERROR: $*" >&2; exit 1; }
@@ -70,22 +108,25 @@ hash_of() { shasum -a 256 "$1" | cut -d' ' -f1; }
 if [ "${1:-}" = "--check" ]; then
   say "checking committed lists against $VERSION"
   bad=0
-  for entry in "${FILES[@]}"; do
-    name="${entry%%:*}"
-    expected="${entry##*:}"
-    path="$DATA_DIR/$name"
-    if [ ! -f "$path" ]; then
-      echo "  MISSING  $name"; bad=$((bad + 1)); continue
-    fi
-    actual="$(hash_of "$path")"
-    if [ "$actual" = "$expected" ]; then
-      echo "  ok       $name"
-    else
-      echo "  MISMATCH $name"
-      echo "    committed $actual"
-      echo "    $VERSION   $expected"
-      bad=$((bad + 1))
-    fi
+  for row in "${ARCHIVES[@]}"; do
+    read_archive_row "$row"
+    for entry in "${ROW_FILE_LIST[@]}"; do
+      name="${entry%%:*}"
+      expected="${entry##*:}"
+      path="$DATA_DIR/$name"
+      if [ ! -f "$path" ]; then
+        echo "  MISSING  $name"; bad=$((bad + 1)); continue
+      fi
+      actual="$(hash_of "$path")"
+      if [ "$actual" = "$expected" ]; then
+        echo "  ok       $name"
+      else
+        echo "  MISMATCH $name"
+        echo "    committed $actual"
+        echo "    $VERSION   $expected"
+        bad=$((bad + 1))
+      fi
+    done
   done
   [ "$bad" -eq 0 ] || fail "$bad committed list(s) do not match $VERSION. Either
     run tools/update-lexicon.sh, or work out why they diverged. Do not edit the
@@ -101,33 +142,38 @@ WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 
 say "fetching $REPO $VERSION"
-# gh rather than curl because orchard is private. On a public repo this becomes
-# a plain https download with no auth.
-gh release download "$VERSION" --repo "$REPO" --pattern "$ARCHIVE" --dir "$WORK" \
-  || fail "could not download $ARCHIVE from $REPO $VERSION"
 
-actual_sha="$(hash_of "$WORK/$ARCHIVE")"
-if [ "$actual_sha" != "$ARCHIVE_SHA256" ]; then
-  fail "archive checksum mismatch, refusing to unpack.
-    expected $ARCHIVE_SHA256
+for row in "${ARCHIVES[@]}"; do
+  read_archive_row "$row"
+
+  # gh rather than curl because orchard is private. On a public repo this
+  # becomes a plain https download with no auth.
+  gh release download "$VERSION" --repo "$REPO" --pattern "$ROW_ARCHIVE" --dir "$WORK" \
+    || fail "could not download $ROW_ARCHIVE from $REPO $VERSION"
+
+  actual_sha="$(hash_of "$WORK/$ROW_ARCHIVE")"
+  if [ "$actual_sha" != "$ROW_SHA256" ]; then
+    fail "archive checksum mismatch on $ROW_ARCHIVE, refusing to unpack.
+    expected $ROW_SHA256
     actual   $actual_sha
   The asset at that tag is not the reviewed one. Do not update the pinned hash
   to make this pass without establishing why it changed."
-fi
-say "archive checksum verified"
+  fi
+  say "archive checksum verified: $ROW_ARCHIVE"
 
-tar -xzf "$WORK/$ARCHIVE" -C "$WORK" || fail "could not unpack $ARCHIVE"
-UNPACKED="$WORK/lexicon"
+  tar -xzf "$WORK/$ROW_ARCHIVE" -C "$WORK" || fail "could not unpack $ROW_ARCHIVE"
+  UNPACKED="$WORK/$ROW_DIR"
 
-for entry in "${FILES[@]}"; do
-  name="${entry%%:*}"
-  expected="${entry##*:}"
-  actual="$(hash_of "$UNPACKED/$name")"
-  [ "$actual" = "$expected" ] || fail "$name checksum mismatch after unpacking.
+  for entry in "${ROW_FILE_LIST[@]}"; do
+    name="${entry%%:*}"
+    expected="${entry##*:}"
+    actual="$(hash_of "$UNPACKED/$name")"
+    [ "$actual" = "$expected" ] || fail "$name checksum mismatch after unpacking.
     expected $expected
     actual   $actual"
-  cp "$UNPACKED/$name" "$DATA_DIR/$name"
-  echo "  wrote  $name"
+    cp "$UNPACKED/$name" "$DATA_DIR/$name"
+    echo "  wrote  $name"
+  done
 done
 
 # meta.json's list counts are recomputed from what was just written.

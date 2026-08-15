@@ -1,3 +1,4 @@
+import PeachEngine
 import SwiftUI
 
 /// The source-word moment.
@@ -11,14 +12,23 @@ import SwiftUI
 /// found first, on sight, in the opening seconds, and play continues after. A
 /// medium detent leaves the board visible behind it and a drag puts it away.
 ///
-/// **What it does not do.** iOS ships no definitions, pending the WordNet
-/// decision, so there is no reveal content to show. Nothing here pretends
-/// otherwise. See the report for whether that leaves the card thin.
+/// **The content sections.** A Definition section and an Etymology section,
+/// each rendered only when its field is non-empty, which is the shape of the
+/// web's `Reveal.tsx` and the reason `entry` is optional rather than the two
+/// strings being required. Today `entry` is always nil, because
+/// `Data/etymology.tsv` is not committed pending the licensing decision, and
+/// the card falls back to exactly what it rendered before: the mark, the line,
+/// the word, the kicker.
+///
+/// That fallback is unreachable in normal play once the corpus ships. All 626
+/// calendar crowns are covered, and Endless draws from the same calendar, so
+/// there is no path to a dealt crown without an entry. It exists so that the
+/// absence of a file is a quiet card rather than a crash, which is what lets
+/// everything here ship before the content does.
 struct SourceRevealCard: View {
     let word: String
-    let points: Int
-    /// How many set words this rack yields, which is `commonWords.count`.
-    let wordsGrown: Int
+    /// The definition and etymology, when there are any.
+    var entry: SourceEntry?
     let onDismiss: () -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -63,22 +73,21 @@ struct SourceRevealCard: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
 
-                // Without a definition the card was thin: a message, a word, a
-                // kicker and a number. This is not filler, it is the set count
-                // the engine already computed, and it finishes the sentence the
-                // kicker starts. "The peach every word grew from" wants to know
-                // how many. Remove it the day real reveal content exists.
-                VStack(spacing: 4) {
-                    Text(counted(points, "point"))
-                        .font(CuteFont.body(16, weight: "Bold", relativeTo: .body))
-                        .foregroundStyle(Cute.inkSoft)
-                    Text("\(counted(wordsGrown, "word")) grew from it")
-                        .font(CuteFont.body(14, relativeTo: .footnote))
-                        .foregroundStyle(Cute.inkFaint)
-                        .multilineTextAlignment(.center)
-                        .fixedSize(horizontal: false, vertical: true)
+                // The points and set-count block that used to sit here is gone,
+                // as its own comment asked: "Remove it the day real reveal
+                // content exists." It was there because a card with no content
+                // was a message, a word, a kicker and a number, and the number
+                // was the only thing on it the player had earned. The two
+                // sections below are what it was standing in for. The web's
+                // Reveal has never shown a number.
+                if let entry {
+                    if !entry.definition.isEmpty {
+                        RevealSection(heading: "Definition", prose: entry.definition)
+                    }
+                    if !entry.etymology.isEmpty {
+                        RevealSection(heading: "Etymology", prose: entry.etymology)
+                    }
                 }
-                .monospacedDigit()
 
                 Button(action: onDismiss) {
                     Text(Vocabulary.revealClose)
@@ -92,6 +101,22 @@ struct SourceRevealCard: View {
                 }
                 .buttonStyle(PillPressStyle())
                 .padding(.top, 4)
+
+                // The credit rides with the content and appears only when there
+                // is content, which is the web's arrangement in `Reveal.tsx`.
+                //
+                // It is written now rather than left for the day the corpus
+                // lands, and that is the safer order rather than the eager one:
+                // an attribution that is a property of the content cannot be
+                // forgotten, whereas one that waits on a future commit can. It
+                // renders nothing today, because `entry` is nil today.
+                if entry != nil {
+                    Text("Definition and etymology from Wiktionary, CC BY-SA 4.0.")
+                        .font(CuteFont.body(11, relativeTo: .caption2))
+                        .foregroundStyle(Cute.inkFaint)
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
             .padding(.horizontal, 28)
             .padding(.vertical, 32)
@@ -107,9 +132,54 @@ struct SourceRevealCard: View {
     }
 }
 
-#Preview("Source reveal") {
+/// One titled block of reveal prose.
+///
+/// Left-aligned inside a card whose celebration is centred, because these are
+/// paragraphs rather than announcements and centred prose is hard to read past
+/// two lines. The web makes the same split.
+private struct RevealSection: View {
+    let heading: String
+    /// Named `prose` rather than `body`, which `View` already owns.
+    let prose: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(heading)
+                .font(CuteFont.body(12, weight: "SemiBold", relativeTo: .caption))
+                .tracking(1.4)
+                .textCase(.uppercase)
+                .foregroundStyle(Cute.inkFaint)
+            Text(prose)
+                .font(CuteFont.body(15, relativeTo: .subheadline))
+                .foregroundStyle(Cute.ink)
+                // Without this the text takes one line inside the sheet's
+                // fixed-height detent and truncates. The same fix the
+                // celebration line above needed, for the same reason.
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
+    }
+}
+
+#Preview("Source reveal, with content") {
     Color.clear.sheet(isPresented: .constant(true)) {
-        SourceRevealCard(word: "motorway", points: 15, wordsGrown: 27) {}
+        SourceRevealCard(
+            word: "motorway",
+            entry: SourceEntry(
+                definition: "noun. A road designed for fast traffic, with "
+                    + "grade-separated junctions and restricted access.",
+                etymology: "From motor + way, first attested in the 1900s."
+            )
+        ) {}
+        .presentationDetents([.medium, .large])
+    }
+}
+
+/// What ships today, and what a crown with no entry would render.
+#Preview("Source reveal, no content") {
+    Color.clear.sheet(isPresented: .constant(true)) {
+        SourceRevealCard(word: "motorway") {}
             .presentationDetents([.medium])
     }
 }
