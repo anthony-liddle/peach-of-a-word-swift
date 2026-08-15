@@ -103,7 +103,14 @@ targets:
         #
         # 1 was uploaded on 2026-08-09, before ITSAppUsesNonExemptEncryption
         # existed, so that build asks the export compliance question by hand.
-        CURRENT_PROJECT_VERSION: "2"
+        #
+        # 3 is the first build carrying the reveal card's content. 2 was never
+        # distributed: a release hold ran from the day the card's machine landed
+        # to the day its corpus did, because in between the card had lost the
+        # points block that used to fill it and gained nothing to replace it.
+        # Shipping the machine ahead of the content was deliberate; shipping a
+        # build during the gap would not have been.
+        CURRENT_PROJECT_VERSION: "3"
         SWIFT_VERSION: "6.0"
         TARGETED_DEVICE_FAMILY: "1"
         # Signing lives here rather than in Xcode's UI, because this project is
