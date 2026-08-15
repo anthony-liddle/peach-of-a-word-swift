@@ -1,12 +1,18 @@
-Tiles now respond the moment you touch them, rather than when you lift your finger.
+The peach card now tells you what the word means and where it came from.
 
-A tile that is already in the word used to do nothing at all when tapped. It now gives a small shake and a soft bump, so it answers rather than staying silent.
+Finding the eight letter word has always been the point of the game, and until this build the card that celebrated it said nothing about the word itself. It now carries a short definition and the word's origin, which is often the more interesting half. Some of them go back a very long way.
+
+The points and the "words grew from it" count have gone from that card. They were standing in for content that did not exist yet, and now it does.
 
 Nothing else has changed. Your board, your streak and your found words are all as they were.
 
 Worth checking, as always:
 - The board is the same one everyone gets today, and it changes at midnight.
 - Your words and your streak should survive a force quit.
-- Finding the eight letter word itself does something different from a normal find.
+
+And particular to this build:
+- Some origins are long. The card should scroll, and you should be able to drag it up to read all of it, including the small credit line at the bottom.
+- A few words trail off into older alphabets, Greek and older still. Those characters are set in a different typeface because ours has no letters for them. That is expected, but say if it looks wrong.
+- The definitions and origins come from Wiktionary, so the wording is theirs rather than ours. If one reads oddly, is unhelpful, or says something surprising about a word, that is worth telling us.
 
 Anything that looks wrong, feels slow, or reads oddly is worth reporting, including the wording.
