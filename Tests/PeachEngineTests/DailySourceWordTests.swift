@@ -113,4 +113,39 @@ struct ShippedCalendarTests {
         #expect(try dailySourceWord(calendar: file.words, date: epochDay,
                                     epoch: dailyEpoch, timeZone: utc) == "mnemonic")
     }
+
+    /// The share's off-page find count rests on this.
+    ///
+    /// The count is `uncommon + rare + mythic`, and that equals the off-page
+    /// finds only if the source word is a set word: `commonWords` is the common
+    /// pool intersected with the formable set, so a source word outside the pool
+    /// would be graded on the rarity ladder instead. `createPuzzle` guarantees
+    /// the source word is in `validationWords` (it is formable from itself) and
+    /// says nothing about `commonWords`, so this is a fact about the shipped
+    /// calendar rather than a property of the builder.
+    ///
+    /// It also decides whether the two repos agree: the web skips set words
+    /// before bucketing, while the Swift app excludes the source word by giving
+    /// it its own category. Those two rules produce the same counts exactly when
+    /// this holds, so a calendar word outside the pool would make the phone's
+    /// share and the web's disagree by one on the same board.
+    @Test("every calendar source word is a set word on its own rack")
+    func sourceWordsAreSetWords() throws {
+        let url = dataDirectory.appendingPathComponent("daily-calendar.json")
+        let file = try JSONDecoder().decode(CalendarFile.self, from: try Data(contentsOf: url))
+        let pool = Set(try readWordList("common-pool.txt", in: dataDirectory))
+        #expect(wordsOutside(pool, in: file.words) == [])
+    }
+
+    /// The guard's negative control: it has to be able to fail.
+    @Test("the guard catches a source word the common pool does not hold")
+    func guardCatchesOutsider() {
+        #expect(wordsOutside(["apple", "pear"], in: ["apple", "quince"]) == ["quince"])
+    }
+}
+
+/// Source words the pool does not contain, in calendar order.
+private func wordsOutside(_ pool: some Collection<String>, in words: [String]) -> [String] {
+    let pool = Set(pool)
+    return words.filter { !pool.contains($0) }
 }

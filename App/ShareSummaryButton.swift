@@ -40,7 +40,10 @@ struct ShareSummaryButton: View {
             mythic: words.filter { $0.category == .mythic }.count,
             setPoints: standing.setPoints,
             offPagePoints: standing.offPagePoints,
-            totalPoints: standing.score
+            totalPoints: standing.score,
+            // Lowercased because the points line is a sentence, not a legend.
+            setLabel: Vocabulary.onPageLabel.lowercased(),
+            offPageLabel: Vocabulary.offPageLabel.lowercased()
         ))
     }
 }
