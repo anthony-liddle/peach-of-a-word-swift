@@ -20,11 +20,22 @@ import SwiftUI
 /// the card falls back to exactly what it rendered before: the mark, the line,
 /// the word, the kicker.
 ///
-/// That fallback is unreachable in normal play once the corpus ships. All 626
-/// calendar crowns are covered, and Endless draws from the same calendar, so
-/// there is no path to a dealt crown without an entry. It exists so that the
-/// absence of a file is a quiet card rather than a crash, which is what lets
-/// everything here ship before the content does.
+/// That fallback is reachable in normal play, and deliberately so. It was not,
+/// when this was written: the corpus covered all 626 calendar crowns. From
+/// orchard v1.3.0 it covers 615 of them, because eleven rows were dropped for
+/// carrying something that was not an etymology. `favorite` shipped Italian
+/// inflection tables, since its Wiktionary page has an English section with no
+/// Etymology subsection and an Italian one with three; `planning` shipped a Lua
+/// module error; `catering` shipped a maintenance notice and nothing else.
+///
+/// So a player can be dealt `branding`, `catering`, `dripping`, `emulator`,
+/// `favorite`, `mornings`, `planning`, `projects`, `rattling`, `sampling` or
+/// `training` and see no Etymology section. That is the intended outcome: an
+/// absent section reads as no etymology on hand, which is honest, where
+/// `brothers` under the heading Etymology read as broken.
+///
+/// The fallback also still does its original job, keeping a missing file a
+/// quiet card rather than a crash.
 struct SourceRevealCard: View {
     let word: String
     /// The definition and etymology, when there are any.

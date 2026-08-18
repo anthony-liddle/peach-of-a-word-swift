@@ -42,7 +42,7 @@
 set -euo pipefail
 
 REPO="anthony-liddle/orchard"
-VERSION="v1.2.0"
+VERSION="v1.3.0"
 
 # ---------------------------------------------------------------------------
 # THE ARCHIVES THIS REPOSITORY TAKES FROM A RELEASE.
@@ -82,8 +82,8 @@ VERSION="v1.2.0"
 # release, something is wrong; do not edit it to make a check pass.
 # ---------------------------------------------------------------------------
 ARCHIVES=(
-  "lexicon.tar.gz|8b69d0fa292f76d8268a4b41f381d5542b84bf84e5ea6a84486370a84618ec16|lexicon|enable.txt:689618c5348c28738ae3453575518e459bc0804c0f3cc3ad8c4af6b2441ea4e0,scowl95-additions.txt:dbc6347327b3237b2a5ebb22f55227b193be386d882da1863add2d1353233b7c,common-pool.txt:10fa33188c8de4fc0d047f0993165365e12d6e739e1072a1275ee94c1fab928f,beyond-size-70.txt:4af0676fdd320c86889e5fc06a2bff4b06a5052e16d3442e60000dc9fa0ba285,beyond-size-95.txt:8b4a39ab5b62739ffe4d8408117e3d4fe8f2e8ae271fb0deaae1666eaca5e257"
-  "etymology.tar.gz|82932bf8e693e6807055b2423206b42bc8ff08625b10bc53ba12eae986640f73|etymology|etymology.tsv:3f4b5ecec04d64a0958e0a1628d6e50e98044be5a7fbb807e9d89899b406cd6b"
+  "lexicon.tar.gz|fdf0c6752de2dc18eacb8720e378a2b7f3c0eb4d8aa12964a63367b47bd612df|lexicon|enable.txt:689618c5348c28738ae3453575518e459bc0804c0f3cc3ad8c4af6b2441ea4e0,scowl95-additions.txt:dbc6347327b3237b2a5ebb22f55227b193be386d882da1863add2d1353233b7c,common-pool.txt:10fa33188c8de4fc0d047f0993165365e12d6e739e1072a1275ee94c1fab928f,beyond-size-70.txt:4af0676fdd320c86889e5fc06a2bff4b06a5052e16d3442e60000dc9fa0ba285,beyond-size-95.txt:8b4a39ab5b62739ffe4d8408117e3d4fe8f2e8ae271fb0deaae1666eaca5e257"
+  "etymology.tar.gz|4c494ad0e183c681a7f4386f605495ccfb0e4ea659b2aedfd788a0cf809be19d|etymology|etymology.tsv:d51a4dc38a1cf73d50549b2d176da74db91852b711a4a93348ecd6e02bd44ea0"
 )
 
 # Split one ARCHIVES row into the four globals the loops below read.
