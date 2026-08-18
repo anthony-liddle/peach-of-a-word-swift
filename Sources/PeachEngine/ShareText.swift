@@ -27,12 +27,22 @@ public struct DailyShareResult: Sendable {
     public let setPoints: Int
     public let offPagePoints: Int
     public let totalPoints: Int
+    /// What the two halves of the score are called, on the points line.
+    ///
+    /// Theme vocabulary, passed in for the same reason `tierLabel` is: the
+    /// engine does not own skinned words. The web ships letterpress as well as
+    /// cute, and the container noun is the case there and the basket here, so a
+    /// label spelled out in this file would put one theme's word in the other
+    /// theme's share. Lowercase, because they sit inside a sentence.
+    public let setLabel: String
+    public let offPageLabel: String
 
     public init(
         title: String, date: Date, tierLabel: String,
         setFound: Int, setTotal: Int,
         uncommon: Int, rare: Int, mythic: Int,
-        setPoints: Int, offPagePoints: Int, totalPoints: Int
+        setPoints: Int, offPagePoints: Int, totalPoints: Int,
+        setLabel: String, offPageLabel: String
     ) {
         self.title = title
         self.date = date
@@ -45,6 +55,8 @@ public struct DailyShareResult: Sendable {
         self.setPoints = setPoints
         self.offPagePoints = offPagePoints
         self.totalPoints = totalPoints
+        self.setLabel = setLabel
+        self.offPageLabel = offPageLabel
     }
 }
 
@@ -95,32 +107,66 @@ private func rarityLine(uncommon: Int, rare: Int, mythic: Int) -> String? {
     return "\u{2726} " + parts.joined(separator: " \u{00B7} ")
 }
 
+/// The words line: the earned headline, the completion count, then how many
+/// finds came from beyond the set.
+///
+/// The completion count keeps its "of", because it is a real fraction: the app
+/// shows it from the first second of play, so a recipient learns nothing a
+/// player would not see immediately. The off-page number is a count of finds and
+/// never a denominator, for the same reason the rarity rungs never show one, so
+/// it is added rather than divided and it is dropped entirely at zero.
+///
+/// It is derived from the rungs rather than passed alongside them, so the two
+/// lines cannot disagree: `39 Uncommon · 26 Rare · 2 Mythic` is the same 67.
+private func wordsLine(_ result: DailyShareResult) -> String {
+    let offPageFound = result.uncommon + result.rare + result.mythic
+    let base = "\(result.tierLabel) \u{00B7} \(result.setFound) of \(result.setTotal) words"
+    return offPageFound > 0 ? base + " + \(offPageFound)" : base
+}
+
+/// The points line: the score row's split, written out, then the total.
+///
+/// **The labels are what make the slash safe.** A bare `99/388` reads as a
+/// fraction, and the line above it contains a real one; naming the halves means
+/// the slash can only be read as a divider. That was Bea's fix, and it is why
+/// the labels are not decoration that can be dropped.
+///
+/// With no off-page points there is nothing to split, so the line degrades to
+/// the single total it carried before, rather than spending two labels to say
+/// zero. That happens on exactly the boards where the rarity line and the
+/// off-page count drop too.
+private func pointsLine(_ result: DailyShareResult) -> String {
+    guard result.offPagePoints > 0 else { return "\(result.totalPoints) pts" }
+    return "\(result.setPoints) \(result.setLabel)/\(result.offPagePoints) "
+        + "\(result.offPageLabel) \u{00B7} \(result.totalPoints) total points"
+}
+
 /// Build the daily share block.
 ///
 /// ```
-/// 🍑 Peach of a Word · Aug 9
-/// Blossom · 12 of 27 words
-/// 🟥🟥🟥🟥🟥🟥🟪🟪🟪🟪
-/// ✦ 5 Uncommon · 3 Rare
-/// 89 pts
+/// 🍑 Peach of a Word · Aug 18
+/// Peachy Keen Supreme · 33 of 33 words + 67
+/// 🟥🟥🟪🟪🟪🟪🟪🟪🟪🟪
+/// ✦ 39 Uncommon · 26 Rare · 2 Mythic
+/// 99 basket/388 wild · 487 total points
 /// ```
 ///
-/// The completion count is the game's one honest denominator: the app shows it
-/// from the first second of play, so a recipient learns nothing a player would
-/// not see immediately.
+/// The two-tone split reaches the text because the squares alone could not
+/// carry it: the row is quantised to ten, so a 99/388 board and a 100/387 board
+/// draw the same picture. The numbers say which it was.
 public func buildShareText(
     _ result: DailyShareResult,
     timeZone: TimeZone = .current
 ) -> String {
     var lines = [
         "\u{1F351} \(result.title) \u{00B7} \(shortDate(result.date, timeZone: timeZone))",
-        "\(result.tierLabel) \u{00B7} \(result.setFound) of \(result.setTotal) words",
+        wordsLine(result),
         scoreRow(setPoints: result.setPoints, offPagePoints: result.offPagePoints),
     ]
     if let rarity = rarityLine(uncommon: result.uncommon, rare: result.rare,
                                mythic: result.mythic) {
         lines.append(rarity)
     }
-    lines.append("\(result.totalPoints) pts")
+    lines.append(pointsLine(result))
     return lines.joined(separator: "\n")
 }

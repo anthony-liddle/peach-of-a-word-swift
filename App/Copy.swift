@@ -37,6 +37,18 @@ enum Vocabulary {
         container.prefix(1).uppercased() + container.dropFirst()
     }
 
+    /// The two halves of the score, as the share's points line names them.
+    ///
+    /// Mirrors the web's `onPageLabel` and `offPageLabel`, which label the same
+    /// two colours under its meter. Capitalised here as they are there, and
+    /// lowercased by the share where they sit inside a sentence, so the two
+    /// repos keep one pair of words rather than two.
+    ///
+    /// "Wild" is the web's word for words growing outside the cultivated set,
+    /// and is the least literal substitution in the cute vocabulary.
+    static let onPageLabel = containerCapitalized
+    static let offPageLabel = "Wild"
+
     // MARK: - The strings
 
     /// Under the masthead, and on the splash: what you do here.
