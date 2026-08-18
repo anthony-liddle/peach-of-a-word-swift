@@ -35,13 +35,37 @@ struct ShippedSourceEntriesTests {
             .words
     }
 
+    /// The crowns that deliberately have no reveal entry, as of orchard v1.3.0.
+    ///
+    /// Each was dropped from the corpus for carrying something that was not an
+    /// etymology: `favorite` shipped Italian inflection tables, `planning` a Lua
+    /// module error, `catering` a Wiktionary maintenance notice and nothing
+    /// else. A player dealt one of these sees no Etymology section, which is
+    /// the intended outcome rather than a gap.
+    ///
+    /// This is a fixed list rather than a tolerance, so a twelfth crown losing
+    /// its entry still fails this test. Update it only alongside a corpus change
+    /// that intends the drop.
+    private static let deliberatelyUncovered: Set<String> = [
+        "branding", "catering", "dripping", "emulator", "favorite", "mornings",
+        "planning", "projects", "rattling", "sampling", "training",
+    ]
+
     /// Every word the daily can deal, and therefore every word Endless can deal
-    /// too, since `EndlessSource` draws from the same calendar.
-    @Test("covers every crown the calendar can deal")
+    /// too, since `EndlessSource` draws from the same calendar, except the
+    /// crowns listed above as deliberately uncovered.
+    @Test("covers every crown the calendar can deal, bar the known drops")
     func coversTheCalendar() throws {
         let entries = readSourceEntries()
-        let missing = try calendarWords().filter { entries[$0] == nil }
-        #expect(missing.isEmpty, "no entry for \(missing.prefix(10))")
+        let missing = Set(try calendarWords().filter { entries[$0] == nil })
+        let unexpected = missing.subtracting(Self.deliberatelyUncovered)
+        #expect(unexpected.isEmpty, "no entry for \(unexpected.sorted().prefix(10))")
+
+        let restored = Self.deliberatelyUncovered.subtracting(missing)
+        #expect(
+            restored.isEmpty,
+            "these crowns now have an entry and should leave the list: \(restored.sorted())"
+        )
     }
 
     /// A crown with an entry but an empty field renders a card with one section
