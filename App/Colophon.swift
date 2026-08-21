@@ -35,6 +35,19 @@ struct Colophon: View {
             Text("Words from ENABLE and SCOWL.")
             Text("Definitions and etymologies from Wiktionary, CC BY-SA 4.0.")
             Text(Vocabulary.typeCredit)
+            // Below the type credit, which is where `Game.tsx` puts it, and set
+            // apart from the credits by a hair of space rather than by a rule
+            // or a heading. The web spends `margin-top: 0.9rem` against a
+            // 0.875rem font, so a shade over one em; 8pt on top of the stack's
+            // own 3pt is the same gesture at this size.
+            //
+            // Obliqued rather than `.italic()`, because Nunito has no italic
+            // face and `.italic()` would render the upright while reading in
+            // the source as though the styling had been matched. See
+            // `CuteFont.bodyOblique`.
+            Text(Vocabulary.dedication)
+                .font(CuteFont.bodyOblique(11, relativeTo: .caption2))
+                .padding(.top, 8)
         }
         .font(CuteFont.body(11, relativeTo: .caption2))
         .foregroundStyle(Cute.inkFaint)
@@ -45,10 +58,12 @@ struct Colophon: View {
         // says what the lines are for, which "Words from ENABLE and SCOWL" on
         // its own does not.
         .accessibilityElement(children: .combine)
+        // The dedication is spoken too. It is quiet, not secret, and the one
+        // person it names is as likely to meet it here as on screen.
         .accessibilityLabel(
             "Credits. Words from ENABLE and SCOWL. "
             + "Definitions and etymologies from Wiktionary, CC BY-SA 4.0. "
-            + Vocabulary.typeCredit
+            + Vocabulary.typeCredit + " " + Vocabulary.dedication
         )
     }
 }

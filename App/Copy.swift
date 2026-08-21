@@ -114,6 +114,18 @@ enum Vocabulary {
     /// web as well as the verb; these are the cute pair.
     static let typeCredit = "Set in Fredoka and Nunito."
 
+    /// The dedication, last line of the colophon.
+    ///
+    /// Four words, lowercase, no full stop, exactly as `Game.tsx` spells them.
+    /// The title says what the game is to everyone; this says who it is for to
+    /// the one person meant to notice it, which is why it is unornamented and
+    /// why it is not on the play surface.
+    ///
+    /// It shipped on the web and not here, and she went looking for it. A
+    /// dedication that exists in one place and not the other is worse than one
+    /// that never existed, because its absence reads as a decision.
+    static let dedication = "for Bea"
+
     // MARK: - The ladder
 
     /// The six named ranks, cute skin. The engine owns the ladder structure and
