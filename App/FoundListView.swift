@@ -200,9 +200,10 @@ struct FoundListView: View {
             // above two chips and looks wrong, because the count describes the
             // set list only. Set-only groups stay clean and label-free.
             if group.needsAlsoFound {
+                // Obliqued rather than italicised, matching the web's
+                // `.found__rung-note`. See `CuteFont.bodyOblique`.
                 Text("also found")
-                    .font(CuteFont.body(12, relativeTo: .caption))
-                    .italic()
+                    .font(CuteFont.bodyOblique(12, relativeTo: .caption1))
                     .foregroundStyle(Cute.inkFaint)
                     .padding(.top, 2)
             }

@@ -76,9 +76,10 @@ struct SourceRevealCard: View {
                         .lineLimit(1)
                         .minimumScaleFactor(0.5)
 
+                    // Obliqued rather than italicised. See
+                    // `CuteFont.bodyOblique`.
                     Text(Vocabulary.revealKicker)
-                        .font(CuteFont.body(15, relativeTo: .subheadline))
-                        .italic()
+                        .font(CuteFont.bodyOblique(15, relativeTo: .subheadline))
                         .foregroundStyle(Cute.inkFaint)
                         .multilineTextAlignment(.center)
                         .fixedSize(horizontal: false, vertical: true)
