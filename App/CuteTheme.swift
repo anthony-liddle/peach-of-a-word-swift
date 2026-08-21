@@ -90,6 +90,32 @@ enum CuteFont {
         return Font(CTFontCreateCopyWithAttributes(upright, scaled, &shear, nil))
     }
 
+    /// Nunito, sheared into a synthetic oblique.
+    ///
+    /// The same problem `displayOblique` solves, one family over, and it has to
+    /// be solved twice because the shear names a face. The bundled Nunito ships
+    /// eight named instances, Black through ExtraLight, and not one of them is
+    /// italic: `CTFontGetSymbolicTraits` reports no italic trait on any of
+    /// them. So `.italic()` selects nothing and renders the upright, silently,
+    /// which is the failure mode worth naming because it does not look like a
+    /// failure. It looks like a design that chose not to be italic.
+    ///
+    /// The web's dedication is italic, so matching it needs the browser's own
+    /// trick: slant the upright by hand. Same 0.18 shear as the display face,
+    /// and the same cost, that a `CTFont`-backed `Font` carries no
+    /// `relativeTo:` and Dynamic Type has to be applied to the point size with
+    /// `UIFontMetrics` instead.
+    static func bodyOblique(
+        _ size: CGFloat,
+        weight: String = "Regular",
+        relativeTo style: UIFont.TextStyle = .body
+    ) -> Font {
+        let scaled = UIFontMetrics(forTextStyle: style).scaledValue(for: size)
+        var shear = CGAffineTransform(a: 1, b: 0, c: 0.18, d: 1, tx: 0, ty: 0)
+        let upright = CTFontCreateWithName("Nunito-\(weight)" as CFString, scaled, nil)
+        return Font(CTFontCreateCopyWithAttributes(upright, scaled, &shear, nil))
+    }
+
     /// Nunito. Everything else.
     static func body(
         _ size: CGFloat,
