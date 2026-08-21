@@ -290,7 +290,11 @@ final class GameModel {
             // version's `tilesFor`. The initial rack order is shuffled so the
             // answer is not sitting in alphabetical order on screen.
             tiles = p.letters.enumerated().map { Tile(id: $0.offset, letter: String($0.element)) }
-            rackOrder = tiles.map(\.id).shuffled()
+            // Seeded from the source word, not drawn at random, so every player
+            // opens the same rack on a given day AND the rack never leads with
+            // the crown. An unseeded draw did both wrong: it re-dealt on every
+            // launch, and one launch in 20,160 spelled the answer outright.
+            rackOrder = dailyRackOrder(letters: p.letters, word: p.sourceWord)
 
             // Progress and the streak are keyed off storageEpoch, which never
             // moves, NOT off dailyEpoch, which a calendar regeneration can
@@ -563,8 +567,21 @@ final class GameModel {
     /// lists hold ids, shuffling the display order cannot disturb a composition
     /// in progress. That correctness falls out of the id-based model rather than
     /// needing to be arranged.
+    /// The button must stay unpredictable, so it cannot walk the daily's seed
+    /// stream: it redraws at random and rejects, where the daily takes the next
+    /// seeded permutation. Different recovery, same predicate, which is the half
+    /// that has to agree. The rejection is silent by design; a "reshuffled you"
+    /// tell would confirm the answer the rack just leaked.
     func shuffleRack() {
-        rackOrder.shuffle()
+        guard let puzzle else { return }
+        var draw = rackOrder
+        rackOrder = guardedRackOrder(
+            letters: puzzle.letters,
+            word: puzzle.sourceWord
+        ) { _ in
+            draw.shuffle()
+            return draw
+        }
     }
 
     /// Submit whatever is on the stick.
