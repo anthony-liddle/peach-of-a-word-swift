@@ -241,7 +241,11 @@ struct ContentView: View {
                 .padding(.top, 6)
 
             Controls(model: model)
-                .padding(.top, 10)
+                // 8 rather than 10. Taken off the gap above the block rather
+                // than out of the buttons: the utility pair stands at 46pt
+                // against a 44pt minimum target, so there are two points there
+                // and they are not the two points to spend.
+                .padding(.top, 8)
         }
         .padding(.horizontal, 18)
         .padding(.top, 4)
@@ -559,10 +563,27 @@ private struct TileButton: View {
     /// **Width is the driver and height follows it**, via the 3:4 ratio, from
     /// whatever the fixed grid column gives. An earlier version inverted that:
     /// the height was a fixed constant and the width was derived, which meant
-    /// each tile demanded a width the container could not supply four of. This
-    /// cap only bites on unusually wide layouts, and it scales with Dynamic Type
-    /// so it does not clamp the tiles exactly when they are meant to grow.
-    @ScaledMetric(relativeTo: .largeTitle) private var maxTileHeight: CGFloat = 118
+    /// each tile demanded a width the container could not supply four of, and
+    /// the rack broke to 3+3+2. That inversion is the thing not to reintroduce.
+    ///
+    /// **Lowered from 118 to 104, which means it now bites at phone width.**
+    /// The rack was the tallest furniture on a screen that has to hold
+    /// everything at once, and this is where the vertical points are. On a 390pt
+    /// phone the column gives 81.75pt of width, so the tiles were drawing 109pt
+    /// tall; capped, they draw 104 and the rack gives back 10pt across its two
+    /// rows.
+    ///
+    /// **It is still a cap on HEIGHT, which is why it is the safe lever.** The
+    /// tile shrinks inside a column it never asked to widen, so it cannot demand
+    /// width the container has not got, and the column count is not negotiated
+    /// at all: `columnCount` is 4, or 3 at accessibility sizes, and nothing
+    /// about a tile's size can change that. The 3:4 ratio is untouched, which
+    /// matters beyond the silhouette: `.sort` in the web's `index.css` is
+    /// `aspect-ratio: 3 / 4` and that is a number the two versions share.
+    ///
+    /// Still scaled, so Dynamic Type still grows the tiles rather than pinning
+    /// them at a constant the moment the text gets bigger.
+    @ScaledMetric(relativeTo: .largeTitle) private var maxTileHeight: CGFloat = 104
 
     private var face: some View {
         ZStack {
@@ -663,7 +684,10 @@ private struct Controls: View {
     private var empty: Bool { model.composing.isEmpty }
 
     var body: some View {
-        VStack(spacing: 9) {
+        // 7 rather than 9, between the primary row and the utility row. The
+        // same two points the block gave up above it, and the same reasoning:
+        // the space between the rows is spare, the height of the rows is not.
+        VStack(spacing: 7) {
             HStack(spacing: 10) {
                 PillButton(kind: .delete, disabled: empty,
                            label: "Delete last letter") { model.removeLast() }
