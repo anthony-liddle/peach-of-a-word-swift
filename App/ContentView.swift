@@ -302,9 +302,24 @@ struct ContentView: View {
     }
 
     /// The status row, outside the scroll region.
+    ///
+    /// **Rendered on an empty board too, showing zeros.** It used to be gated on
+    /// `!model.found.isEmpty`, and a row that is absent is a row whose height
+    /// arrives later: on a fresh day the first find inserted the row AND the
+    /// 10pt padding above it, 52.67pt measured on an iPhone 17 at default size,
+    /// which the found list absorbed by dropping its top from 512.00 to 564.67
+    /// at the moment the first word landed. Same defect class as the message
+    /// line and the tier caption, one level up: those two reserved a row that
+    /// could grow, this one hid a row that could appear.
+    ///
+    /// Zeros rather than reserved blank space, because `FoundSummary` already
+    /// makes that argument about itself: it prints a rung with nothing at it as
+    /// "0 Uncommon" rather than hiding it, so the row cannot grow the first time
+    /// a Rare turns up. Hiding the whole row undid that one level up. A tally
+    /// reading zero is information; 42.67pt of nothing is not.
     private var pinnedSummary: some View {
         Group {
-            if let puzzle = model.puzzle, let standing = model.standing, !model.found.isEmpty {
+            if let puzzle = model.puzzle, let standing = model.standing {
                 FoundSummary(puzzle: puzzle, found: model.found,
                              standing: standing, boardDate: model.boardDate)
             }

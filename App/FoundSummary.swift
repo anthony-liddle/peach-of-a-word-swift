@@ -72,8 +72,17 @@ struct FoundSummary: View {
                     // have that many words. See UITests/LayoutBudget.swift.
                     .accessibilityIdentifier("FoundSummaryCount")
                 Spacer(minLength: 8)
+                // Kept in the layout on an empty board, not removed from it.
+                // The row is pinned above the list and now renders from the
+                // first launch of the day, so anything that comes and goes
+                // inside it is another way for the row to change height. There
+                // is nothing worth sharing before the first find, so the button
+                // is invisible and untappable, and its space is still spent.
                 ShareSummaryButton(puzzle: puzzle, found: found,
                                    standing: standing, boardDate: boardDate)
+                    .opacity(found.isEmpty ? 0 : 1)
+                    .allowsHitTesting(!found.isEmpty)
+                    .accessibilityHidden(found.isEmpty)
             }
 
             // Three across normally, stacked at accessibility sizes. Side by
