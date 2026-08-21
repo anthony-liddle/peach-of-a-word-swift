@@ -417,9 +417,12 @@ private struct ComposingStick: View {
             shape.stroke(Cute.tileEdge, lineWidth: 1)
 
             if word.isEmpty {
+                // Obliqued, not `.italic()`. The web sets `.stick__empty` in
+                // italic and this line claimed to match it for months while
+                // rendering upright, because Nunito ships no italic face for
+                // `.italic()` to select. See `CuteFont.bodyOblique`.
                 Text(Vocabulary.inputPlaceholder)
-                    .font(CuteFont.body(15, relativeTo: .subheadline))
-                    .italic()
+                    .font(CuteFont.bodyOblique(15, relativeTo: .subheadline))
                     .tracking(0.6)
                     .foregroundStyle(Cute.inkFaint)
             } else {
