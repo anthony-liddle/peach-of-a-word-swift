@@ -211,7 +211,7 @@ jobs:
       # is most of the value when a UI test fails on a machine you cannot see.
       - name: Keep the result bundle
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ui-test-results
           path: .build/ui-tests.xcresult
