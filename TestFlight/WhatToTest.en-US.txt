@@ -1,10 +1,8 @@
-The peach card now tells you what the word means and where it came from.
+Thanks for taking this on. Eight scrambled letters, make what you can from them, then find the eight letter word they all came from. Find that one and a card opens with what the word means and where it came from, which is often the more interesting half.
 
-Finding the eight letter word has always been the point of the game, and until this build the card that celebrated it said nothing about the word itself. It now carries a short definition and the word's origin, which is often the more interesting half. Some of them go back a very long way.
+If you have seen an earlier build, three things moved. The rack is shorter and the controls are tighter, so more of the found list fits on screen. The row with your count and rarity tallies now sits above the list from the first launch of the day, instead of arriving when your first word lands. And the credits at the foot of the list gained a line.
 
-The points and the "words grew from it" count have gone from that card. They were standing in for content that did not exist yet, and now it does.
-
-Nothing else has changed. Your board, your streak and your found words are all as they were.
+Your board, your streak and your found words are untouched by any of that.
 
 Worth checking, as always:
 - The board is the same one everyone gets today, and it changes at midnight.
