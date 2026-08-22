@@ -79,6 +79,81 @@ jobs:
             -destination 'generic/platform=iOS Simulator' \
             build
 
+  # The unit tests, run the way Xcode Cloud runs them: without the checkout.
+  #
+  # **This job exists because six builds failed and nobody was told.** A test
+  # read `Data/daily-calendar.json` through a path built from `#filePath`, with
+  # `try!`. That resolves under `swift test`, which runs from the checkout, and
+  # in Xcode locally. Xcode Cloud runs the test bundle with no checkout at all,
+  # so the read threw, the `try!` trapped, and the whole xctest process died.
+  # The Archive action kept succeeding, the Test action kept failing, and the
+  # TestFlight post-action never ran. Builds 14 through 19 went nowhere.
+  #
+  # **The `test` job above cannot catch that class, by construction.** It runs
+  # `swift test`, which executes from the source tree, so a source-tree path is
+  # always correct there. Every check was honestly green about a thing that was
+  # broken where it ships.
+  #
+  # The condition is reproduced rather than approximated: build the test bundle,
+  # then move the directories tests read out of the way, then run the built
+  # bundle. `#filePath` is baked at compile time, so after the move it points at
+  # nothing, which is exactly what Cloud presents. Tests that read the source
+  # tree crash or fail here; tests that use the bundled copies pass.
+  #
+  # `project.yml` copies `Data`, `App` and the oracle fixture into the test
+  # bundle as resources so the fallbacks have somewhere to look. This job is what
+  # keeps that true: without it, the copies stay committed and nothing notices
+  # when a new test stops using them.
+  #
+  # **Removing the failure mode beats detecting it.** This would have failed on
+  # the pull request that introduced the trap, rather than six builds later, and
+  # it is the only check here that runs what Cloud runs.
+  checkout-less-tests:
+    runs-on: macos-26
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Versions
+        run: xcodebuild -version
+
+      - name: Generate the Xcode project
+        run: ./ci_scripts/ci_post_clone.sh
+
+      # Built while the checkout is intact, and into a derived data path outside
+      # the repository, so removing the checkout below cannot take the products
+      # with it.
+      - name: Build the test bundle
+        run: |
+          set -euo pipefail
+          xcodebuild build-for-testing \
+            -project PeachOfAWord.xcodeproj \
+            -scheme PeachOfAWord \
+            -destination 'platform=iOS Simulator,name=iPhone 17' \
+            -derivedDataPath "$RUNNER_TEMP/dd"
+
+      # The whole point. Every directory a test reads from the source tree goes
+      # away: Data for the word lists and the calendar, App for the vocabulary
+      # scanner, Fixtures for the oracle. What remains is the bundle.
+      - name: Remove the checkout the tests point at
+        run: |
+          set -euo pipefail
+          for dir in Data App Fixtures; do
+            if [ -d "$dir" ]; then
+              mv "$dir" "$RUNNER_TEMP/moved-$dir"
+              echo "moved $dir aside"
+            fi
+          done
+
+      - name: Unit tests with no checkout present
+        run: |
+          set -euo pipefail
+          XCTESTRUN=$(ls "$RUNNER_TEMP"/dd/Build/Products/*.xctestrun | head -1)
+          echo "using $XCTESTRUN"
+          xcodebuild test-without-building \
+            -xctestrun "$XCTESTRUN" \
+            -destination 'platform=iOS Simulator,name=iPhone 17'
+
   # The UI tests, on their own job.
   #
   # They are the only instrument that can perform a gesture, and they earned

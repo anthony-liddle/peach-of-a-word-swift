@@ -44,6 +44,35 @@ is no committed project file in which to notice it went missing. Edit
 Source files under `App/` and `Sources/` are normal, and so is everything else
 about working in Xcode once the project exists.
 
+## Tests that read files from the repository
+
+**A path built from `#filePath` resolves in every environment except the one
+that ships.** It bakes the absolute path of the machine that compiled it, so it
+works under `swift test`, works in Xcode locally, and points at nothing in Xcode
+Cloud's test action, which runs the built bundle without a checkout.
+
+So a test that needs `Data/`, `App/` or `Fixtures/` looks in the source tree
+first and falls back to the bundled copy. `Oracle.swift` and
+`AppVocabularyTests` both show the shape, and `project.yml` copies those
+directories into the test bundle as folder references so the fallback has
+something to find.
+
+**Read the file with `try`, not `try!`.** A thrown error fails one test and says
+why. A trap kills the whole `xctest` process, so every test running beside it is
+reported as crashed, and the real cause is buried under tests that never touch a
+file.
+
+This has now cost the project twice. The engine's `readWordList` baked a Mac
+path that resolved in the simulator and would have failed on a real device, and
+`RackTests` later read the daily calendar with `try!` through `#filePath`, which
+crashed six consecutive Xcode Cloud builds. The Archive action succeeded each
+time and the Test action failed, so nothing reached TestFlight for a week and no
+check anywhere went red.
+
+The `checkout-less-tests` job is what enforces this now. It builds the test
+bundle, moves those three directories aside, and runs the bundle against a
+checkout that is not there.
+
 ## Before opening a pull request
 
 ```bash
