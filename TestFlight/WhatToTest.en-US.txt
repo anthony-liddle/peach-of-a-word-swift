@@ -10,6 +10,10 @@ Worth checking, as always:
 - The board is the same one everyone gets today, and it changes at midnight.
 - Your words and your streak should survive a force quit.
 
+One ask that cannot be done in a single sitting: please open it on three separate days if you can. The board changing overnight, the streak counting up, and your found words still being there in the morning are the three things a single session cannot show, and they are the ones most likely to be wrong on a phone we do not have. If you only have one day in you, that is still useful, and this is the part to skip.
+
+There is one board a day, so when you have finished it there is no second puzzle until midnight. That is the game as it stands rather than something broken. If you get to the end and want another, say so, because that is worth knowing and it is not a bug report.
+
 And particular to this build:
 - Some origins are long. The card should scroll, and you should be able to drag it up to read all of it, including the small credit line at the bottom.
 - A few words trail off into older alphabets, Greek and older still. Those characters are set in a different typeface because ours has no letters for them. That is expected, but say if it looks wrong.
