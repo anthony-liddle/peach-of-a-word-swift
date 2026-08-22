@@ -110,7 +110,22 @@ targets:
         # points block that used to fill it and gained nothing to replace it.
         # Shipping the machine ahead of the content was deliberate; shipping a
         # build during the gap would not have been.
-        CURRENT_PROJECT_VERSION: "3"
+        #
+        # 4 is the first build for EXTERNAL TestFlight, and the first one whose
+        # number had to move for a reason other than its own contents. Build 3
+        # was cut at 3d2a7c2 and eight commits landed after it: the daily rack
+        # no longer opens on the source word, the summary row stopped shoving
+        # the found list on the first find of the day, the rack and controls
+        # gave 14pt back, three call sites that said italic and rendered upright
+        # were fixed, and the colophon carries the dedication. Submitting 3 for
+        # external review would have put every one of those in front of testers
+        # as an absence.
+        #
+        # It also carries the tester notes. `TestFlight/WhatToTest.*.txt` is
+        # read from the commit a build was made from, so the multi-day ask
+        # added after build 3 reaches nobody until a build is cut past it. That
+        # is the second reason this line is moving rather than the first.
+        CURRENT_PROJECT_VERSION: "4"
         SWIFT_VERSION: "6.0"
         TARGETED_DEVICE_FAMILY: "1"
         # Signing lives here rather than in Xcode's UI, because this project is
