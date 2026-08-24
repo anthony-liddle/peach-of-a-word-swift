@@ -530,6 +530,19 @@ final class GameModel {
             return
         }
         composing.append(id)
+        // Starting a word ends the last one's message.
+        //
+        // The feedback and the composed word now share one slot: the message
+        // renders inside the compose well, where it replaces the placeholder.
+        // See `ComposingStick`. Merely hiding it while letters are on the stick
+        // would look equivalent and is not, because deleting back to an empty
+        // well would bring a stale rejection back.
+        //
+        // `feedbackSeq` is deliberately NOT bumped. That counter drives the
+        // VoiceOver announcement, and clearing a message is not an event worth
+        // speaking; bumping it here would announce the empty string every time
+        // a tile landed.
+        feedback = .none
         #if TAP_RECORDER
         TapRecorder.shared.record(
             .commit, tile: id, letter: tiles.first { $0.id == id }?.letter ?? "?"
@@ -548,6 +561,8 @@ final class GameModel {
             tiles.first { $0.id == id }?.letter == letter && !composing.contains(id)
         }) else { return }
         composing.append(id)
+        // The same clearing `addTile` does, for the same reason. See there.
+        feedback = .none
     }
 
     /// Remove the last placed tile, returning it to the rack.

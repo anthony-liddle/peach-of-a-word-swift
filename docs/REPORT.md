@@ -1692,6 +1692,46 @@ taken.
 
 ## Found while verifying, not fixed
 
+> **RESOLVED, 2026-08-24. Fixed twice over, and this section stayed open long
+> after the first of them.** It is kept rather than deleted because the way it
+> went stale is the point.
+>
+> **The 27pt list stopped existing when `ViewThatFits` landed.** That work
+> replaced "fall back at accessibility sizes" with "fall back when the fixed
+> layout plus a list worth having does not fit", and pinned the found list's
+> ideal height to `minimumListHeight`. From then on a squeeze past the floor
+> produced a scrolling page rather than a crushed list. Measured on
+> 2026-08-24, before any further change: at XXXL both a 375x667 SE and a
+> 390x844 iPhone 13 took the scrolling fallback. There was no 27pt list on
+> either. **Nobody came back to close this**, so it read as an open layout
+> defect for weeks while the thing it described could not happen.
+>
+> **The residual problem at that size was never list size.** In the fallback the
+> rack sits inside a scroll view, so the touch-down commit is off there. See
+> `RackScrollTests`, which measured why. That is input latency, not a squeezed
+> list, and it needed a different fix.
+>
+> **It got one.** The chrome reclaim (the wordmark, and the message row into
+> the compose well) returned 61.67pt at default size on a 390pt phone, and that
+> is enough for the fixed layout to fit at XXXL again: `LayoutBudget`'s sweep
+> now reports FIXED at L, XL, XXL **and XXXL** on an 844pt phone, where XXXL was
+> fallback before. So the rack comes back out of the scroll view at that size
+> and the touch-down commit is restored with it. Accessibility sizes remain the
+> scrolling fallback, which is unchanged and still correct.
+>
+> A third lever, lowering the rack's height cap from 104 to 92, was measured and
+> reverted. It is not what fixed this: XXXL was already back on the fixed layout
+> after the wordmark alone, and the cap returned 2pt at that size. See
+> `maxTileHeight` for why it was dropped.
+>
+> **The lesson worth keeping is about the record, not the layout.** This
+> item asserted a mechanism ("the fallback triggers only at accessibility sizes,
+> and XXXL is not one") that a later change made untrue, and no measurement was
+> taken to find that out. Same defect class as a stale comment describing code
+> that has moved: it was believed, quoted, and used to scope work.
+
+The original entry, as written:
+
 **On a 375pt phone at the largest non-accessibility text size, the found list is
 squeezed to about 27pt**, which is effectively nothing. The rack and controls
 fit, which is what was asked, but the list between them does not get usable room.

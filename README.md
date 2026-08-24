@@ -22,7 +22,7 @@ derived here and not hand-copied: run that script to move to a new release, and
 `--check` to verify the committed copies still match the pinned one. CI runs the
 check on every build.
 
-<img src="docs/images/app.png" alt="A mid-game board: the tier meter partway to Ripening, eight letter tiles, and the found list showing set words and off-page finds" width="320">
+<img src="docs/images/app.png" alt="A mid-game board: the tier meter at Ripening, eight letter tiles, and the found list showing three length groups of set words and off-page finds" width="320">
 
 ## Running it
 
