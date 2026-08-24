@@ -1711,14 +1711,18 @@ taken.
 > `RackScrollTests`, which measured why. That is input latency, not a squeezed
 > list, and it needed a different fix.
 >
-> **It got one.** The chrome reclaim (the wordmark, the message row into the
-> compose well, and the rack cap from 104 to 92) returned 85.67pt at default
-> size on a 390pt phone, and that is enough for the fixed layout to fit at XXXL
-> again: `LayoutBudget`'s sweep now reports FIXED at L, XL, XXL **and XXXL** on
-> an 844pt phone, where XXXL was fallback before. So the rack comes back out of
-> the scroll view at that size and the touch-down commit is restored with it.
-> Accessibility sizes remain the scrolling fallback, which is unchanged and
-> still correct.
+> **It got one.** The chrome reclaim (the wordmark, and the message row into
+> the compose well) returned 61.67pt at default size on a 390pt phone, and that
+> is enough for the fixed layout to fit at XXXL again: `LayoutBudget`'s sweep
+> now reports FIXED at L, XL, XXL **and XXXL** on an 844pt phone, where XXXL was
+> fallback before. So the rack comes back out of the scroll view at that size
+> and the touch-down commit is restored with it. Accessibility sizes remain the
+> scrolling fallback, which is unchanged and still correct.
+>
+> A third lever, lowering the rack's height cap from 104 to 92, was measured and
+> reverted. It is not what fixed this: XXXL was already back on the fixed layout
+> after the wordmark alone, and the cap returned 2pt at that size. See
+> `maxTileHeight` for why it was dropped.
 >
 > **The lesson worth keeping is about the record, not the layout.** This
 > item asserted a mechanism ("the fallback triggers only at accessibility sizes,

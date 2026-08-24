@@ -30,11 +30,12 @@ struct ContentView: View {
     /// The argument was that the 40pt the SE got from the fixed layout "was
     /// never a list", so trading a real list for the touch-down commit on the
     /// one phone that could not show a list was the wrong way round. That was
-    /// correct about 40pt. After the chrome reclaim (the wordmark, the message
-    /// row and the rack cap, 85.67pt on a 390pt phone) the same phone measures
-    /// **131.5pt of list at default size**, which is more than the iPhone 13
-    /// had before that work. The premise changed, so the conclusion changed
-    /// with it, and the SE now takes the fixed layout at L, XL and XXL.
+    /// correct about 40pt. After the chrome reclaim (the wordmark and the
+    /// message row, 61.67pt on a 390pt phone) the same phone measures
+    /// **107.5pt of list at default size**, which is more than two and a half
+    /// times what the argument was written about. The premise changed, so the
+    /// conclusion changed with it, and the SE now takes the fixed layout at L,
+    /// XL and XXL.
     ///
     /// **The cost is the other half of the old argument, and it is real.** That
     /// phone no longer has one layout at every size: it switches regimes
@@ -47,7 +48,11 @@ struct ContentView: View {
     /// What has not changed is what the floor is for: it makes "fits" mean
     /// "fits with a list worth having" rather than "fits with the list crushed
     /// to nothing". On the SE at XXL that is doing visible work, holding the
-    /// list at 65.5pt against a floor of roughly 64.5.
+    /// list at 63.5pt, which is the tightest cell in the whole matrix and sits
+    /// essentially on the floor itself. That phone at that size is one small
+    /// regression away from falling back, which is the floor working rather
+    /// than a problem, but it is the cell to re-measure after any change to the
+    /// furniture above it.
     @ScaledMetric(relativeTo: .body) private var minimumListHeight: CGFloat = 52
     #if TAP_RECORDER
     @Environment(\.scenePhase) private var scenePhase
@@ -668,47 +673,48 @@ private struct TileButton: View {
     /// each tile demanded a width the container could not supply four of, and
     /// the rack broke to 3+3+2. That inversion is the thing not to reintroduce.
     ///
-    /// **Lowered from 118 to 104, and now to 92.** The rack is the tallest
-    /// furniture on a screen that has to hold everything at once, and this is
-    /// where the vertical points are. On a 390pt phone the fixed column gives
-    /// 81.75pt of width, so the tiles want to draw 109pt tall through the 3:4
-    /// ratio. At 104 they drew 78 x 104 and the rack was 218pt. At 92 they draw
-    /// 69 x 92 and the rack is 194, **giving the found list back 24pt** across
-    /// the two rows.
+    /// **Lowered from 118 to 104, which means it now bites at phone width.**
+    /// The rack was the tallest furniture on a screen that has to hold
+    /// everything at once, and this is where the vertical points are. On a 390pt
+    /// phone the column gives 81.75pt of width, so the tiles were drawing 109pt
+    /// tall; capped, they draw 104 and the rack gives back 10pt across its two
+    /// rows.
     ///
-    /// **The 44pt tap floor is nowhere near binding and was never the
-    /// constraint here.** A 69 x 92 tile is more than twice the minimum in both
-    /// directions, and `Cute.minTapTarget` is applied as a `minHeight`
-    /// underneath this cap, so it would engage long before anything reached 44.
-    /// The real cost is visual: the tile is 15 percent shorter than the ratio
-    /// wants at this column width, so it reads as a slightly squatter tile, and
-    /// `glyphSize` starts from a 46pt letter that now has 84pt of inner box
-    /// rather than 96. It still fits at default size without
-    /// `minimumScaleFactor` engaging, which is the thing that was checked
-    /// rather than assumed.
+    /// **92 was tried, measured, and reverted. Do not reach for it again
+    /// without reading this.** It returned 24pt at default size, and the
+    /// arithmetic is what makes it a trap: the cap constrains HEIGHT, and the
+    /// column stays 81.75pt wide whatever the tile does. So a 92pt cap draws a
+    /// 69 x 92 tile in an 81.75pt column and **the leftover 13pt per column
+    /// becomes gap**. On the phone the rack stops reading as a grid of tiles
+    /// and starts reading as tiles floating in space.
     ///
-    /// This was taken third, after the wordmark and the message row, precisely
-    /// because it is the only one of the three that costs something a player
-    /// can see. The other two returned 61.67pt at default by deleting things
-    /// that were not earning their space; this returns 24 by making the most
-    /// identifying object on the screen smaller.
+    /// This is the same mechanism the 118-to-104 move already flagged, where a
+    /// 14pt trim cost about 4pt of width and was recorded as a visible change
+    /// nobody asked for. At 24pt it is three times that, which is where it
+    /// crosses from unnoticed to wrong.
     ///
-    /// **This cap is a DEFAULT-SIZE lever only, and it does not look like one.**
-    /// Measured on a 390pt phone when it moved from 104 to 92: **24pt returned
-    /// at L, 11 at XXL, and 2 at XXXL.** The reason is `@ScaledMetric` on this
-    /// line. Dynamic Type grows the cap along with everything else, so it climbs
-    /// out of biting range while the tile's natural 3:4 height (fixed by the
-    /// column width, which does not scale) stays put. By XXXL the cap is above
-    /// the height the ratio asks for and clamps nothing at all: `RackShape`
-    /// prints a 107.67pt tile there against a 92pt constant.
+    /// **The 44pt tap floor was never the constraint** and is not what stops
+    /// this. A 69 x 92 tile is more than twice the minimum in both directions.
+    /// The constraint is that these are the most identifying objects on the
+    /// screen and the leftover width has nowhere to go.
+    ///
+    /// **This cap is also a DEFAULT-SIZE lever only, and it does not look like
+    /// one.** Measured on a 390pt phone across the 104-to-92 experiment: **24pt
+    /// returned at L, 11 at XXL, and 2 at XXXL.** The reason is `@ScaledMetric`
+    /// on this line. Dynamic Type grows the cap along with everything else, so
+    /// it climbs out of biting range while the tile's natural 3:4 height (fixed
+    /// by the column width, which does not scale) stays put. By XXXL the cap is
+    /// above the height the ratio asks for and clamps nothing at all: at 92,
+    /// `RackShape` still printed a 107.67pt tile there.
     ///
     /// So anyone pricing a further trim should expect it to buy points at
     /// default size and almost nothing at the sizes where the screen is
-    /// tightest, which is the opposite of the intuition. If large text ever
-    /// needs the room, the lever is not this number: it is either dropping
-    /// `relativeTo:` so the cap stops scaling, which would pin tile size against
-    /// Dynamic Type and is its own argument, or taking the points somewhere
-    /// else entirely.
+    /// tightest, which is the opposite of the intuition, and to pay for them in
+    /// column gap. Both halves point the same way: this is the weakest of the
+    /// levers on this screen. If large text ever needs the room, it is not this
+    /// number. It is either dropping `relativeTo:` so the cap stops scaling,
+    /// which would pin tile size against Dynamic Type and is its own argument,
+    /// or taking the points somewhere else entirely.
     ///
     /// **It is still a cap on HEIGHT, which is why it is the safe lever.** The
     /// tile shrinks inside a column it never asked to widen, so it cannot demand
@@ -720,7 +726,7 @@ private struct TileButton: View {
     ///
     /// Still scaled, so Dynamic Type still grows the tiles rather than pinning
     /// them at a constant the moment the text gets bigger.
-    @ScaledMetric(relativeTo: .largeTitle) private var maxTileHeight: CGFloat = 92
+    @ScaledMetric(relativeTo: .largeTitle) private var maxTileHeight: CGFloat = 104
 
     private var face: some View {
         ZStack {
@@ -965,4 +971,5 @@ extension GameStorage {
         #endif
     }
 }
+
 
