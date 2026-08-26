@@ -84,6 +84,7 @@ struct ContentView: View {
                 // it is also where the dictionary load hides.
                 VStack(spacing: 18) {
                     PeachMark().frame(width: 72, height: 72)
+                    wordmark
                     Text(Vocabulary.mastheadSubline)
                         .font(CuteFont.body(12, weight: "SemiBold", relativeTo: .caption))
                         .tracking(4.4)
@@ -174,6 +175,42 @@ struct ContentView: View {
             if let debugSeed { model.seedBoard(debugSeed) }
             #endif
         }
+    }
+
+    /// The name of the game, and the only place in the app it appears.
+    ///
+    /// **Transcribed from the masthead rather than approximated**, because the
+    /// masthead is gone: it came off the play screen in the chrome reclaim, on
+    /// the argument that an app is already open, already named on the home
+    /// screen, already the thing that was tapped. That argument is about the
+    /// play screen and it does not reach here. A splash is exactly where an app
+    /// announces itself, once per session, and it was announcing everything
+    /// except its name.
+    ///
+    /// "Peach" keeps the pink oblique, which is the identifying mark and the
+    /// half of the wordmark that is not just words. `displayOblique` shears
+    /// Fredoka by hand through CoreText because Fredoka has no italic face and
+    /// `.italic()` therefore selects nothing; see `CuteFont`.
+    ///
+    /// The two halves are concatenated with `+` rather than set in an `HStack`.
+    /// That is not a style preference: `Text + Text` is one text run, so it
+    /// wraps, scales and truncates as a single unit, and the space before "of"
+    /// belongs to the run rather than to a stack's spacing. An `HStack` would
+    /// let the two halves scale independently.
+    private var wordmark: some View {
+        (Text("Peach").font(CuteFont.displayOblique(22, relativeTo: .title3))
+            .foregroundColor(Cute.accent)
+         + Text(" of a Word").font(CuteFont.display(22, relativeTo: .title3))
+            .foregroundColor(Cute.ink))
+            .lineLimit(1)
+            .minimumScaleFactor(0.7)
+            // The gutter the masthead used to inherit from its container.
+            // Transcribing the view verbatim dropped it, because the play
+            // screen padded the whole column by 18 and this splash pads
+            // nothing: at AX5 the name rendered in full and touched both
+            // bezels. Worth catching, since "exactly as the masthead had it"
+            // turns out to include the box the masthead was in.
+            .padding(.horizontal, 18)
     }
 
     /// **A screen, not a page.**
