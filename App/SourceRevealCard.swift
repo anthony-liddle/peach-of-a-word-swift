@@ -15,10 +15,12 @@ import SwiftUI
 /// **The content sections.** A Definition section and an Etymology section,
 /// each rendered only when its field is non-empty, which is the shape of the
 /// web's `Reveal.tsx` and the reason `entry` is optional rather than the two
-/// strings being required. Today `entry` is always nil, because
-/// `Data/etymology.tsv` is not committed pending the licensing decision, and
-/// the card falls back to exactly what it rendered before: the mark, the line,
-/// the word, the kicker.
+/// strings being required. This said `entry` is "always nil, because
+/// `Data/etymology.tsv` is not committed pending the licensing decision". That
+/// decision was taken on 2026-08-14 and the corpus has shipped since. `entry`
+/// is now populated for 615 of the 626 calendar crowns, and nil for the other
+/// eleven, where the card falls back to exactly what it rendered before: the
+/// mark, the line, the word, the kicker.
 ///
 /// That fallback is reachable in normal play, and deliberately so. It was not,
 /// when this was written: the corpus covered all 626 calendar crowns. From
