@@ -396,19 +396,29 @@ struct ContentView: View {
     /// the same and on an iPhone SE it does: 107.5 / 84.5 / 63.5 at L, XL and
     /// XXL, unchanged to the hundredth of a point.
     ///
-    /// On an iPhone 13 it gained **34.00pt at every size**, and the 34 is not a
-    /// coincidence: it is the bottom safe-area inset. A scroll view sitting at
-    /// the bottom edge extends its frame through the home indicator and insets
-    /// its content to match, which is the native treatment and the reason a
-    /// list runs to the edge of the screen rather than stopping short of it.
-    /// The controls could not claim that region because a button under the home
-    /// indicator is a button competing with a system gesture.
+    /// On an iPhone 13 the frame gained **34.00pt at every size**, and the 34
+    /// is not a coincidence: it is the bottom safe-area inset. A scroll view
+    /// sitting at the bottom edge extends its frame through the home indicator,
+    /// which is the native treatment and the reason a list runs to the edge of
+    /// the screen rather than stopping short of it. The controls could never
+    /// claim that region, because a button under the home indicator is a button
+    /// competing with a system gesture.
     ///
-    /// So the gain is real but it is the home indicator's height, not a density
-    /// win, and it is **zero on any phone with a home button**. Written down
-    /// because "the list gets everything below the controls" sounds like it
-    /// should be worth the controls' height, and it is not: the layout is
-    /// height-neutral by construction and this is the one edge effect on top.
+    /// **That 34pt is not 34pt of words, and the frame measurement cannot tell
+    /// you so.** Extending through the inset comes with a matching bottom
+    /// content inset, so the visible content window is exactly what it was.
+    /// Screenshotted before and after at the same seed on the same phone: both
+    /// end on the same last row, `7 letters / destine entries / also found`.
+    /// **Zero additional rows are readable at rest.** What actually changed is
+    /// that the list bleeds to the screen edge instead of stopping above a row
+    /// of buttons, which is a better treatment and is not a density win.
+    ///
+    /// Written down because "the list gets everything below the controls"
+    /// sounds like it should be worth the controls' height; because a frame
+    /// that measures 34pt taller looks like it settles the question and does
+    /// not; and because the answer on any phone with a home button is zero
+    /// either way. The layout is height-neutral by construction. This is the
+    /// one edge effect on top of it, and it is cosmetic.
     private var scrollingList: some View {
         ScrollView {
             // Padding inside the scrolled content, so at rest the fade eats
