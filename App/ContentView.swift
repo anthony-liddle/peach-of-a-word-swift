@@ -53,6 +53,13 @@ struct ContentView: View {
     /// regression away from falling back, which is the floor working rather
     /// than a problem, but it is the cell to re-measure after any change to the
     /// furniture above it.
+    ///
+    /// **Re-measured when the controls moved up under the rack, and it held at
+    /// 63.5pt.** That move reorders the furniture without changing how much of
+    /// it there is, so this cell was expected to be untouched and is. Recorded
+    /// because the instruction above is to re-measure rather than to reason,
+    /// and a re-measurement that confirms the prediction is still the thing
+    /// that was asked for.
     @ScaledMetric(relativeTo: .body) private var minimumListHeight: CGFloat = 52
     #if TAP_RECORDER
     @Environment(\.scenePhase) private var scenePhase
@@ -177,12 +184,23 @@ struct ContentView: View {
     /// kicker is gone, the wordmark is small, and the rack and controls fit in
     /// one view with the found list scrolling beneath.
     ///
-    /// The layout is also bottom-weighted, which pages are not. The controls are
-    /// pinned to the bottom in comfortable thumb reach, the reading material
-    /// (the found list) takes the loose middle, and the things being acted on
-    /// (well and rack) sit above it. That also gives the controls room to be
-    /// bigger, which they needed: they are the most-used targets on the screen
-    /// and were previously the smallest.
+    /// **The controls sit directly under the rack, and this reverses a decision
+    /// made deliberately when the fixed layout was built.** They used to be
+    /// pinned to the bottom edge in comfortable thumb reach, with the found
+    /// list scrolling in the loose middle between them and the rack. The
+    /// argument was that phones are bottom-weighted where pages are top-
+    /// weighted, and it is a good argument.
+    ///
+    /// It lost to two testers who reported the same friction independently and
+    /// unprompted. Words arrive in bursts, so backspace, pick word, shuffle and
+    /// clear are used *between* taps on the rack rather than after a run of
+    /// them, and a list scrolling between the two put the whole found list's
+    /// height of finger travel inside a single word. A principle about where
+    /// thumbs rest lost to two reports of what hands actually did.
+    ///
+    /// The controls keep the size that pinning them bought. They are the
+    /// most-used targets on the screen and were once the smallest; being at the
+    /// bottom was never what made them big.
     ///
     /// At accessibility text sizes none of that fits, so the whole thing becomes
     /// one scroll view instead. Dynamic Type has been regressed here once
@@ -229,6 +247,13 @@ struct ContentView: View {
             TypeCase(model: model, commitOnTouchDown: true)
                 .padding(.top, 8)
 
+            Controls(model: model)
+                // 8 rather than 10. Taken off the gap above the block rather
+                // than out of the buttons: the utility pair stands at 46pt
+                // against a 44pt minimum target, so there are two points there
+                // and they are not the two points to spend.
+                .padding(.top, 8)
+
             // Pinned, above the scroll rather than inside it.
             pinnedSummary
                 .padding(.top, 10)
@@ -250,13 +275,6 @@ struct ContentView: View {
                        idealHeight: minimumListHeight,
                        maxHeight: .infinity)
                 .padding(.top, 6)
-
-            Controls(model: model)
-                // 8 rather than 10. Taken off the gap above the block rather
-                // than out of the buttons: the utility pair stands at 46pt
-                // against a 44pt minimum target, so there are two points there
-                // and they are not the two points to spend.
-                .padding(.top, 8)
         }
         .padding(.horizontal, 18)
         .padding(.top, 4)
@@ -371,6 +389,26 @@ struct ContentView: View {
     ///
     /// The gradient is opaque through the middle and only eats the outer few
     /// points, so it never dims content that is fully in view.
+    ///
+    /// **This is now the bottom-most view, and that is worth a number rather
+    /// than a shrug.** Moving the controls up under the rack does not change
+    /// how much furniture there is, so the list was expected to measure exactly
+    /// the same and on an iPhone SE it does: 107.5 / 84.5 / 63.5 at L, XL and
+    /// XXL, unchanged to the hundredth of a point.
+    ///
+    /// On an iPhone 13 it gained **34.00pt at every size**, and the 34 is not a
+    /// coincidence: it is the bottom safe-area inset. A scroll view sitting at
+    /// the bottom edge extends its frame through the home indicator and insets
+    /// its content to match, which is the native treatment and the reason a
+    /// list runs to the edge of the screen rather than stopping short of it.
+    /// The controls could not claim that region because a button under the home
+    /// indicator is a button competing with a system gesture.
+    ///
+    /// So the gain is real but it is the home indicator's height, not a density
+    /// win, and it is **zero on any phone with a home button**. Written down
+    /// because "the list gets everything below the controls" sounds like it
+    /// should be worth the controls' height, and it is not: the layout is
+    /// height-neutral by construction and this is the one edge effect on top.
     private var scrollingList: some View {
         ScrollView {
             // Padding inside the scrolled content, so at rest the fade eats
