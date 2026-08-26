@@ -42,7 +42,7 @@
 set -euo pipefail
 
 REPO="anthony-liddle/orchard"
-VERSION="v1.3.0"
+VERSION="v1.4.0"
 
 # ---------------------------------------------------------------------------
 # THE ARCHIVES THIS REPOSITORY TAKES FROM A RELEASE.
@@ -68,8 +68,9 @@ VERSION="v1.3.0"
 # where that changes, and the change is a fifth field.
 #
 # **The etymology row is the licensing act, and it has been taken.** The corpus
-# is Wiktionary text under CC BY-SA 4.0, 820 entries covering all 626 calendar
-# crowns. It was listed here on 2026-08-14, on Antoine's decision, after the
+# is Wiktionary text under CC BY-SA 4.0. 799 entries covering 615 of the 626
+# calendar crowns: the other eleven have no usable English etymology on
+# Wiktionary and are skipped on purpose, so their reveal card is quiet. It was listed here on 2026-08-14, on Antoine's decision, after the
 # option space was established as: Wiktionary or no etymology at all. See
 # `Definitions Source Decision.md`. Shipping it obliges the attribution in
 # `Data/ATTRIBUTION.md`, which travels inside the bundle, and that obligation is
@@ -82,8 +83,8 @@ VERSION="v1.3.0"
 # release, something is wrong; do not edit it to make a check pass.
 # ---------------------------------------------------------------------------
 ARCHIVES=(
-  "lexicon.tar.gz|fdf0c6752de2dc18eacb8720e378a2b7f3c0eb4d8aa12964a63367b47bd612df|lexicon|enable.txt:689618c5348c28738ae3453575518e459bc0804c0f3cc3ad8c4af6b2441ea4e0,scowl95-additions.txt:dbc6347327b3237b2a5ebb22f55227b193be386d882da1863add2d1353233b7c,common-pool.txt:10fa33188c8de4fc0d047f0993165365e12d6e739e1072a1275ee94c1fab928f,beyond-size-70.txt:4af0676fdd320c86889e5fc06a2bff4b06a5052e16d3442e60000dc9fa0ba285,beyond-size-95.txt:8b4a39ab5b62739ffe4d8408117e3d4fe8f2e8ae271fb0deaae1666eaca5e257"
-  "etymology.tar.gz|4c494ad0e183c681a7f4386f605495ccfb0e4ea659b2aedfd788a0cf809be19d|etymology|etymology.tsv:d51a4dc38a1cf73d50549b2d176da74db91852b711a4a93348ecd6e02bd44ea0"
+  "lexicon.tar.gz|417f6198f85835fa696437801a73c22d2033cd35727a04ba756904b52511c7e3|lexicon|enable.txt:3be67be18b42d1903911f16f008c2cf7754cef4dfce2bcff448e8d7f94854a6b,scowl95-additions.txt:a636a359b0d0fd8de1db338c24893f87d09978eaaa3eff81c4eb7e370426f173,common-pool.txt:10fa33188c8de4fc0d047f0993165365e12d6e739e1072a1275ee94c1fab928f,beyond-size-70.txt:556c91aa84c6aaad7ab80d6b942fc1349acd6304624089acb1e575991f83c171,beyond-size-95.txt:3bf2bd8af9952e76bb1621b93c75710e47e61fd707444637e391138f45f1eef9"
+  "etymology.tar.gz|e209c96716a91129a8cc321909b097d3eb3a2f1d2ec05de3484c21ad5dd60ee6|etymology|etymology.tsv:d51a4dc38a1cf73d50549b2d176da74db91852b711a4a93348ecd6e02bd44ea0"
 )
 
 # Split one ARCHIVES row into the four globals the loops below read.

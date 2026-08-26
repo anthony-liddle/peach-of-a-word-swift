@@ -57,11 +57,13 @@ public func parseSourceEntries(_ tsv: String) -> [String: SourceEntry] {
 
 /// Read the reveal corpus from a directory, or return nothing if it is absent.
 ///
-/// **Absent is the normal state, not an error, and that is the whole point of
-/// this signature.** The corpus is Wiktionary text under CC BY-SA 4.0 and is
-/// not committed to this repository; the decision about whether it ever will be
-/// is open. Everything that consumes it is committed and tested, so the machine
-/// is finished and the content is a separate act.
+/// **Absent is a survivable state, not an error, and that is the whole point
+/// of this signature.** It is no longer the NORMAL state: this said the corpus
+/// "is not committed to this repository; the decision about whether it ever
+/// will be is open". It was taken on 2026-08-14, and `Data/etymology.tsv` has
+/// been committed since. What this signature still buys is a build assembled
+/// without the data starting anyway, rather than the licensing question it was
+/// originally written for.
 ///
 /// So this does not `throw`. A `throws` here would put the licensing decision
 /// on the app's launch path: the day the file is absent, which is today, the

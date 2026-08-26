@@ -76,12 +76,17 @@ final class GameModel {
 
     /// What the reveal card shows for each crown, keyed by word.
     ///
-    /// Empty until the corpus ships, which is the state this repository is in
-    /// today: `Data/etymology.tsv` is Wiktionary text under CC BY-SA 4.0 and is
-    /// not committed. `readSourceEntries` treats a missing file as empty rather
-    /// than as an error, so this is a normal empty dictionary and not a failure
-    /// the launch path has to catch. The card renders each section only when it
-    /// has content, so an empty table is exactly the card that ships now.
+    /// Populated from `Data/etymology.tsv`, which IS committed. This said it
+    /// was empty "until the corpus ships, which is the state this repository is
+    /// in today"; that stopped being true on 2026-08-14, when the licensing act
+    /// was taken and the etymology row was added to `tools/update-lexicon.sh`.
+    /// The comment outlived the state it described by twelve days.
+    ///
+    /// 799 entries, covering 615 of the 626 calendar crowns. The other eleven
+    /// have no usable English etymology on Wiktionary and are skipped on
+    /// purpose, so a dealt crown really can have no entry. `readSourceEntries`
+    /// still treats a missing file as empty rather than as an error, which now
+    /// covers a build without the data rather than the normal case.
     private(set) var sourceEntries: [String: SourceEntry] = [:]
 
     /// The celebration currently on screen, if any.
