@@ -124,6 +124,12 @@ struct ContentView: View {
                     ) { model.moment = nil }
                 case .completion(let setTotal, let score):
                     CompletionCard(setTotal: setTotal, score: score) { model.moment = nil }
+                case .definition(let word, let category):
+                    DefinitionCard(
+                        word: word,
+                        category: category,
+                        definition: model.definitions[word]
+                    ) { model.moment = nil }
                 }
             }
             // Medium rather than full, so the board stays visible behind it and
@@ -377,7 +383,9 @@ struct ContentView: View {
         Group {
             if let puzzle = model.puzzle, let standing = model.standing {
                 FoundListView(puzzle: puzzle, found: model.found,
-                              standing: standing, boardDate: model.boardDate)
+                              standing: standing, boardDate: model.boardDate) { word in
+                    model.revealFound(word)
+                }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)

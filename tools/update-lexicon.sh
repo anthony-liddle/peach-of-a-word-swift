@@ -67,6 +67,18 @@ VERSION="v1.5.0"
 # that does not exist. If etymology ever releases on its own cadence, this is
 # where that changes, and the change is a fifth field.
 #
+# **The definitions row rides on the licensing act the etymology row took, and
+# adds no new question.** Same corpus, same upstream, same CC BY-SA 4.0, same
+# obligation already discharged in `Data/ATTRIBUTION.md`. What it adds is
+# 1.45 MiB to a directory that ships 8.36 MB, an 18 percent increase, for the
+# 24,892 short glosses behind the tappable found-word chips.
+#
+# **The web's 793 per-rack shards are deliberately not taken.** They exist so a
+# browser fetches 4 KB rather than 1.5 MB, which is a property of HTTP and not
+# of the corpus. An app has already shipped the whole binary before it opens, so
+# the shards would buy nothing and cost 793 files in the bundle. One file, read
+# once at launch into a dictionary, is the shape `etymology.tsv` already uses.
+#
 # **The etymology row is the licensing act, and it has been taken.** The corpus
 # is Wiktionary text under CC BY-SA 4.0. 799 entries covering 615 of the 626
 # calendar crowns: the other eleven have no usable English etymology on
@@ -85,6 +97,7 @@ VERSION="v1.5.0"
 ARCHIVES=(
   "lexicon.tar.gz|e386779b6dd533298ec64c56bb52fcef6200c2566cd51a38012ab186655816f6|lexicon|enable.txt:3be67be18b42d1903911f16f008c2cf7754cef4dfce2bcff448e8d7f94854a6b,scowl95-additions.txt:a636a359b0d0fd8de1db338c24893f87d09978eaaa3eff81c4eb7e370426f173,common-pool.txt:10fa33188c8de4fc0d047f0993165365e12d6e739e1072a1275ee94c1fab928f,beyond-size-70.txt:556c91aa84c6aaad7ab80d6b942fc1349acd6304624089acb1e575991f83c171,beyond-size-95.txt:3bf2bd8af9952e76bb1621b93c75710e47e61fd707444637e391138f45f1eef9"
   "etymology.tar.gz|14e00abbffc358bfd3ab1e763551c840d330f30eaa0e7401ccdd31ffb27c5fb6|etymology|etymology.tsv:d51a4dc38a1cf73d50549b2d176da74db91852b711a4a93348ecd6e02bd44ea0"
+  "definitions.tar.gz|6578f0e91534b31b44c6b177b2a3df79dece03433d2e16ffde626f2b03ec3ef4|definitions|definitions.tsv:4297d44de6fb478b8fb94a1b66b04692889e4af3f6008ca25cb2fca8f3c9728a"
 )
 
 # Split one ARCHIVES row into the four globals the loops below read.
@@ -192,11 +205,20 @@ done
 # having an opinion about this file.
 #
 # Only the six list counts change. sourcePool and definitionsCovered are carried
-# through untouched rather than invented, but the reason has narrowed: it used
-# to be that neither described anything this app ships, and half of that is no
-# longer true. definitionsCovered counts the 24,877-row definition corpus, which
-# is still not shipped here. sourcePool counts the 793 crown candidates, and this
-# app now ships etymology for 820 words including all 626 the calendar can deal.
+# through untouched rather than invented, and the reason has now narrowed to
+# nothing: this app ships both of the things they count. sourcePool counts the
+# 793 crown candidates, and this app ships etymology for 820 words including all
+# 626 the calendar can deal. definitionsCovered counts the definition corpus,
+# which as of this change ships here too.
+#
+# **definitionsCovered says 24833 and the file it counts has 24,892 rows.** It is
+# carried through anyway, and not because the discrepancy is acceptable on its
+# own terms. meta.json has to stay byte-identical with the web's serialiseMeta
+# output, so correcting it here would be a one-repo edit to a two-repo file and
+# the next --check would be comparing this repo against a number only this repo
+# believes. The stale figure is the web's to move. Recorded rather than fixed,
+# and recorded rather than left for someone to trip over: the count in this file
+# is not a number to reason from, and the corpus itself is the thing to count.
 #
 # No key is added for that coverage, deliberately. meta.json has to stay
 # byte-identical with the web's serialiseMeta output, so a new key here is a
