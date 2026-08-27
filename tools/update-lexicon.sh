@@ -42,6 +42,13 @@
 set -euo pipefail
 
 REPO="anthony-liddle/orchard"
+# Bumping this couples to three literals in
+# Tests/PeachEngineTests/ShippedDefinitionsTests.swift: the corpus row count,
+# the spaced-hyphen count, and the exact text pinned for each known defect.
+# They are literals on purpose, so a release that changes the corpus makes
+# somebody look at the numbers rather than inherit them. Expect those tests to
+# fail on a bump; read the diff before editing them, and never loosen one to
+# make a bump quiet.
 VERSION="v1.5.0"
 
 # ---------------------------------------------------------------------------

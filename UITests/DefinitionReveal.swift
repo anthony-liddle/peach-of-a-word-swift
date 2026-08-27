@@ -147,11 +147,17 @@ final class DefinitionReveal: XCTestCase {
         XCTAssertTrue(prose.waitForExistence(timeout: 10),
                       "the card carried no prose at AX5")
 
-        // The way out, after taking the sheet to its large detent, which is the
-        // gesture the detent pair exists to make available. `swipeUp` on the
-        // card rather than a drag from the grabber: the grabber's frame is tiny
-        // at any text size and this is testing that the content is reachable,
-        // not how it is dragged.
+        // The way out, after scrolling the card. `swipeUp` scrolls the content
+        // inside the sheet; it does NOT drag the sheet to its large detent, and
+        // the distinction is worth keeping straight because both would make
+        // this pass and only one is what runs.
+        //
+        // Reachability is asserted after the scroll rather than before it, so
+        // this passes whether or not the button was already in view at the
+        // medium detent. That is deliberate: at AX5 one long gloss overflows a
+        // medium detent by construction, so requiring no-scroll would be
+        // requiring the card not to be what it is. The failure being guarded is
+        // a card that cannot be dismissed at all.
         let close = closeButton(app)
         if !close.isHittable {
             app.swipeUp()
