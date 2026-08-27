@@ -20,10 +20,19 @@ import SwiftUI
 /// 4.0, so the credit is owed, and share-alike means owed to the player rather
 /// than only to `ATTRIBUTION.md`.
 ///
-/// The reveal card carries the same credit underneath the content itself. Both,
-/// deliberately: the card credits what is on screen at the moment it is on
+/// **The line needed no edit when the definition corpus landed, and that is
+/// worth one sentence rather than none.** It already said "Definitions and
+/// etymologies", because `etymology.tsv` carries a gloss as well as an origin
+/// and the crown card renders both. What changed is only the reach: the same
+/// sentence now covers 24,892 glosses behind every tappable chip rather than
+/// 820 behind the crowns. A credit written for the app as a whole was already
+/// the right shape for a corpus that grew.
+///
+/// The reveal cards carry the same credit underneath the content itself. Both,
+/// deliberately: a card credits what is on screen at the moment it is on
 /// screen, and this credits the app as a whole to someone who never finds a
-/// crown.
+/// crown. `DefinitionCard` says "Definition from Wiktionary" rather than
+/// "Definitions and etymologies", because it shows one and not the other.
 ///
 /// It sits at the foot of the found list, which is the quietest place the app
 /// has: reachable by scrolling past everything, never on the play surface. That

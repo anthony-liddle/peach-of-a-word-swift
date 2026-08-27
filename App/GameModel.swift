@@ -89,6 +89,30 @@ final class GameModel {
     /// covers a build without the data rather than the normal case.
     private(set) var sourceEntries: [String: SourceEntry] = [:]
 
+    /// The gloss behind every tappable found-word chip, keyed by word.
+    ///
+    /// Populated from `Data/definitions.tsv`, 24,892 rows. **A whole-file read
+    /// into one dictionary, where the web fetches one of 793 per-rack shards.**
+    /// The shards are an HTTP optimisation: a browser downloads 4 KB rather
+    /// than 1.5 MB and does it after the board is already playable. An app has
+    /// shipped the entire binary before it opens, so the shards would buy
+    /// nothing and cost 793 files in the bundle.
+    ///
+    /// **Coverage is a presence check and nothing more.** Measured over all 626
+    /// calendar racks: every one of 21,988 set-word slots has a row, on all 626
+    /// racks, with no distinct set word missing. That is exact and it means
+    /// every set word has a ROW. Whether every row says something useful is
+    /// unmeasured. 80 glosses of 3,444 were read by hand and three classes of
+    /// defect turned up, one of them found only because `one` and `ten` happened
+    /// to be in the sample, so there is no basis for believing a fourth class
+    /// does not exist. See `DefinitionCard` for the three that are known.
+    ///
+    /// Rack-weighted coverage off the page: uncommon 99.54 percent, mythic
+    /// 98.91 percent over the 614 racks that have any, rare 72.61 percent. The
+    /// rare gap is the visible one and it is mostly not-words rather than a
+    /// sourcing failure, which is the queue's problem rather than this table's.
+    private(set) var definitions: [String: String] = [:]
+
     /// The celebration currently on screen, if any.
     ///
     /// Two beats share this slot, and the hierarchy decides which wins when both
@@ -104,13 +128,44 @@ final class GameModel {
     enum Moment: Identifiable {
         case sourceWord(word: String)
         case completion(setTotal: Int, score: Int)
+        /// A found word's definition, opened by tapping its chip.
+        ///
+        /// **Not a celebration, and it shares this slot anyway.** The other two
+        /// arrive from a submit and compete with each other for one screen;
+        /// this one arrives from a tap, when no submit is resolving and no
+        /// other moment can be on screen, so it never enters that contest and
+        /// the completion-wins rule above is untouched by it.
+        ///
+        /// The category rides along rather than being looked up again, because
+        /// the card tints its rule by it and the chip that was tapped already
+        /// knows. Re-deriving it would be a second classification pass, which
+        /// is the exact shape `classifyFound` exists to prevent.
+        case definition(word: String, category: WordCategory)
 
         var id: String {
             switch self {
             case .sourceWord(let word): "source-\(word)"
             case .completion: "completion"
+            case .definition(let word, _): "definition-\(word)"
             }
         }
+    }
+
+    /// Open the right card for a tapped found word.
+    ///
+    /// **The crown keeps the crown card.** `classifyFound` marks a word
+    /// `.source` if and only if it equals `puzzle.sourceWord`, so this reads the
+    /// same fact the chip is already drawn from rather than a second one that
+    /// could disagree. The peach, the celebration line, the etymology and the
+    /// kicker are that word's, and a definition-only card for it would be a
+    /// downgrade of the biggest beat in the game.
+    ///
+    /// Everything else gets the quiet card, including a set word, which the web
+    /// also routes to its quiet register.
+    func revealFound(_ found: FoundWord) {
+        moment = found.category == .source
+            ? .sourceWord(word: found.word)
+            : .definition(word: found.word, category: found.category)
     }
 
     /// True once completion has been celebrated, so it fires on the transition
@@ -249,6 +304,7 @@ final class GameModel {
         let elapsed = await clock.measure {
             built = await Self.buildTodaysPuzzle()
             sourceEntries = await Self.loadSourceEntries()
+            definitions = await Self.loadDefinitions()
         }
 
         // 1 millisecond is 1e15 attoseconds. An earlier version of this scaled
@@ -785,6 +841,26 @@ extension GameModel {
         await Task.detached(priority: .userInitiated) {
             guard let data = try? bundledDataDirectory() else { return [:] }
             return readSourceEntries(in: data)
+        }.value
+    }
+
+    /// Read the definition corpus off the main thread, from the app bundle.
+    ///
+    /// The same shape as `loadSourceEntries` and for the same reasons: its own
+    /// detached task, because this fetches something the game can do without
+    /// and folding it into `buildTodaysPuzzle` would put a `Result` around a
+    /// load that cannot fail; and `bundledDataDirectory()` rather than the
+    /// engine's `#filePath`-derived default, which resolves only on the machine
+    /// that compiled the package and which the Simulator makes look correct.
+    ///
+    /// **Inside `load`'s clock, deliberately.** It is part of what launch costs.
+    /// A load timer that excludes half the load is worse than one that grows,
+    /// which is the argument already made for the corpus read beside it, and
+    /// this file is thirty times that one's size.
+    nonisolated static func loadDefinitions() async -> [String: String] {
+        await Task.detached(priority: .userInitiated) {
+            guard let data = try? bundledDataDirectory() else { return [:] }
+            return readDefinitions(in: data)
         }.value
     }
 

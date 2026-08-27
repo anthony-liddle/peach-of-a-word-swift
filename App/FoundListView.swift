@@ -64,6 +64,9 @@ struct FlowLayout: Layout {
 /// One found word: its mark, the word, and what it was worth.
 struct WordChip: View {
     let found: FoundWord
+    /// What tapping this chip does. Defaulted to nothing so a preview or a
+    /// future read-only surface can render a chip without inventing an action.
+    var onSelect: () -> Void = {}
     /// The chip's LAYOUT height, matching the web's `min-height: 24px`.
     ///
     /// This is not the tap target. The touch region is expanded separately
@@ -80,24 +83,53 @@ struct WordChip: View {
     /// daily on a phone without complaint.
     @ScaledMetric(relativeTo: .body) private var chipHeight: CGFloat = 24
 
-    /// How far the touch region extends past the chip on each side, taking the
-    /// effective target to roughly 44pt without costing a single point of row
-    /// height.
-    @ScaledMetric(relativeTo: .body) private var touchInset: CGFloat = 10
+    /// How far the touch region extends past the chip, per side.
+    ///
+    /// **Half the gap, not the 10pt this used to hold, and the difference is
+    /// not a lowered standard.** The old value was written for a button that
+    /// was removed before it ever ran, alongside a claim that it took the
+    /// effective target "to roughly 44pt without costing a single point of row
+    /// height". The first half was true and the second half was true, and the
+    /// two together are not: `FlowLayout` sets a 12pt column gap and a 5pt row
+    /// gap, so two neighbouring chips each reaching 10pt outward **overlap by
+    /// 8pt horizontally and 15pt vertically**. SwiftUI resolves an overlapping
+    /// content shape in favour of the later subview, so taps in the seam open
+    /// the next word along, systematically and in one direction. A target that
+    /// opens the wrong word is worse than a small one.
+    ///
+    /// Half the gap on each side tiles instead: every point in the list belongs
+    /// to exactly one chip, with no overlap and no dead space between them. The
+    /// effective target becomes 29pt tall by the word's width plus 12.
+    ///
+    /// **24pt was already the defended figure**, and the comment on
+    /// `chipHeight` makes that case: WCAG 2.5.8 sets 24 by 24 and carves out an
+    /// explicit exception for inline targets constrained by surrounding text,
+    /// which is exactly what a word in a flowing paragraph is. Tiling to the
+    /// gaps is a strict improvement on that floor rather than a retreat from
+    /// 44, which was never reachable here without taking a neighbour's taps.
+    private let horizontalTouchInset: CGFloat = 6
+    private let verticalTouchInset: CGFloat = 2.5
 
-    /// **Deliberately not a button.**
+    /// **A button again.**
     ///
-    /// These were built as real buttons with real 44pt targets so the definition
-    /// reveal could drop in later. But the reveal is blocked on the WordNet
-    /// decision, and in the meantime a control that invites a tap and then
-    /// ignores it is worse than a label: it reads as broken, and VoiceOver
-    /// announces "button" and promises an action that never comes.
+    /// These were built as real buttons so the definition reveal could drop in
+    /// later, then made inert, because the reveal was blocked and a control
+    /// that invites a tap and then ignores it is worse than a label: it reads
+    /// as broken, and VoiceOver announces "button" and promises an action that
+    /// never comes. The corpus ships as of this change, so the promise can be
+    /// kept and the announcement is now accurate.
     ///
-    /// So they are inert until there is something to show. The chip structure,
-    /// the marks, the points and the row rhythm are all unchanged; restoring
-    /// the button is wrapping this in one when the reveal lands, not a rebuild.
+    /// It is the wrapper that comment predicted rather than a rebuild. The chip
+    /// structure, the marks, the points and the row rhythm are untouched: what
+    /// is added is a `Button`, a content shape, and the pad-out-then-pad-back
+    /// sandwich that grows the touch region without growing the layout. That
+    /// last part is why `FlowLayout` still measures the same chip: it asks each
+    /// subview for `sizeThatFits(.unspecified)`, and the negative padding
+    /// returns that answer to what it was.
     var body: some View {
-        Group {
+        Button {
+            onSelect()
+        } label: {
             HStack(spacing: 5) {
                 RarityMark(category: found.category)
                 Text(found.word)
@@ -114,12 +146,22 @@ struct WordChip: View {
                 }
             }
             .frame(minHeight: chipHeight)
+            .padding(.horizontal, horizontalTouchInset)
+            .padding(.vertical, verticalTouchInset)
+            .contentShape(Rectangle())
+            .padding(.horizontal, -horizontalTouchInset)
+            .padding(.vertical, -verticalTouchInset)
         }
+        // Plain, so the chip keeps its own colours. The default style would
+        // tint the word and the mark accent blue, which would make the rarity
+        // marks mean nothing.
+        .buttonStyle(.plain)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(
             "\(found.word), \(found.category.spokenName), "
             + counted(found.score, "point")
         )
+        .accessibilityHint("Shows the definition")
     }
 }
 
@@ -130,13 +172,22 @@ struct FoundListView: View {
     /// The date the board belongs to, so a share names the right day even if
     /// midnight has passed while the app stayed open.
     var boardDate: Date = Date()
+    /// What tapping a chip does, threaded down to `WordChip`.
+    ///
+    /// A closure rather than the model, so this view keeps taking only the data
+    /// it renders. It is already built from a puzzle, a word list and a
+    /// standing rather than from `GameModel`, and handing it the model to reach
+    /// one method would trade that for nothing.
+    var onSelect: (FoundWord) -> Void = { _ in }
 
     init(puzzle: Puzzle, found: [String], standing: TierStanding,
-         boardDate: Date = Date()) {
+         boardDate: Date = Date(),
+         onSelect: @escaping (FoundWord) -> Void = { _ in }) {
         self.puzzle = puzzle
         self.found = found
         self.standing = standing
         self.boardDate = boardDate
+        self.onSelect = onSelect
         self.words = classifyFound(found, in: puzzle)
     }
 
@@ -192,7 +243,9 @@ struct FoundListView: View {
 
             if !group.setWords.isEmpty {
                 FlowLayout() {
-                    ForEach(group.setWords) { WordChip(found: $0) }
+                    ForEach(group.setWords) { word in
+                        WordChip(found: word) { onSelect(word) }
+                    }
                 }
             }
 
@@ -210,7 +263,9 @@ struct FoundListView: View {
 
             if !group.offPageWords.isEmpty {
                 FlowLayout() {
-                    ForEach(group.offPageWords) { WordChip(found: $0) }
+                    ForEach(group.offPageWords) { word in
+                        WordChip(found: word) { onSelect(word) }
+                    }
                 }
             }
         }
