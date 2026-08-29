@@ -711,6 +711,34 @@ final class GameModel {
         writeDebugState()
     }
 
+    /// Take a streak handed over by the web build, if the accept rule allows it.
+    ///
+    /// The rule itself lives in `GameStorage.adoptStreak`, where the other
+    /// streak rules live and where the dead-streak rejection can be tested. All
+    /// this adds is the two things only the model knows: what day it is, and
+    /// that the displayed number needs refreshing.
+    ///
+    /// Today is computed here rather than read from `storageDayIndex`, which is
+    /// nil until `load()` has run. A link can arrive before that on a cold
+    /// launch, which would otherwise drop the transfer silently. `Self.now` so
+    /// `-dayOffset` drives this path too, the same as every other day-sensitive
+    /// call.
+    ///
+    /// See `StreakTransfer` for why this exists and when it should be removed.
+    @discardableResult
+    func adoptTransferredStreak(_ transfer: StreakTransfer) -> Bool {
+        let today = dayIndex(Self.now, epoch: storageEpoch, timeZone: .current)
+        let took = storage.adoptStreak(
+            count: transfer.count,
+            lastClearedDayIndex: transfer.lastClearedDayIndex,
+            todayIndex: today
+        )
+        // `streak` is a snapshot taken at load, so a warm app that accepts a
+        // transfer would write storage and go on showing the old number.
+        if took { streak = storage.currentStreak(todayIndex: today) }
+        return took
+    }
+
     /// A small JSON dump beside load_ms.txt, so relaunch and rollover checks can
     /// be scripted with `simctl get_app_container` rather than read off a
     /// screenshot. Debug builds only.

@@ -177,4 +177,59 @@ public final class GameStorage {
         guard let last = streak.lastClearedDayIndex else { return 0 }
         return last >= todayIndex - 1 ? streak.count : 0
     }
+
+    /// Take a streak transferred from the web build, if it beats what is here.
+    ///
+    /// **Why both fields.** A streak is two values, and carrying only `count`
+    /// produces a state the app cannot otherwise reach: a 53 with no record of
+    /// when it was last extended. The next morning `currentStreak` sees
+    /// `last < today - 1`, reads it as broken, and the first clear restarts at
+    /// 1. The player would get the number, feel good about it, and lose it
+    /// overnight, which is worse than never transferring.
+    ///
+    /// **Why the indices are comparable at all.** Both surfaces key days off
+    /// `storageEpoch`, fixed at 2026-01-01 and documented as never moving, and
+    /// both count whole calendar days by re-anchoring local Y/M/D into UTC. So
+    /// an incoming `lastClearedDayIndex` needs no translation.
+    ///
+    /// The assumption inside that: each side computes local midnight on
+    /// whichever device is computing. The web reads `date.getFullYear()` and so
+    /// silently uses the browser's zone; this app is passed `.current`. The two
+    /// indices therefore agree only while both devices are in the same time
+    /// zone. Across zones near midnight they can differ by one, which would
+    /// show up as a streak arriving a day stale or a day early. That is
+    /// acceptable for a one-time handoff in one place and would not be for
+    /// anything recurring.
+    ///
+    /// **The rule, in order.** Liveness first, because it is the condition that
+    /// prevents an actively bad outcome rather than merely a suboptimal one.
+    ///
+    /// 1. Is the incoming streak still alive by this app's own rule,
+    ///    `last >= todayIndex - 1`? A 53 that stopped a week ago is already
+    ///    dead. Accepting it would show 53 today and reset tomorrow.
+    /// 2. Is it strictly higher than what is here *live*, from
+    ///    `currentStreak(todayIndex:)` rather than the stored `count`? A stored
+    ///    count that is itself dead has an effective value of 0, so comparing
+    ///    raw counts would let a dead 12 reject a live 53, which is exactly the
+    ///    case the transfer exists for. Equal is rejected too, and not only as
+    ///    a no-op: adopting an equal streak whose `lastCleared` is more recent
+    ///    would make today's clear on this device a no-op and cost a day.
+    ///
+    /// Returns whether the streak was taken, so a caller can tell the player.
+    @discardableResult
+    public func adoptStreak(count: Int, lastClearedDayIndex: Int, todayIndex: Int) -> Bool {
+        // A count of zero or less is not a streak, and a day that has not
+        // happened yet cannot have been cleared. Both mean the input is wrong
+        // rather than merely unlucky; a future index would additionally freeze
+        // the streak, since every real day after it reads as a gap.
+        guard count > 0, lastClearedDayIndex <= todayIndex else { return false }
+        guard lastClearedDayIndex >= todayIndex - 1 else { return false }
+        guard count > currentStreak(todayIndex: todayIndex) else { return false }
+
+        var state = read()
+        state.streak.count = count
+        state.streak.lastClearedDayIndex = lastClearedDayIndex
+        write(state)
+        return true
+    }
 }

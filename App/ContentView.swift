@@ -158,6 +158,18 @@ struct ContentView: View {
             guard let message = model.feedback.message else { return }
             AccessibilityNotification.Announcement(message).post()
         }
+        // The one-time streak transfer from the web build. Disposable: when the
+        // handoff is done, this modifier, `StreakTransfer`, `adoptStreak`, and
+        // the CFBundleURLTypes entry in project.yml all go together.
+        //
+        // No confirmation UI on purpose. A transfer that lands shows the new
+        // number on the meter, which is the whole of what she is here for, and
+        // one that does not land leaves the number alone. Anything more would
+        // be building a feature out of a migration.
+        .onOpenURL { url in
+            guard let transfer = StreakTransfer(url: url) else { return }
+            model.adoptTransferredStreak(transfer)
+        }
         #if TAP_RECORDER
         // The window-level probe, and the flush. Backgrounding is the natural
         // end of a session: handing the phone over writes the log.
