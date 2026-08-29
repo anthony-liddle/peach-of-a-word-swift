@@ -193,6 +193,17 @@ final class Haptics {
     /// Deliberately not a crescendo. A find happens dozens of times a session
     /// and anything that builds would make the common case feel ceremonial,
     /// which is the opposite of a ladder.
+    ///
+    /// **Judged on a device on 2026-08-29, and the tap stays at 0.58.** The
+    /// gap could have been opened from either side, and lowering the tap was a
+    /// real option: it was raised from 0.45 at Antoine's request and that is
+    /// what compressed the gap in the first place. Growing the find is the half
+    /// that was moved, confirmed by feeling all four rungs in one sitting with
+    /// `-hapticLadder`. Bea reported the gap, so hers was the judgement that
+    /// settled it.
+    ///
+    /// None of this is checkable in a simulator, which has no haptics hardware,
+    /// so a change here is not verified until it has been felt.
     private func findPattern() throws -> CHHapticPattern {
         let knock = CHHapticEvent(
             eventType: .hapticTransient,

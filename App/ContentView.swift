@@ -679,9 +679,22 @@ private struct ComposingStick: View {
         // they are allowed to feel different, so this matches the thing being
         // ported rather than the nearest thing already here.
         //
-        // Keyed on the counter, not on the tone. The same rejection twice is an
-        // equal value and animates nothing, which is the bug the web had and
-        // fixed; see `feedbackSeq`.
+        // **Keyed on the counter, not on the tone, and that is not what the
+        // web's markup looks like.** There, `.stick[data-tone='error']` drives
+        // the shake straight off the attribute, so reading the web today and
+        // copying its shape gives you a version keyed on the tone.
+        //
+        // That version is broken and the web only recently stopped being it.
+        // The same word rejected twice sets an equal value, which is not a
+        // change and so animates nothing: the shake fires once and then goes
+        // quiet exactly when someone is retrying. The web fixed it by making
+        // the attribute round-trip, and this app already had a counter for the
+        // spoken announcement, which is the same fix in the shape that was
+        // already here.
+        //
+        // Written down because copying what the web does now, without knowing
+        // it was wrong until recently, is the obvious way to reintroduce it.
+        // See `feedbackSeq`.
         .modifier(ShakeEffect(travel: 5, cycles: 1, animatableData: shake))
         .onChange(of: feedbackSeq) {
             guard case .rejected = feedback, !reduceMotion else { return }
