@@ -89,6 +89,24 @@ targets:
         UIAppFonts:
           - Fredoka.ttf
           - Nunito.ttf
+        # The one-time streak transfer from the web build, and nothing else.
+        #
+        # A custom scheme rather than a Universal Link because a Universal Link
+        # needs an apple-app-site-association file served from the domain and
+        # the Associated Domains entitlement, which is real setup for moving one
+        # number between two people once. This is a plist entry and a handler.
+        #
+        # The trade is that a custom scheme is claimable by any app and carries
+        # no proof it came from our page. That is acceptable only because the
+        # payload is unauthenticated by design; see StreakTransfer for the
+        # reasoning and for the condition that retires it.
+        #
+        # Disposable: delete this block with the rest of the transfer path.
+        CFBundleURLTypes:
+          - CFBundleURLName: com.anthonyliddle.peachofaword.streaktransfer
+            CFBundleTypeRole: Viewer
+            CFBundleURLSchemes:
+              - peachofaword
     settings:
       base:
         GENERATE_INFOPLIST_FILE: NO
@@ -110,7 +128,15 @@ targets:
         # points block that used to fill it and gained nothing to replace it.
         # Shipping the machine ahead of the content was deliberate; shipping a
         # build during the gap would not have been.
-        CURRENT_PROJECT_VERSION: "3"
+        #
+        # 4 is a local-archive number only, and does not reach TestFlight.
+        # ci_scripts/ci_post_clone.sh rewrites this line on every Xcode Cloud
+        # build to CI_BUILD_NUMBER + 100, so a Cloud build ignores whatever is
+        # committed here and the delivered number is in the hundreds. Bumping
+        # this does not make a build shippable; pushing does. It is kept
+        # accurate so a local `xcodebuild archive` does not reuse a number App
+        # Store Connect has already reserved.
+        CURRENT_PROJECT_VERSION: "4"
         SWIFT_VERSION: "6.0"
         TARGETED_DEVICE_FAMILY: "1"
         # Signing lives here rather than in Xcode's UI, because this project is

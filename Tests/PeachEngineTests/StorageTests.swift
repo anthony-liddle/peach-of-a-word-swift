@@ -193,3 +193,132 @@ struct StorageEpochTests {
         #expect(storage.currentStreak(todayIndex: keyAfter) == 1)
     }
 }
+
+/// The one-time streak transfer from the web build.
+///
+/// The two surfaces key days off the same fixed `storageEpoch`, so an incoming
+/// `lastClearedDayIndex` is directly comparable with no translation. These
+/// tests are the accept rule; the transfer is a throwaway path, but the rule it
+/// runs on is not, which is why it lives in `GameStorage` rather than in a URL
+/// handler where nothing could reach it.
+@Suite("adopting a transferred streak")
+struct AdoptStreakTests {
+    let store = InMemoryStore()
+    var storage: GameStorage { GameStorage(store: store) }
+
+    private let today = 220
+
+    @Test("a live, higher streak is adopted, both fields")
+    func adoptsLiveHigher() {
+        let s = storage
+        #expect(s.adoptStreak(count: 53, lastClearedDayIndex: today, todayIndex: today))
+        #expect(s.currentStreak(todayIndex: today) == 53)
+        // Tomorrow is the field that would be missing if only the count crossed:
+        // with lastCleared carried, clearing tomorrow extends rather than resets.
+        s.recordDailyCleared(dayIndex: today + 1)
+        #expect(s.currentStreak(todayIndex: today + 1) == 54)
+    }
+
+    /// The failure the transfer exists to avoid, in the form it would take if
+    /// only `count` crossed: a 53 with no idea when it was last extended reads
+    /// as broken the next morning and restarts at 1.
+    @Test("a streak that stopped days ago is rejected, however large")
+    func rejectsDead() {
+        let s = storage
+        #expect(s.adoptStreak(count: 53, lastClearedDayIndex: today - 7, todayIndex: today) == false)
+        #expect(s.currentStreak(todayIndex: today) == 0)
+    }
+
+    /// Yesterday still counts as live: the rule is `last >= today - 1`, the same
+    /// one `currentStreak` reads. A player who cleared yesterday and has not
+    /// played yet today has not broken anything.
+    @Test("yesterday counts as live")
+    func yesterdayIsLive() {
+        let s = storage
+        #expect(s.adoptStreak(count: 12, lastClearedDayIndex: today - 1, todayIndex: today))
+        #expect(s.currentStreak(todayIndex: today) == 12)
+    }
+
+    /// The case that makes the comparison read `currentStreak` rather than the
+    /// stored `count`. A stored 12 that stopped a week ago has an effective
+    /// value of 0, so a live 53 must win. Comparing raw counts would reject it.
+    @Test("a live streak beats a larger stored streak that is itself dead")
+    func liveBeatsDeadStored() {
+        let s = storage
+        s.recordDailyCleared(dayIndex: today - 8)
+        for d in (today - 7)...(today - 5) { s.recordDailyCleared(dayIndex: d) }
+        #expect(s.currentStreak(todayIndex: today) == 0)   // dead, though count is 4
+
+        #expect(s.adoptStreak(count: 53, lastClearedDayIndex: today, todayIndex: today))
+        #expect(s.currentStreak(todayIndex: today) == 53)
+    }
+
+    @Test("a smaller live streak never overwrites a larger one")
+    func rejectsSmaller() {
+        let s = storage
+        s.recordDailyCleared(dayIndex: today)
+        #expect(s.adoptStreak(count: 1, lastClearedDayIndex: today, todayIndex: today) == false)
+        #expect(s.currentStreak(todayIndex: today) == 1)
+    }
+
+    /// Equal is rejected, not merely "not an improvement".
+    ///
+    /// Adopting an equal streak can cost a day: a stored 9 last cleared
+    /// yesterday, overwritten by an incoming 9 last cleared today, would make
+    /// today's clear on this device a no-op instead of the tenth day.
+    @Test("an equal streak is rejected, because adopting it can cost a day")
+    func rejectsEqual() {
+        let s = storage
+        s.recordDailyCleared(dayIndex: today - 1)
+        s.adoptStreak(count: 9, lastClearedDayIndex: today - 1, todayIndex: today - 1)
+        #expect(s.currentStreak(todayIndex: today) == 9)
+
+        #expect(s.adoptStreak(count: 9, lastClearedDayIndex: today, todayIndex: today) == false)
+        // Today is still available to extend, which adopting would have spent.
+        s.recordDailyCleared(dayIndex: today)
+        #expect(s.currentStreak(todayIndex: today) == 10)
+    }
+
+    /// Transferring with today already complete on the other surface. The path
+    /// exists because she may well play on web in the morning and transfer in
+    /// the evening, and it had never been exercised on either surface.
+    @Test("playing today after transferring a streak that already counts today")
+    func todayAlreadyCountedDoesNotDoubleCount() {
+        let s = storage
+        #expect(s.adoptStreak(count: 53, lastClearedDayIndex: today, todayIndex: today))
+
+        // She then plays today here too and reaches the streak rank.
+        s.recordDailyCleared(dayIndex: today)
+        #expect(s.currentStreak(todayIndex: today) == 53)   // not 54
+
+        // And tomorrow still extends normally.
+        s.recordDailyCleared(dayIndex: today + 1)
+        #expect(s.currentStreak(todayIndex: today + 1) == 54)
+    }
+
+    @Test("a streak from the future is rejected")
+    func rejectsFuture() {
+        let s = storage
+        // Clocks disagree, or someone typed a number in. Either way this is not
+        // a day that has happened, and accepting it would freeze the streak:
+        // every real day after it would read as already recorded or as a gap.
+        #expect(s.adoptStreak(count: 99, lastClearedDayIndex: today + 1, todayIndex: today) == false)
+        #expect(s.currentStreak(todayIndex: today) == 0)
+    }
+
+    @Test("a non-positive count is rejected")
+    func rejectsNonPositive() {
+        let s = storage
+        #expect(s.adoptStreak(count: 0, lastClearedDayIndex: today, todayIndex: today) == false)
+        #expect(s.adoptStreak(count: -5, lastClearedDayIndex: today, todayIndex: today) == false)
+        #expect(s.currentStreak(todayIndex: today) == 0)
+    }
+
+    @Test("adopting leaves day progress alone")
+    func leavesProgressAlone() {
+        let s = storage
+        s.saveDayProgress(dayIndex: today, sourceWord: "motorway", found: ["tram"])
+        #expect(s.adoptStreak(count: 53, lastClearedDayIndex: today, todayIndex: today))
+        #expect(s.loadDayProgress(dayIndex: today, sourceWord: "motorway") == ["tram"])
+    }
+}
