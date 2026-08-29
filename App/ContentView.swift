@@ -976,16 +976,33 @@ private struct TileButton: View {
 
 // MARK: - Controls
 
-/// Two rows, ordered by how often each action is used.
+/// Two rows, grouped by what each action does.
 ///
-/// The **primary pair (Delete, then Pick word) sits on top**, closest to the
-/// rack and the well where the action already is, and the utility pair
-/// (Shuffle, Clear) sits quietly beneath. The eye scans top to bottom and lands
-/// on the most-used actions first.
+///   Shuffle   Pick word
+///   Clear     Delete
 ///
-/// Delete comes before Submit. That ordering is not aesthetic: it came from Bea
-/// telling Antoine that delete is one of the most-used buttons and was in the
-/// wrong place. Do not reorder it.
+/// **This replaced an ordering by frequency, and both orderings are Bea's.**
+/// The rows used to be the primary pair (Delete, then Pick word) on top and the
+/// utility pair (Shuffle, Clear) beneath, so the eye met the most-used actions
+/// first. Delete sat before Submit because she told Antoine that delete is one
+/// of the most-used buttons and was in the wrong place, and the comment here
+/// used to end "do not reorder it".
+///
+/// She then asked for this arrangement, on 2026-08-27, with a reason that is
+/// not a preference: **Delete and Clear are both undo, so they belong in the
+/// same row.** Delete goes on the right because it is used more of the two, and
+/// the undo row sits below the row with Pick word in it because Pick word is
+/// the most obvious action on the screen.
+///
+/// So the axis changed rather than the taste: the old rows grouped by how often
+/// you press a thing, these group by what pressing it does. That is why the
+/// earlier instruction not to reorder is gone rather than overruled. It was
+/// protecting a decision of hers, and this is a later decision of hers.
+///
+/// Shuffle keeps the width cap that Delete used to have, for the same reason:
+/// the web gives Submit `flex: 2` against its neighbour's `flex: 1`, and
+/// capping the neighbour is the simple approximation of that ratio. Whatever
+/// shares a row with Pick word stays the smaller of the two.
 private struct Controls: View {
     let model: GameModel
 
@@ -997,20 +1014,22 @@ private struct Controls: View {
         // the space between the rows is spare, the height of the rows is not.
         VStack(spacing: 7) {
             HStack(spacing: 10) {
-                PillButton(kind: .delete, disabled: empty,
-                           label: "Delete last letter") { model.removeLast() }
-                    // The web gives Submit `flex: 2` against Delete's `flex: 1`.
-                    // Capping Delete is the simple approximation of that ratio
-                    // and holds at phone widths, which is all this targets.
+                PillButton("Shuffle", kind: .utility) { model.shuffleRack() }
+                    // The cap Delete used to carry, for the same reason: the
+                    // web gives Submit `flex: 2` against its neighbour's
+                    // `flex: 1`, and capping the neighbour approximates that
+                    // ratio at phone widths, which is all this targets.
                     .frame(maxWidth: 116)
                 PillButton(Vocabulary.submitWord, kind: .primary,
                            disabled: model.composedWord.count < minWordLength) {
                     model.submit()
                 }
             }
+            // The undo row. Delete on the right, being the more used of the two.
             HStack(spacing: 10) {
-                PillButton("Shuffle", kind: .utility) { model.shuffleRack() }
                 PillButton("Clear", kind: .utility, disabled: empty) { model.clear() }
+                PillButton(kind: .delete, disabled: empty,
+                           label: "Delete last letter") { model.removeLast() }
             }
         }
     }
