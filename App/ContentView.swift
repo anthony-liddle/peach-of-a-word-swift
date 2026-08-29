@@ -309,7 +309,8 @@ struct ContentView: View {
             header
             // Feedback lives INSIDE the well now, not in a row of its own
             // beneath it. See `ComposingStick`.
-            ComposingStick(word: model.composedWord, feedback: model.feedback)
+            ComposingStick(word: model.composedWord, feedback: model.feedback,
+                               feedbackSeq: model.feedbackSeq)
                 .padding(.top, 12)
             TypeCase(model: model, commitOnTouchDown: true)
                 .padding(.top, 8)
@@ -358,7 +359,8 @@ struct ContentView: View {
         ScrollView {
             VStack(spacing: 14) {
                 header
-                ComposingStick(word: model.composedWord, feedback: model.feedback)
+                ComposingStick(word: model.composedWord, feedback: model.feedback,
+                               feedbackSeq: model.feedbackSeq)
                 TypeCase(model: model, commitOnTouchDown: false)
                 Controls(model: model)
                 pinnedSummary
@@ -592,7 +594,20 @@ private struct DebugScrollAnchor: ViewModifier {
 private struct ComposingStick: View {
     let word: String
     var feedback: GameModel.Feedback = .none
+    /// Bumped on every resolved guess, so a rejection can be told from the same
+    /// rejection again.
+    ///
+    /// The tone alone is not enough: rejecting the same word twice produces an
+    /// equal `feedback` value, which is not a change and so animates nothing.
+    /// The web had exactly this bug and fixed it by making its tone attribute
+    /// round-trip, so a rejection, a tile, then a second rejection replays the
+    /// shake. This is the same fix in the shape this app already had lying
+    /// around for the spoken announcement.
+    var feedbackSeq: Int = 0
     @ScaledMetric(relativeTo: .title) private var height: CGFloat = 58
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var shake: CGFloat = 0
 
     private var shape: RoundedRectangle {
         RoundedRectangle(cornerRadius: Cute.cardRadius, style: .continuous)
@@ -653,6 +668,26 @@ private struct ComposingStick: View {
             }
         }
         .frame(height: height)
+        // The rejection nudge, ported from the web, where Bea called it
+        // delightful and asked for it here.
+        //
+        // **Web values rather than this app's existing ones, on purpose.** The
+        // tiles already shake, at travel 4 over three cycles in 0.22s, which is
+        // a fast buzz and reads as a refusal: that tile cannot be picked. The
+        // web's `nudge` is one out-and-back of 5px over 0.32s, which reads as a
+        // headshake: that word is not a word. They are different events and
+        // they are allowed to feel different, so this matches the thing being
+        // ported rather than the nearest thing already here.
+        //
+        // Keyed on the counter, not on the tone. The same rejection twice is an
+        // equal value and animates nothing, which is the bug the web had and
+        // fixed; see `feedbackSeq`.
+        .modifier(ShakeEffect(travel: 5, cycles: 1, animatableData: shake))
+        .onChange(of: feedbackSeq) {
+            guard case .rejected = feedback, !reduceMotion else { return }
+            shake = 0
+            withAnimation(.easeOut(duration: 0.32)) { shake = 1 }
+        }
         .cuteSlab(shape, color: Cute.rule, y: 6)
         // `children: .ignore`, so the message inside is not a second element to
         // swipe past. It is already spoken, as an announcement posted the

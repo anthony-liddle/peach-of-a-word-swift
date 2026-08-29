@@ -14,9 +14,14 @@ enum Feel {
     ///
     ///   tile tap  <  ordinary find  <  source word  <  completion
     ///
-    /// The bottom two are generators, which is all they need. The top two are
+    /// The tile tap is a generator, which is all it needs. The other three are
     /// CoreHaptics patterns, because a discrete generator call cannot build and
     /// an escalation that does not build reads as just another tap.
+    ///
+    /// The find joined them on 2026-08-29. It had been `.success`, a fixed
+    /// system pattern with no intensity control, which made it the one rung
+    /// that could not be moved: the gap above the tile tap was reported as too
+    /// small and there was nothing to turn. See `find()`.
 
     // Every function below is @MainActor, including the three that did not
     // need to be to compile here.
@@ -41,8 +46,25 @@ enum Feel {
     }
 
     /// A word accepted. Clearly more than a tile, clearly less than the peach.
+    ///
+    /// **Why this is a pattern now.** It was
+    /// `UINotificationFeedbackGenerator().notificationOccurred(.success)`, a
+    /// fixed system pattern with no intensity control at all, so it was the one
+    /// rung of the four that could not be tuned. Bea reported the gap between
+    /// typing and finding as too small, and nothing could be done about it
+    /// while the find was a constant.
+    ///
+    /// The gap had also been narrowed from the other side: the tile tap was
+    /// raised from 0.45 to 0.58 at Antoine's request, which is exactly the
+    /// space she is now missing. Raising the find rather than lowering the tap
+    /// keeps that change intact, and is what she asked for: the find should
+    /// grow, not the tap shrink.
+    ///
+    /// Falls back to the old `.success` when CoreHaptics is unavailable, which
+    /// is the behaviour every device had before this.
     @MainActor
     static func find() {
+        guard !Haptics.shared.play(.find) else { return }
         UINotificationFeedbackGenerator().notificationOccurred(.success)
     }
 
@@ -119,7 +141,7 @@ enum Feel {
 final class Haptics {
     static let shared = Haptics()
 
-    enum Pattern { case sourceWord, completion }
+    enum Pattern { case find, sourceWord, completion }
 
     private var engine: CHHapticEngine?
 
@@ -139,6 +161,7 @@ final class Haptics {
         do {
             try engine.start()
             let built = switch pattern {
+            case .find: try findPattern()
             case .sourceWord: try sourceWordPattern()
             case .completion: try completionPattern()
             }
@@ -147,6 +170,59 @@ final class Haptics {
         } catch {
             return false
         }
+    }
+
+    /// A knock with a body: one sharp hit and a short decay under it.
+    ///
+    /// **Where the room came from.** Intensity is already spent at the top of
+    /// the ladder, since the source word and the completion both peak at 1.0,
+    /// so a bigger find cannot be made by being louder without colliding with
+    /// them. The separation is in duration and event count instead, which is
+    /// the same currency the completion uses to sit above the source word:
+    ///
+    ///   tile tap        one transient, light, 0.58
+    ///   find            one transient at 0.9 plus a 0.09s decay, ~0.12s
+    ///   source word     a 0.5s crescendo into one sharp peak
+    ///   completion      a 0.78s crescendo, three accelerating hits, a final
+    ///
+    /// So the find is the first rung with any duration at all, which is what
+    /// makes it read as an event rather than a tap, and it is over before the
+    /// source word's build has begun. The 0.9 rather than 1.0 leaves the two
+    /// full-intensity peaks above it as the only things that hit their ceiling.
+    ///
+    /// Deliberately not a crescendo. A find happens dozens of times a session
+    /// and anything that builds would make the common case feel ceremonial,
+    /// which is the opposite of a ladder.
+    private func findPattern() throws -> CHHapticPattern {
+        let knock = CHHapticEvent(
+            eventType: .hapticTransient,
+            parameters: [
+                .init(parameterID: .hapticIntensity, value: 0.9),
+                .init(parameterID: .hapticSharpness, value: 0.55),
+            ],
+            relativeTime: 0
+        )
+        // The body. Short, dull and fading, so the knock lands on something
+        // rather than into nothing. This is the whole difference between this
+        // and a louder tile tap.
+        let decay = CHHapticEvent(
+            eventType: .hapticContinuous,
+            parameters: [
+                .init(parameterID: .hapticIntensity, value: 0.55),
+                .init(parameterID: .hapticSharpness, value: 0.2),
+            ],
+            relativeTime: 0.012,
+            duration: 0.09
+        )
+        let fade = CHHapticParameterCurve(
+            parameterID: .hapticIntensityControl,
+            controlPoints: [
+                .init(relativeTime: 0, value: 1.0),
+                .init(relativeTime: 0.09, value: 0.0),
+            ],
+            relativeTime: 0.012
+        )
+        return try CHHapticPattern(events: [knock, decay], parameterCurves: [fade])
     }
 
     /// A rumble that climbs for half a second and lands on one sharp hit.

@@ -450,6 +450,29 @@ final class GameModel {
         if let word = UserDefaults.standard.string(forKey: "revealCard") {
             moment = .sourceWord(word: word)
         }
+        // `-hapticLadder 1` plays all four rungs in order, spaced far enough
+        // apart to be told apart: tile tap, find, source word, completion.
+        //
+        // Judging a find on its own says nothing. The question the change was
+        // made to answer is whether it sits clearly above a tap and clearly
+        // below the crown, and that is a question about three gaps rather than
+        // one strength, so all four have to arrive in one sitting.
+        //
+        // The spacing is set by the patterns rather than by taste: the source
+        // word runs 0.5s and the completion 1.1s, so 1.8s leaves a clear rest
+        // between the end of one and the start of the next. None of it is felt
+        // on a simulator, which has no haptics hardware at all.
+        if UserDefaults.standard.bool(forKey: "hapticLadder") {
+            Task { @MainActor in
+                Feel.tilePress()
+                try? await Task.sleep(for: .seconds(1.8))
+                Feel.find()
+                try? await Task.sleep(for: .seconds(1.8))
+                Feel.sourceWord()
+                try? await Task.sleep(for: .seconds(1.8))
+                Feel.completion()
+            }
+        }
         // `-seedBoard almost` or `-seedBoard 24`.
         if let spec = UserDefaults.standard.string(forKey: "seedBoard") {
             seedBoard(spec)
