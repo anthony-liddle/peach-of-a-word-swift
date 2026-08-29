@@ -132,13 +132,29 @@ struct WordChip: View {
         } label: {
             HStack(spacing: 5) {
                 RarityMark(category: found.category)
+                // The web sets the source word in a semibold oblique and every
+                // off-page rung in the discovery ink; the app painted all of
+                // them `ink`, so the ladder's colour stopped at the mark. See
+                // `WordCategory.textTint`.
                 Text(found.word)
-                    .font(CuteFont.body(17, relativeTo: .body))
-                    .foregroundStyle(Cute.ink)
+                    .font(found.category == .source
+                          ? CuteFont.bodyOblique(17, weight: "SemiBold", relativeTo: .body)
+                          : CuteFont.body(17, relativeTo: .body))
+                    .foregroundStyle(found.category.textTint)
                 if found.category.isOffPage {
                     // Off-page finds show what they were worth. Set words do not:
                     // the group's "X of Y" already accounts for them, and a
                     // number on every chip would bury the ones that earned extra.
+                    //
+                    // **A deliberate difference from the web, decided rather
+                    // than overlooked.** The web prints points on every find,
+                    // set words included, in a muted ink. Reviewed on
+                    // 2026-08-29 alongside the three found-list mismatches Bea
+                    // did raise, and kept: she did not raise this one, the
+                    // reason above still holds, and matching the web here would
+                    // make the list noisier for no stated benefit. Recorded so
+                    // the next person to diff the two surfaces finds a decision
+                    // instead of what looks like an omission.
                     Text("+\(found.score)")
                         .font(CuteFont.body(13, weight: "SemiBold", relativeTo: .caption))
                         .foregroundStyle(Cute.discovery)
@@ -204,6 +220,32 @@ struct FoundListView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
+            // The heading the app never had, and the total that goes with it.
+            //
+            // Both live here rather than in the pinned summary, and that is the
+            // point: the pinned row is set progress ("35 of 85 words"), while
+            // this total counts every find including off-page ones. They are
+            // different numbers, so putting the new one in the pinned row would
+            // read as a contradiction of the number beside it, and would grow
+            // that row to a fourth line at accessibility sizes, where it
+            // already stacks. The pinned row was pinned so it would stop
+            // moving; this leaves it alone.
+            //
+            // Together they also sit where the web puts them, immediately above
+            // the word groups.
+            VStack(alignment: .leading, spacing: 2) {
+                Text(Vocabulary.glossaryTitle)
+                    .font(CuteFont.display(20, relativeTo: .title3))
+                    .foregroundStyle(Cute.ink)
+                if !found.isEmpty {
+                    Text("\(counted(words.count, "word")) found")
+                        .font(CuteFont.body(13, relativeTo: .footnote))
+                        .foregroundStyle(Cute.inkFaint)
+                        .monospacedDigit()
+                }
+            }
+            .accessibilityElement(children: .combine)
+
             if found.isEmpty {
                 Text(Vocabulary.emptyFoundList)
                     .font(CuteFont.body(15, relativeTo: .subheadline))

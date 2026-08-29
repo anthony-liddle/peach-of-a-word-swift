@@ -30,6 +30,19 @@ enum Cute {
     static let crown = Color(hex: 0xFF9E58)       // peach
     static let discovery = Color(hex: 0x6E4FB8)   // the rarity ladder purple
 
+    /// The source word as *text*, which is not the same value as the peach.
+    ///
+    /// `crown` above is a fill: it sits behind or inside a drawn mark, where a
+    /// light peach is the point. Setting words in it would land around 2:1 on
+    /// this background and fail AA outright. The web hit this first and keeps a
+    /// separate `--crown-deep` (`#a0531a`, 4.7:1) for exactly this job, so this
+    /// is that value rather than a new guess.
+    ///
+    /// The distinction is invisible in a screenshot and obvious in a
+    /// stylesheet, which is why matching the web by eye would have shipped the
+    /// fill.
+    static let crownDeep = Color(hex: 0xA0531A)   // source-word text, 4.7:1
+
     // Tiles
     static let tileFace = Color(hex: 0xFFFFFF)
     static let tileEdge = Color(hex: 0xFFD9C8)
