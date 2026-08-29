@@ -432,6 +432,24 @@ final class GameModel {
             for letter in puzzle.sourceWord { addLetter(String(letter)) }
             submit()
         }
+        // `-revealCard withdraw` opens the source reveal for a named word,
+        // whatever today's crown is.
+        //
+        // `-replaySource 1` above is the honest path and stays the way to check
+        // the moment itself. It can only ever show today's card, though, and
+        // the question the reveal's detent asks is about content length: the
+        // shortest entry in the corpus is 34 characters and the longest is
+        // 1,787, and reaching both through real play would mean waiting for two
+        // particular days to come round. This pokes the card into view for a
+        // chosen word so that both ends can be looked at in one sitting.
+        //
+        // Every entry is loaded into `sourceEntries`, so a named word gets its
+        // real definition and etymology rather than a stand-in. An unknown word
+        // opens the no-entry fallback, which is a case worth being able to see
+        // on demand too.
+        if let word = UserDefaults.standard.string(forKey: "revealCard") {
+            moment = .sourceWord(word: word)
+        }
         // `-seedBoard almost` or `-seedBoard 24`.
         if let spec = UserDefaults.standard.string(forKey: "seedBoard") {
             seedBoard(spec)

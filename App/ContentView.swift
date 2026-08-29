@@ -118,18 +118,26 @@ struct ContentView: View {
             Group {
                 switch moment {
                 case .sourceWord(let word):
-                    SourceRevealCard(
-                        word: word,
-                        entry: model.sourceEntries[word]
-                    ) { model.moment = nil }
+                    let entry = model.sourceEntries[word]
+                    SourceRevealCard(word: word, entry: entry) { model.moment = nil }
+                        // Large only, and the board is covered whenever this is
+                        // up. No crown carrying an entry has ever fitted the
+                        // medium detent, and 615 of 626 carry one, so offering
+                        // medium was offering a height that truncated almost
+                        // every card. The way out is pinned inside the card
+                        // rather than depending on this, which is what makes
+                        // the long ones usable. See `SourceRevealCard`.
+                        .presentationDetents([.large])
                 case .completion(let setTotal, let score):
                     CompletionCard(setTotal: setTotal, score: score) { model.moment = nil }
+                        .presentationDetents([.medium, .large])
                 case .definition(let word, let category):
                     DefinitionCard(
                         word: word,
                         category: category,
                         definition: model.definitions[word]
                     ) { model.moment = nil }
+                        .presentationDetents([.medium, .large])
                 }
             }
             // Medium rather than full, so the board stays visible behind it and
@@ -139,7 +147,11 @@ struct ContentView: View {
             // Large is offered as well as medium, so accessibility text sizes
             // have somewhere to go rather than being squeezed into a fixed
             // height.
-            .presentationDetents([.medium, .large])
+            //
+            // Set per card rather than once for all three, because the source
+            // reveal now decides its own from its content. The other two are
+            // unchanged and carry the pair explicitly, so that this comment
+            // still describes what they do.
             .presentationDragIndicator(.visible)
         }
         // The feedback line, spoken.
