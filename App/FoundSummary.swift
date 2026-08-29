@@ -64,6 +64,18 @@ struct FoundSummary: View {
                 RarityMark(category: .set)
                 Text("\(standing.setFound) of \(counted(standing.setTotal, "word"))")
                     .font(CuteFont.body(15, weight: "SemiBold", relativeTo: .subheadline))
+                    // **A known unmatched colour, pending a decision.** The web
+                    // sets this line in `--good` (`#c42e60`, `Cute.accent`) at
+                    // weight 600, the same pink as the heart beside it; the app
+                    // has always used plain ink here.
+                    //
+                    // Found on 2026-08-29 while matching the three found-list
+                    // differences Bea did raise, and deliberately not changed
+                    // with them: this line lives in the pinned summary, and the
+                    // brief for that work was to leave the pinned row alone.
+                    // Recorded here rather than left to be rediscovered as a
+                    // defect, which is what happened to the four differences
+                    // that pass through this file already.
                     .foregroundStyle(Cute.ink)
                     .monospacedDigit()
                     // A stable handle for the UI tests. They used to find this
@@ -108,6 +120,10 @@ struct FoundSummary: View {
                 }
             }
             .font(CuteFont.body(13, relativeTo: .footnote))
+            // The rung tallies override this with the discovery ink, matching
+            // the web, where every off-page rung shares one colour across its
+            // mark, its tally and its words. This soft ink remains the default
+            // for anything else that lands in the row, and for the separators.
             .foregroundStyle(Cute.inkSoft)
         }
         #if DEBUG
@@ -148,6 +164,7 @@ struct FoundSummary: View {
                 RarityMark(category: category)
                 Text("0 \(name)")
             }
+            .foregroundStyle(Cute.discovery)
             .accessibilityElement(children: .combine)
         } else {
             Button {
@@ -157,6 +174,7 @@ struct FoundSummary: View {
                     RarityMark(category: category)
                     Text("\(items.count) \(name)")
                 }
+                .foregroundStyle(Cute.discovery)
                 // The visible tally stays a tally. The full target is taken by
                 // padding the hit region rather than the box, so the row keeps
                 // its height. Unlike the found-list chips, which sit at 24pt

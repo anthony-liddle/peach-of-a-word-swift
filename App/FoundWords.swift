@@ -39,6 +39,27 @@ enum WordCategory: Hashable {
         case .uncommon, .rare, .mythic: Cute.discovery
         }
     }
+
+    /// The colour of the *word*, which is not the colour of its mark.
+    ///
+    /// The two diverge in both directions and that is deliberate on the web,
+    /// which this now mirrors. A set word carries a pink heart and is set in
+    /// plain ink, because colouring every set word pink would leave the list
+    /// with no quiet default to read against. The source word inverts it: the
+    /// mark is the peach and the text is the deeper `crownDeep`, since a fill
+    /// that reads well as a shape does not read well as a sentence.
+    ///
+    /// Only the off-page rungs share one colour between mark and text, which is
+    /// the whole point of the discovery ink: one colour, one job. That is what
+    /// Bea was seeing the absence of. The app painted every word `ink`, so the
+    /// purple stopped at the mark.
+    var textTint: Color {
+        switch self {
+        case .source: Cute.crownDeep
+        case .set: Cute.ink
+        case .uncommon, .rare, .mythic: Cute.discovery
+        }
+    }
 }
 
 /// One classified find.

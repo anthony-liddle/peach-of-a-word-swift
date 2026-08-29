@@ -75,6 +75,13 @@ enum Vocabulary {
     /// `themeCopy.ts:185` and calls it mirrored rather than translated.
     static let emptyFoundList = "No words picked yet. The \(container) is empty."
 
+    /// The found list's heading, mirroring the web's `glossaryTitle`.
+    ///
+    /// The app had no heading at all, which is one of the three ways Bea
+    /// noticed the list not matching the web. Built from `container` like the
+    /// rest, so the noun stays swappable in one place.
+    static let glossaryTitle = "The \(container)"
+
     /// The kicker above the word on the source-word reveal card.
     static let revealKicker = "The peach every word grew from"
 
