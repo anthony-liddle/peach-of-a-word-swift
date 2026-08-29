@@ -490,6 +490,33 @@ struct ContentView: View {
     /// not; and because the answer on any phone with a home button is zero
     /// either way. The layout is height-neutral by construction. This is the
     /// one edge effect on top of it, and it is cosmetic.
+    ///
+    /// **Measured again on 2026-08-29, after Bea reported dead space at the
+    /// bottom of the screen.** The question that measurement could not answer
+    /// is what the bottom of the screen actually looks like at a given list
+    /// length, so this is that, taken off screenshots rather than off frames.
+    ///
+    /// Space below the last row of content, to the bottom safe area:
+    ///
+    ///   iPhone 16 Pro   empty board      26.0pt
+    ///                   12 words         31.0pt
+    ///                   40 words         31.0pt
+    ///                   near-complete    31.3pt
+    ///   iPhone SE 3     empty board       0.5pt
+    ///                   near-complete     0.5pt
+    ///
+    /// So it does not vary with list length, on either phone, and it is not
+    /// dead space: it is the bottom safe-area inset on the phone that has one
+    /// and nothing at all on the phone that does not. A fresh board and a
+    /// near-complete board end in the same place, because the colophon rides at
+    /// the foot of the list and fills what a short list would otherwise leave.
+    ///
+    /// One measurement worth not repeating: the largest continuous band of
+    /// blank pixels below the rack is 46pt, which looks like a finding and is
+    /// not. It sits between the label of the top control row and the label of
+    /// the bottom one, so it is the lower half of one pill, the 7pt between the
+    /// rows, and the upper half of the next. Intra-component whitespace, not a
+    /// gap in the layout.
     private var scrollingList: some View {
         ScrollView {
             // Padding inside the scrolled content, so at rest the fade eats
