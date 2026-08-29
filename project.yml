@@ -224,10 +224,23 @@ targets:
   # Not in the app scheme's testTargets. `xcodebuild test` and Xcode Cloud
   # therefore do not run these, which is deliberate for now: the delivery
   # pipeline took three pull requests to get green and a flaky UI test is the
-  # classic way to lose it again. Run them explicitly:
+  # classic way to lose it again. Run them explicitly, through this target's
+  # OWN scheme:
   #
-  #   xcodebuild test -scheme PeachOfAWord -only-testing:PeachOfAWordUITests \
-  #     -destination 'platform=iOS Simulator,name=iPhone 15'
+  #   xcodebuild test -scheme PeachOfAWordUITests \
+  #     -destination 'platform=iOS Simulator,name=iPhone 16 Pro'
+  #
+  # The scheme name is the part that matters and the part this comment used to
+  # get wrong. It said `-scheme PeachOfAWord -only-testing:PeachOfAWordUITests`,
+  # which cannot work for the exact reason the paragraph above gives: a target
+  # absent from a scheme's testTargets cannot be selected within it, and
+  # xcodebuild says so in a way that reads like the target is broken rather than
+  # the command:
+  #
+  #   Tests in the target "PeachOfAWordUITests" can't be run because
+  #   "PeachOfAWordUITests" isn't a member of the specified test plan or scheme.
+  #
+  # Corrected on 2026-08-29 after following it and hitting that.
   PeachOfAWordUITests:
     type: bundle.ui-testing
     platform: iOS
