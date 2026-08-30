@@ -101,7 +101,13 @@ struct RungSheet: View {
                 .scrollBounceBehavior(.basedOnSize)
 
                 Button(action: onDismiss) {
-                    Text("Back to the \(Vocabulary.container)")
+                    // `Vocabulary.revealClose`, not the same sentence built
+                    // again here. This read "Back to the \(Vocabulary.container)",
+                    // which is the identical string assembled at a call site,
+                    // and an assembled string is invisible to the guard that
+                    // watches for duplicated vocabulary: it compares literals,
+                    // and an interpolated one never matches.
+                    Text(Vocabulary.revealClose)
                         .font(CuteFont.body(15, weight: "SemiBold", relativeTo: .subheadline))
                         .tracking(2.1)
                         .textCase(.uppercase)
@@ -143,7 +149,11 @@ struct RungSheet: View {
             DefinitionSheet(
                 word: word.word,
                 category: word.category,
-                definition: definitions[word.word]
+                definition: definitions[word.word],
+                // Named, because the way out of this card lands here rather
+                // than on the board, and the sheet underneath already has a
+                // correct "Back to the basket" of its own.
+                origin: .rung(named: name)
             ) { openWord = nil }
         }
     }

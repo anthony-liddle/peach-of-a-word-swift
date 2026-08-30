@@ -103,6 +103,56 @@ struct OneDefinitionCardTests {
                 "the rung-sheet word path should present DefinitionSheet")
     }
 
+    /// No view writes its own way-out label.
+    ///
+    /// The dismiss labels are themed strings and belong in `Copy.swift`. The
+    /// failure this watches for is not a view using the wrong one: it is a view
+    /// building the right one itself, which is how a themed string escapes the
+    /// module that owns it.
+    ///
+    /// **`AppVocabularyTests` cannot see that, and this is why.** Its guard
+    /// compares string literals, so `"Back to the \(Vocabulary.container)"`
+    /// never matches the literal `"Back to the basket"` and passes. `RungSheet`
+    /// carried exactly that duplicate until the card was made context aware.
+    /// Matching on the opening words catches the assembled form too, because
+    /// the prefix is a literal whatever follows it.
+    @Test("only Copy.swift writes a way-out label")
+    func labelsLiveInCopy() {
+        let offenders = Self.sources.filter { $0.name != "Copy.swift" }
+            .flatMap { source -> [String] in
+                source.text.split(separator: "\n").compactMap { rawLine in
+                    let line = rawLine.trimmingCharacters(in: .whitespaces)
+                    guard line.contains("\"Back to") else { return nil }
+                    if line.hasPrefix("//") || line.hasPrefix("///") { return nil }
+                    return "\(source.name): \(line)"
+                }
+            }
+        #expect(offenders == [],
+                "these should read a label from Vocabulary: \(offenders)")
+    }
+
+    /// The two destinations differ, and neither is generic.
+    ///
+    /// A bare "Back" would be the obvious fix and it is system language in a
+    /// game that does not speak it, so the rung form names the rung.
+    @Test("the rung label names the rung and is not the basket's")
+    func rungLabelIsItsOwn() {
+        guard let copy = Self.sources.first(where: { $0.name == "Copy.swift" })
+        else { Issue.record("Copy.swift not found"); return }
+        #expect(copy.text.contains("closeToRung"))
+        #expect(copy.text.contains("\"Back to \\(name)\""),
+                "the rung label should name the rung")
+        // The generic form, which was rejected on purpose. Checked on code
+        // lines only: the first version matched the prose in `closeToRung`'s
+        // own doc comment, which explains why a bare Back was rejected, so the
+        // guard failed on the sentence describing the thing it forbids.
+        let code = copy.text.split(separator: "\n")
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.hasPrefix("//") }
+            .joined(separator: "\n")
+        #expect(!code.contains("\"Back\""), "a bare Back is system language")
+    }
+
     /// The detents belong to the shared sheet too.
     ///
     /// A card that opened at a different height depending on how it was reached

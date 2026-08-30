@@ -50,6 +50,34 @@ import SwiftUI
 /// The third is the one that matters for how the coverage figure should be
 /// read. Every set word has a ROW on all 626 racks, which is exact and is a
 /// presence check; `meal` has a row too.
+/// Where a definition card was opened from, which decides where it says it
+/// goes back to.
+///
+/// The card's dismiss button read "Back to the basket" wherever it opened,
+/// and from inside a rung list that is false: it returns to the rung list, and
+/// the sheet underneath already has a correctly labelled "Back to the basket"
+/// of its own. Two identical labels, two destinations, one of them wrong.
+///
+/// The label is resolved through `Vocabulary` rather than assembled here. A
+/// themed string built at a call site is how one escapes the module that owns
+/// it, and `AppVocabularyTests` cannot see it when it does: its scanner
+/// compares string literals, and `"Back to the \(Vocabulary.container)"` is
+/// not the literal `"Back to the basket"`. `RungSheet` had exactly that, and
+/// this change removes it.
+enum DefinitionOrigin: Equatable {
+    /// The found list, which is the board's own list of everything.
+    case foundList
+    /// One rung's sheet, named as the player sees it.
+    case rung(named: String)
+
+    var closeLabel: String {
+        switch self {
+        case .foundList: Vocabulary.revealClose
+        case .rung(let name): Vocabulary.closeToRung(name)
+        }
+    }
+}
+
 /// The definition card as a sheet, and the only place it is constructed.
 ///
 /// **Two paths reach this, and nothing else may build one.** A found-list chip
@@ -69,6 +97,8 @@ struct DefinitionSheet: View {
     let category: WordCategory
     /// The gloss, or nil when the corpus has none for this word.
     var definition: String?
+    /// Where this was opened from, which names the way out.
+    var origin: DefinitionOrigin = .foundList
     let onDismiss: () -> Void
 
     var body: some View {
@@ -76,6 +106,7 @@ struct DefinitionSheet: View {
             word: word,
             category: category,
             definition: definition,
+            closeLabel: origin.closeLabel,
             onDismiss: onDismiss
         )
         .presentationDetents([.medium, .large])
@@ -88,6 +119,9 @@ struct DefinitionCard: View {
     let category: WordCategory
     /// The gloss, or nil when the corpus has none for this word.
     var definition: String?
+    /// What the way out says, which depends on where this was opened from.
+    /// Resolved by `DefinitionOrigin`, never assembled here.
+    var closeLabel: String = Vocabulary.revealClose
     let onDismiss: () -> Void
 
     /// The line for a word with no gloss.
@@ -169,7 +203,7 @@ struct DefinitionCard: View {
                         .fixedSize(horizontal: false, vertical: true)
 
                     Button(action: onDismiss) {
-                        Text(Vocabulary.revealClose)
+                        Text(closeLabel)
                             .font(CuteFont.body(15, weight: "SemiBold", relativeTo: .subheadline))
                             .tracking(2.1)
                             .textCase(.uppercase)

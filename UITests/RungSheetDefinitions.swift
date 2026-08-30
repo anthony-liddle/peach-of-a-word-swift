@@ -61,6 +61,15 @@ final class RungSheetDefinitions: XCTestCase {
             NSPredicate(format: "label CONTAINS[c] %@", "Wiktionary")).firstMatch
         XCTAssertTrue(credit.waitForExistence(timeout: 10), "the definition card did not open")
 
+        // And it says where it goes back to. From here that is the rung, not
+        // the basket: the sheet underneath has its own correct "Back to the
+        // basket", and two identical labels with two destinations meant one of
+        // them was lying.
+        XCTAssertTrue(app.buttons.matching(
+            NSPredicate(format: "label CONTAINS[c] %@", "back to mythic")).firstMatch
+            .waitForExistence(timeout: 10),
+            "the card should say it goes back to the rung it opened from")
+
         // The rung sheet is still underneath rather than replaced, asserted by
         // going back to it rather than by looking for it.
         //
@@ -77,12 +86,15 @@ final class RungSheetDefinitions: XCTestCase {
         // So the assertion is the behaviour. If the card had replaced the rung
         // sheet, dismissing it would land on the board and no word chip would
         // be hittable.
-        let cardWayOut = app.buttons.matching(
-            NSPredicate(format: "label CONTAINS[c] %@", "back to the"))
-        guard let dismissCard = cardWayOut.allElementsBoundByIndex
-            .first(where: { $0.isHittable }) else {
-            return XCTFail("no hittable way out of the definition card")
-        }
+        // By name, which the change under test made possible. This used to
+        // match "back to the" and pick whichever was hittable, because both
+        // sheets said "Back to the basket"; the card names the rung now, so it
+        // can be asked for directly. The old query stopped matching the card at
+        // all, which is the change working.
+        let dismissCard = app.buttons.matching(
+            NSPredicate(format: "label CONTAINS[c] %@", "back to mythic")).firstMatch
+        XCTAssertTrue(dismissCard.waitForExistence(timeout: 10),
+                      "no way out of the definition card")
         dismissCard.tap()
 
         let chipsAgain = app.buttons.matching(
