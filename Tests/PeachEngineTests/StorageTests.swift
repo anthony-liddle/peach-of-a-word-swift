@@ -322,3 +322,74 @@ struct AdoptStreakTests {
         #expect(s.loadDayProgress(dayIndex: today, sourceWord: "motorway") == ["tram"])
     }
 }
+
+/// What a rollover does to what is already on disk.
+///
+/// The app now rebuilds the board when it is foregrounded on a later day, which
+/// is the first path that changes the day index without a fresh launch. Two
+/// things were worth checking rather than assuming, because both are places a
+/// mistake would lose something a player earned.
+@Suite("a day rolling over under a running app")
+struct RolloverTests {
+    let store = InMemoryStore()
+    var storage: GameStorage { GameStorage(store: store) }
+
+    private let yesterday = 219
+    private let today = 220
+
+    /// Progress is written on every find, under the day the board was built
+    /// for, so a rollover has nothing to save. This says so rather than
+    /// trusting it: it is the case where a mistake costs her a day's words.
+    @Test("yesterday's words are already saved, and the new day starts empty")
+    func yesterdayIsSafe() {
+        let s = storage
+        s.saveDayProgress(dayIndex: yesterday, sourceWord: "yesterda",
+                          found: ["yes", "day", "stay"])
+
+        // The rollover loads the new day's key with the new day's word.
+        #expect(s.loadDayProgress(dayIndex: today, sourceWord: "motorway") == [])
+        // And yesterday is untouched, which is what makes the empty board above
+        // a fresh start rather than a loss.
+        #expect(s.loadDayProgress(dayIndex: yesterday, sourceWord: "yesterda")
+                == ["yes", "day", "stay"])
+    }
+
+    /// The streak reads from `lastClearedDayIndex`, and this is the first code
+    /// path that moves the day under it without relaunching.
+    @Test("a streak cleared yesterday survives the rollover and extends today")
+    func streakSurvives() {
+        let s = storage
+        s.recordDailyCleared(dayIndex: yesterday - 1)
+        s.recordDailyCleared(dayIndex: yesterday)
+        #expect(s.currentStreak(todayIndex: yesterday) == 2)
+
+        // The app comes back on a new day and asks again with the new index.
+        #expect(s.currentStreak(todayIndex: today) == 2,
+                "yesterday's clear should still count on the morning after")
+
+        // And clearing the new day extends rather than restarts, which is the
+        // half that would break if a rollover reset anything.
+        s.recordDailyCleared(dayIndex: today)
+        #expect(s.currentStreak(todayIndex: today) == 3)
+    }
+
+    /// The failure the rollover would cause if it forgot the once-per-session
+    /// guard: the new day's first clear dropped, because the flag still said
+    /// this session had already recorded one.
+    ///
+    /// The guard lives in `GameModel`, which this bundle cannot import, so what
+    /// is asserted here is the storage half: recording the same day twice is a
+    /// no-op, and recording a *different* day is not, so nothing in storage
+    /// stops the new day being recorded. If the streak fails to move on the
+    /// morning after, the flag is where to look.
+    @Test("recording the new day is not blocked by yesterday's record")
+    func newDayCanStillBeRecorded() {
+        let s = storage
+        s.recordDailyCleared(dayIndex: yesterday)
+        s.recordDailyCleared(dayIndex: yesterday)      // twice, still one day
+        #expect(s.currentStreak(todayIndex: yesterday) == 1)
+
+        s.recordDailyCleared(dayIndex: today)
+        #expect(s.currentStreak(todayIndex: today) == 2)
+    }
+}
