@@ -225,13 +225,32 @@ final class GameModel {
     /// once on a device; see docs/REPORT.md.
     nonisolated static var now: Date {
         #if DEBUG
-        let offset = UserDefaults.standard.integer(forKey: "dayOffset")
+        var offset = UserDefaults.standard.integer(forKey: "dayOffset")
+        // `-dayOffsetOnResume 1` moves the clock forward the first time the app
+        // is foregrounded, and not before.
+        //
+        // The rollover only happens when the day changes while the app is away,
+        // which no launch argument can reproduce: a fixed `-dayOffset` is the
+        // same on both sides of a backgrounding, so the day never changes and
+        // the path never runs. This is the smallest thing that makes the real
+        // sequence reachable, which is the same argument as `-revealCard` and
+        // `-holdLoading`.
+        if hasResumed { offset += UserDefaults.standard.integer(forKey: "dayOffsetOnResume") }
         if offset != 0 {
             return Foundation.Calendar.current.date(byAdding: .day, value: offset, to: Date()) ?? Date()
         }
         #endif
         return Date()
     }
+
+    #if DEBUG
+    /// Set the first time the app is foregrounded after launch. See `now`.
+    ///
+    /// `nonisolated(unsafe)` for the same reason `UserDefaultsStore.diagnostic`
+    /// is: it is written once from the main actor and read from `now`, which is
+    /// nonisolated so that the day can be computed without hopping actors.
+    nonisolated(unsafe) static var hasResumed = false
+    #endif
 
     /// Bound directly to the debug text field, so this one is `var`. Tapping is
     /// the primary path; this stays only because it makes headless testing of
@@ -346,30 +365,7 @@ final class GameModel {
 
         switch built {
         case .success(let p):
-            puzzle = p
-            // Tile ids are indices into the sorted rack, matching the web
-            // version's `tilesFor`. The initial rack order is shuffled so the
-            // answer is not sitting in alphabetical order on screen.
-            tiles = p.letters.enumerated().map { Tile(id: $0.offset, letter: String($0.element)) }
-            // Seeded from the source word, not drawn at random, so every player
-            // opens the same rack on a given day AND the rack never leads with
-            // the crown. An unseeded draw did both wrong: it re-dealt on every
-            // launch, and one launch in 20,160 spelled the answer outright.
-            rackOrder = dailyRackOrder(letters: p.letters, word: p.sourceWord)
-
-            // Progress and the streak are keyed off storageEpoch, which never
-            // moves, NOT off dailyEpoch, which a calendar regeneration can
-            // re-anchor. Keying on the daily epoch would renumber every stored
-            // day and cost a streak. See StorageEpochTests.
-            let day = dayIndex(Self.now, epoch: storageEpoch, timeZone: .current)
-            storageDayIndex = day
-            boardDate = Self.now
-            found = storage.loadDayProgress(dayIndex: day, sourceWord: p.sourceWord)
-            streak = storage.currentStreak(todayIndex: day)
-            // A day restored already complete has had its moment. Only the
-            // transition celebrates.
-            completionSeen = isComplete(computeTier(found: Set(found), puzzle: p))
-
+            adopt(p)
             phase = .ready
             writeDebugState()
             runLaunchArguments()
@@ -378,6 +374,87 @@ final class GameModel {
         case nil:
             phase = .failed("load produced no result")
         }
+    }
+
+    /// Make a puzzle the board, for whatever day it is now.
+    ///
+    /// Shared by the first load and by a rollover, so the two cannot set the
+    /// board up differently. They did not, when the rollover was written as its
+    /// own copy of this, and they would have the first time either changed.
+    private func adopt(_ p: Puzzle) {
+        puzzle = p
+        // Tile ids are indices into the sorted rack, matching the web
+        // version's `tilesFor`.
+        tiles = p.letters.enumerated().map { Tile(id: $0.offset, letter: String($0.element)) }
+        // Seeded from the source word, not drawn at random, so every player
+        // opens the same rack on a given day AND the rack never leads with the
+        // crown. An unseeded draw did both wrong: it re-dealt on every launch,
+        // and one launch in 20,160 spelled the answer outright.
+        rackOrder = dailyRackOrder(letters: p.letters, word: p.sourceWord)
+
+        // Progress and the streak are keyed off storageEpoch, which never
+        // moves, NOT off dailyEpoch, which a calendar regeneration can
+        // re-anchor. Keying on the daily epoch would renumber every stored day
+        // and cost a streak. See StorageEpochTests.
+        let day = dayIndex(Self.now, epoch: storageEpoch, timeZone: .current)
+        storageDayIndex = day
+        boardDate = Self.now
+        found = storage.loadDayProgress(dayIndex: day, sourceWord: p.sourceWord)
+        streak = storage.currentStreak(todayIndex: day)
+        // A day restored already complete has had its moment. Only the
+        // transition celebrates.
+        completionSeen = isComplete(computeTier(found: Set(found), puzzle: p))
+    }
+
+    /// Bring the board to today, if today is no longer the day it was built for.
+    ///
+    /// **The rule that the day does not roll over mid-session still holds, and
+    /// this is not that.** Swapping the rack under someone's fingers at
+    /// midnight is worse than letting them finish on yesterday's board, and the
+    /// day index is still captured once per board and never recomputed while
+    /// one is in play, so a rollover cannot leak yesterday's words into today's
+    /// key.
+    ///
+    /// What that reasoning missed is that backgrounding is not the middle of a
+    /// session. It is one session ending and another beginning, and iOS does
+    /// not announce the difference: the app is simply resumed, with whatever
+    /// was on screen still on screen. Bea opened the app the next morning to
+    /// yesterday's puzzle, and force-quitting fixed it, which is the shape of a
+    /// state that is only ever rebuilt at launch.
+    ///
+    /// **No transitional screen.** Every puzzle is in the bundle, so a message
+    /// about fetching a fresh basket would describe work that is not happening
+    /// and invent a delay to explain. The phase stays `.ready` and the board
+    /// changes under a foregrounding app, which is what she is expecting to
+    /// see: today's board when she opens it.
+    ///
+    /// **Composed letters are thrown away.** If it is a new day, it is a new
+    /// day, and she was not mid-word a day later.
+    ///
+    /// Yesterday's words need no saving here: progress is written on every
+    /// find, under the day index the board was built for, so they were on disk
+    /// long before this ran.
+    func rollOverIfNewDay() async {
+        guard let built = storageDayIndex else { return }   // nothing loaded yet
+        let today = dayIndex(Self.now, epoch: storageEpoch, timeZone: .current)
+        guard today != built else { return }
+
+        guard case .success(let p) = await Self.buildTodaysPuzzle() else {
+            // Keep yesterday's board rather than emptying the screen. A failure
+            // here is a bundle that could not be read, which a relaunch will
+            // report properly; showing nothing would be a worse answer than
+            // showing a board she can still play.
+            return
+        }
+        adopt(p)
+        // The new day has not recorded a streak yet, and this flag is what
+        // stops one session recording twice. Left set, the first clear of the
+        // new day would be dropped.
+        streakRecordedThisSession = false
+        clear()
+        moment = nil
+        feedback = .none
+        writeDebugState()
     }
 
     /// Test affordance: `-guesses motorway,tram,zzz` submits those words at
