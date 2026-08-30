@@ -75,6 +75,92 @@ enum Vocabulary {
     /// `themeCopy.ts:185` and calls it mirrored rather than translated.
     static let emptyFoundList = "No words picked yet. The \(container) is empty."
 
+    // MARK: - How the words work
+
+    /// The explainer's title. Sentence case, matching the colophon's trigger
+    /// and the app's other headings. The web's dialog title is title case while
+    /// its own trigger is sentence case, which is an inconsistency there rather
+    /// than a style to carry over.
+    static let explainerTitle = "How the words work"
+
+    /// The colophon's quiet way in.
+    static let explainerTrigger = "How the words work"
+
+    /// The explainer body, ported from the web's `HowItWorks.tsx`.
+    ///
+    /// **Substituted rather than copied, and the noun is the reason.** The web's
+    /// body is not themed at all: there is no `themeCopy.ts` entry for it, and
+    /// it says "the day's set" and "outside the set" in both themes. This app
+    /// never says set to a player. Its word for that collection is the
+    /// `container` above, so the paragraphs are built from it and the
+    /// substitution is one value rather than a dozen edits, which is why the
+    /// noun lives in this file at all.
+    ///
+    /// Nothing else is reworded. The rung names carry over untouched, since
+    /// Uncommon, Rare and Mythic are shared vocabulary.
+    ///
+    /// **The number is 427,000 and the web's 430,000 is wrong.** Both surfaces
+    /// ship `boundary: 426900` in `meta.json`. Hardcoded rather than read from
+    /// that file: an approximate number that is right beats a live number that
+    /// couples a sentence of prose to a data file, and this sentence only ever
+    /// wanted a sense of scale.
+    ///
+    /// The claims here are load-bearing and are asserted by
+    /// `ExplainerClaimsTests`. The web pins the same ones in
+    /// `HowItWorks.test.tsx`, on the model rather than the wording.
+    static let explainerParagraphs: [String] = [
+        "Every puzzle is built from two word lists doing different jobs.",
+
+        "ENABLE and SCOWL, together with a small patch list we keep by hand, "
+        + "decide what counts as a word: about 427,000 of them. Almost anything "
+        + "real you type is accepted. You will rarely be told a real word is "
+        + "not a word.",
+
+        "SCOWL also sorts those words into bands by how common they are, from "
+        + "everyday to obscure. The common band makes up the day's \(container), "
+        + "and the bands past it decide how rare everything else is.",
+
+        "The day's eight letters come from a common eight-letter word, chosen "
+        + "and checked ahead of time, and the same for everyone that day. The "
+        + "\(container) is every common word those letters can spell.",
+
+        "The goal is a ladder of named ranks, climbed by points. Every valid "
+        + "word moves you up, and rarer words move you further. Above the "
+        + "ladder sits completion: finding every common word the letters can "
+        + "spell. It is reachable, rare, and never required for a day to feel "
+        + "good.",
+
+        "Words you find beyond the \(container) are graded by how far past "
+        + "common they sit: Uncommon, then Rare, then Mythic, the deeper into "
+        + "the dictionary you go. They all score. They are not lesser, they are "
+        + "extra.",
+
+        "A word can feel common to you and still land outside the "
+        + "\(container). That is not your instinct being wrong. Common here is "
+        + "a statistical line drawn across a word list, and a statistical line "
+        + "does not always agree with a real person's vocabulary. A word you "
+        + "use every week can sit just outside the band. When that happens, you "
+        + "still found a real word. It simply was not on today's short list.",
+    ]
+
+    /// The two lists the explainer names, and where to read about them.
+    ///
+    /// **These links carry no licence obligation.** The attribution is already
+    /// discharged twice over: the colophon credits ENABLE and SCOWL on screen,
+    /// and `Data/ATTRIBUTION.md` ships inside the bundle carrying the notices.
+    /// These are here because they are interesting. Keeping that straight
+    /// matters, because an explainer that quietly becomes a second attribution
+    /// surface is one that can drift from the first without anyone noticing.
+    static let explainerLinks: [(name: String, url: String)] = [
+        ("ENABLE",
+         "https://www.bananagrammer.com/2013/12/the-amazing-enable-word-list-project.html"),
+        // Classic SCOWL (v1), not its renamed successor ESDB. The homepage now
+        // leads with ESDB, but this game uses v1: Mythic is defined as valid in
+        // ENABLE and beyond SCOWL size 95, and ESDB dropped the size 95 level.
+        // Same link and the same reason as the web's.
+        ("SCOWL", "https://wordlist.aspell.net/scowl_v1-readme/"),
+    ]
+
     /// The found list's heading, mirroring the web's `glossaryTitle`.
     ///
     /// The app had no heading at all, which is one of the three ways Bea
