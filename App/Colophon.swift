@@ -62,31 +62,6 @@ struct Colophon: View {
                 Text("Definitions and etymologies from Wiktionary, CC BY-SA 4.0.")
                 Text(Vocabulary.typeCredit)
             }
-            // Below the type credit, which is where `Game.tsx` puts it, and set
-            // apart from the credits by a hair of space rather than by a rule
-            // or a heading. The web spends `margin-top: 0.9rem` against a
-            // 0.875rem font, so a shade over one em; 8pt on top of the stack's
-            // own 3pt is the same gesture at this size.
-            //
-            // Obliqued rather than `.italic()`, because Nunito has no italic
-            // face and `.italic()` would render the upright while reading in
-            // the source as though the styling had been matched. See
-            // `CuteFont.bodyOblique`.
-            //
-            // **Centred, and only this line.** Bea's reason is the whole brief:
-            // "it made it feel more intentional". Left-aligned it reads as the
-            // next item in the list above it; centred it reads as placed.
-            //
-            // The web centres it too, though not by a rule of its own:
-            // `footer.colophon` sets `text-align: center` on everything,
-            // credits included. Matching that here would make the block read as
-            // a poem rather than a credit, so only the dedication moves. The
-            // two surfaces therefore agree on this line and differ on the three
-            // above it, which is deliberate rather than drift.
-            Text(Vocabulary.dedication)
-                .font(CuteFont.bodyOblique(11, relativeTo: .caption2))
-                .padding(.top, 8)
-
             // The quiet expansion of the colophon, where the web puts it and
             // for the same reason: this is where a curious person already
             // looks, and it stays off the play surface.
@@ -104,8 +79,39 @@ struct Colophon: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .padding(.top, 2)
+            .padding(.top, 8)
             .accessibilityHint("Opens an explanation of how words are chosen")
+
+            // **Centred, and only this line.** Bea's reason is the whole brief:
+            // "it made it feel more intentional". Left-aligned it reads as the
+            // next item in the list above it; centred it reads as placed.
+            //
+            // The web centres it too, though not by a rule of its own:
+            // `footer.colophon` sets `text-align: center` on everything,
+            // credits included. Matching that here would make the block read as
+            // a poem rather than a credit, so only the dedication moves. The
+            // two surfaces therefore agree on this line and differ on the three
+            // above it, which is deliberate rather than drift.
+            //
+            // **Last, below the link, which is parity rather than a new
+            // decision.** `Game.tsx` already puts `colophon__dedication`
+            // after both the explainer trigger and the privacy link. The
+            // app had it above the trigger, so it read as one more item in
+            // the stack; a dedication reads as a dedication when nothing
+            // follows it. Same reasoning as centring it.
+            // Obliqued rather than `.italic()`, because Nunito has no italic
+            // face and `.italic()` would render the upright while reading in
+            // the source as though the styling had been matched. See
+            // `CuteFont.bodyOblique`.
+            //
+            // Set apart by a hair of space rather than by a rule or a heading,
+            // the way the web spends `margin-top: 0.9rem` on it. 10pt on top of
+            // the stack's own 3pt is that gesture at this size, and it is a
+            // touch more than the 8pt it used to take, because it is now
+            // separating itself from a control rather than from a line of text.
+            Text(Vocabulary.dedication)
+                .font(CuteFont.bodyOblique(11, relativeTo: .caption2))
+                .padding(.top, 10)
         }
         .font(CuteFont.body(11, relativeTo: .caption2))
         .foregroundStyle(Cute.inkFaint)
