@@ -116,6 +116,11 @@ struct Colophon: View {
         .font(CuteFont.body(11, relativeTo: .caption2))
         .foregroundStyle(Cute.inkFaint)
         .frame(maxWidth: .infinity, alignment: .center)
+        // A background rather than an overlay or a stack member: a background
+        // does not influence the size of what it sits behind, so no decoration
+        // here can move the colophon's height, and the colophon's height is
+        // inside the scrolling list the rack is budgeted against.
+        .background(ColophonDecoration())
         .multilineTextAlignment(.center)
         .padding(.top, 26)
         // One element to VoiceOver rather than two orphaned fragments, and it
