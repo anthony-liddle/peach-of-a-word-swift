@@ -50,6 +50,39 @@ import SwiftUI
 /// The third is the one that matters for how the coverage figure should be
 /// read. Every set word has a ROW on all 626 racks, which is exact and is a
 /// presence check; `meal` has a row too.
+/// The definition card as a sheet, and the only place it is constructed.
+///
+/// **Two paths reach this, and nothing else may build one.** A found-list chip
+/// opens a definition, and now so does a word inside a rung sheet. Two call
+/// sites constructing `DefinitionCard` themselves is the shape this project
+/// keeps finding: they agree on the day they are written and drift the first
+/// time one of them is changed, because nothing forces them to agree. So the
+/// construction lives here, both paths call this, and
+/// `OneDefinitionCardTests` asserts that `DefinitionCard(` appears exactly
+/// once in the app's source.
+///
+/// The detents are part of what is shared. A card that opened at a different
+/// height depending on how it was reached would be the same divergence in a
+/// quieter form.
+struct DefinitionSheet: View {
+    let word: String
+    let category: WordCategory
+    /// The gloss, or nil when the corpus has none for this word.
+    var definition: String?
+    let onDismiss: () -> Void
+
+    var body: some View {
+        DefinitionCard(
+            word: word,
+            category: category,
+            definition: definition,
+            onDismiss: onDismiss
+        )
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
+    }
+}
+
 struct DefinitionCard: View {
     let word: String
     let category: WordCategory
