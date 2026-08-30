@@ -24,7 +24,7 @@ import SwiftUI
 /// worth one sentence rather than none.** It already said "Definitions and
 /// etymologies", because `etymology.tsv` carries a gloss as well as an origin
 /// and the crown card renders both. What changed is only the reach: the same
-/// sentence now covers 24,892 glosses behind every tappable chip rather than
+/// sentence now covers 24,833 glosses behind every tappable chip rather than
 /// 820 behind the crowns. A credit written for the app as a whole was already
 /// the right shape for a corpus that grew.
 ///
