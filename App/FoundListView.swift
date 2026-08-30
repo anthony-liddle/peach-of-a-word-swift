@@ -247,11 +247,43 @@ struct FoundListView: View {
             .accessibilityElement(children: .combine)
 
             if found.isEmpty {
+                // The line, and stars around it. This is the screen she sees
+                // first every morning and it was one sentence alone in the
+                // region.
+                //
+                // The stars are a background on a frame that claims no extra
+                // height, so the empty state measures exactly what it measured
+                // before. That matters more here than anywhere: the decoration
+                // vanishes when the first word lands, and the empty state and
+                // the first-find state are different heights by definition, so
+                // anything that added height would shove the list at the worst
+                // possible moment. `FirstFindShove` is the check.
                 Text(Vocabulary.emptyFoundList)
                     .font(CuteFont.body(15, relativeTo: .subheadline))
                     .foregroundStyle(Cute.inkFaint)
                     .frame(maxWidth: .infinity, alignment: .center)
                     .padding(.top, 24)
+                    // Anchored to the top and given a height of its own, so
+                    // the florettes spread into the empty region rather than
+                    // crowding the one line. A background does not take its
+                    // size from this frame, so the empty state still measures
+                    // what it measured before; anchoring top keeps the overflow
+                    // going downward into the slack rather than upward into the
+                    // pinned summary.
+                    // 84pt, which is the line's own height plus the gap
+                    // beneath it, measured rather than guessed: on an iPhone 16
+                    // Pro the message ends at 642pt and the credits begin at
+                    // 691.7pt, so the slack here is 49.7pt. The first attempt
+                    // asked for 190 on the assumption that this region was the
+                    // 223pt the empty list occupies, and it is not: the
+                    // colophon fills most of that, so the florettes landed
+                    // among the credits and mixed with the colophon's own.
+                    //
+                    // A background takes no size from this frame, so the empty
+                    // state still measures what it always did.
+                    .background(alignment: .top) {
+                        EmptyBasketDecoration().frame(height: 84)
+                    }
             } else {
                 // The summary is no longer here. It is pinned above the scroll
                 // as `FoundSummary`, because a status line you have to scroll
