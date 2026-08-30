@@ -61,9 +61,18 @@ struct ContentView: View {
     /// and a re-measurement that confirms the prediction is still the thing
     /// that was asked for.
     @ScaledMetric(relativeTo: .body) private var minimumListHeight: CGFloat = 52
-    #if TAP_RECORDER
+    /// Foreground and background transitions.
+    ///
+    /// Was declared only for the tap recorder. The shipping build needs it too
+    /// now: coming back to the app is where the day catches up, and that is not
+    /// a diagnostic concern.
     @Environment(\.scenePhase) private var scenePhase
-    #endif
+
+    /// Whether the app has been away since launch.
+    ///
+    /// Only the debug clock needs this; the rollover itself is safe on any
+    /// activation, since it compares the day and does nothing when it matches.
+    @State private var wentAway = false
 
     /// `storage` is injectable so a preview does not scribble on the real
     /// UserDefaults every time the canvas re-renders.
@@ -190,6 +199,26 @@ struct ContentView: View {
             if phase != .active { TapRecorder.shared.flush() }
         }
         #endif
+        // The day catches up when she comes back.
+        //
+        // `.onChange` on the phase rather than `.onAppear`, because a
+        // foregrounding app does not appear again: the view is already there
+        // with yesterday's board on it, which is exactly what she saw.
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .active else {
+                wentAway = true
+                return
+            }
+            #if DEBUG
+            // Only after actually going away. Launching runs inactive to
+            // active, which is a change like any other, so setting this on any
+            // activation moved the clock before the first board was even built
+            // and made the return a no-op: the test then failed against a
+            // working rollover.
+            if wentAway { GameModel.hasResumed = true }
+            #endif
+            Task { await model.rollOverIfNewDay() }
+        }
         .task {
             #if TAP_RECORDER
             // A session marker written immediately, so the log exists before any
