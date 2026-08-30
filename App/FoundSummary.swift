@@ -20,6 +20,9 @@ struct FoundSummary: View {
     let found: [String]
     let standing: TierStanding
     var boardDate: Date = Date()
+    /// The glosses, carried through to the rung sheet so a word listed there
+    /// can open its definition. Not used by this view itself.
+    var definitions: [String: String] = [:]
 
     /// The off-page finds bucketed by rung, alphabetical within each.
     ///
@@ -33,11 +36,12 @@ struct FoundSummary: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     init(puzzle: Puzzle, found: [String], standing: TierStanding,
-         boardDate: Date = Date()) {
+         boardDate: Date = Date(), definitions: [String: String] = [:]) {
         self.puzzle = puzzle
         self.found = found
         self.standing = standing
         self.boardDate = boardDate
+        self.definitions = definitions
         let classified = classifyFound(found, in: puzzle)
         self.allWords = classified
         var b: [WordCategory: [FoundWord]] = [.uncommon: [], .rare: [], .mythic: []]
@@ -143,7 +147,8 @@ struct FoundSummary: View {
             RungSheet(
                 rung: selection.category,
                 name: selection.name,
-                words: buckets[selection.category] ?? []
+                words: buckets[selection.category] ?? [],
+                definitions: definitions
             ) { openRung = nil }
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)

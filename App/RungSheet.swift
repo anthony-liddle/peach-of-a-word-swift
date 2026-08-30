@@ -22,9 +22,21 @@ struct RungSheet: View {
     let rung: WordCategory
     let name: String
     let words: [FoundWord]
+    /// The glosses, so a word here can open its own definition.
+    var definitions: [String: String] = [:]
     let onDismiss: () -> Void
 
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+    /// The word whose definition is open, if any.
+    ///
+    /// **A second sheet over this one, rather than replacing it.** Bea was
+    /// browsing a rung when she wanted a definition, and a definition is an
+    /// aside inside that: replacing this sheet would answer the question and
+    /// lose her place in the list she was reading. The idiom is established
+    /// here, since `SFSafariViewController` presents over the explainer the
+    /// same way.
+    @State private var openWord: FoundWord?
 
     private var title: some View {
         HStack(spacing: 8) {
@@ -73,8 +85,14 @@ struct RungSheet: View {
                     // one mark here and another there. Alphabetical, because a
                     // list read for its own sake wants to be findable rather
                     // than chronological.
+                    // Tappable, which they were not. The chip already carries
+                    // the tap target and the press style; it was simply handed
+                    // no action here, so a word she could see was a word she
+                    // could not ask about.
                     FlowLayout {
-                        ForEach(words) { WordChip(found: $0) }
+                        ForEach(words) { word in
+                            WordChip(found: word) { openWord = word }
+                        }
                     }
                     .padding(.horizontal, 24)
                     .padding(.bottom, 20)
@@ -98,6 +116,36 @@ struct RungSheet: View {
             }
         }
         .accessibilityElement(children: .contain)
+        #if DEBUG
+        // `-openRungWord 1` opens the first word's definition without a tap,
+        // so the nested sheet can be screenshotted. Same reasoning as
+        // `-openRung` above it.
+        //
+        // **Delayed, and the delay is the point.** Setting this straight from
+        // `onAppear` presents the second sheet while the first is still
+        // presenting, and the result is not what a tap produces: the rung sheet
+        // does not end up underneath. That is the launch race this codebase has
+        // hit before, recreated by the instrument meant to observe it, and it
+        // made a screenshot that looked like a defect in the feature. A tap
+        // cannot arrive before the sheet it is aimed at has settled, so the
+        // hook waits and models the thing it is standing in for.
+        .onAppear {
+            guard UserDefaults.standard.bool(forKey: "openRungWord") else { return }
+            Task { @MainActor in
+                try? await Task.sleep(for: .milliseconds(600))
+                openWord = words.first
+            }
+        }
+        #endif
+        .sheet(item: $openWord) { word in
+            // The same construction the found-list chip reaches, and the only
+            // one: see `DefinitionSheet`.
+            DefinitionSheet(
+                word: word.word,
+                category: word.category,
+                definition: definitions[word.word]
+            ) { openWord = nil }
+        }
     }
 }
 
