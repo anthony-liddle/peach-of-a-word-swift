@@ -61,16 +61,22 @@ final class RungSheetDefinitions: XCTestCase {
             NSPredicate(format: "label CONTAINS[c] %@", "Wiktionary")).firstMatch
         XCTAssertTrue(credit.waitForExistence(timeout: 10), "the definition card did not open")
 
-        // And the rung sheet is still underneath rather than replaced, which is
-        // the point of nesting: she keeps her place in the list she was
-        // reading. The rung's name is in its header and nowhere else on screen.
-        XCTAssertTrue(app.staticTexts["Mythic"].exists,
-                      "the rung sheet was replaced rather than covered")
-
-        // And she gets back to it. The card covers the rung sheet exactly at
-        // this detent, so there is no visual cue that two sheets are stacked;
-        // what makes the nesting worth anything is that dismissing the card
-        // returns her to the list rather than to the board.
+        // The rung sheet is still underneath rather than replaced, asserted by
+        // going back to it rather than by looking for it.
+        //
+        // **Looking for it does not work, and the reason is a version
+        // difference.** An earlier version asserted `app.staticTexts["Mythic"]`
+        // still existed, on the reasoning that the rung's name is in its header
+        // and nowhere else. That passes on iOS 18.2 and fails on iOS 26.5,
+        // where a sheet covered by another sheet is dropped from the
+        // accessibility tree entirely. Two runners disagreeing about a query is
+        // not two behaviours disagreeing: on both versions the rung sheet is
+        // there and dismissing the card returns to it, which is the thing she
+        // would notice.
+        //
+        // So the assertion is the behaviour. If the card had replaced the rung
+        // sheet, dismissing it would land on the board and no word chip would
+        // be hittable.
         let cardWayOut = app.buttons.matching(
             NSPredicate(format: "label CONTAINS[c] %@", "back to the"))
         guard let dismissCard = cardWayOut.allElementsBoundByIndex
