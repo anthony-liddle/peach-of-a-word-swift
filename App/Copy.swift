@@ -171,8 +171,19 @@ enum Vocabulary {
     /// The kicker above the word on the source-word reveal card.
     static let revealKicker = "The peach every word grew from"
 
-    /// The reveal card's way back to the board.
+    /// The way back to the board, from a card the board presented.
     static let revealClose = "Back to the \(container)"
+
+    /// The way back to a rung's list, from a definition opened inside it.
+    ///
+    /// **Named rather than generic.** A bare "Back" is the obvious fix and it
+    /// is system language in a game that deliberately does not speak it.
+    /// Naming the rung is both truthful and in voice.
+    ///
+    /// The rung names are shared vocabulary rather than cute inventions, so
+    /// they are passed in rather than listed again here; `FoundSummary` owns
+    /// the list of them.
+    static func closeToRung(_ name: String) -> String { "Back to \(name)" }
 
     /// Shown in place of the next rank once the ladder is topped out.
     ///
