@@ -40,10 +40,22 @@ import SwiftUI
 /// credit nobody thanks you for.
 struct Colophon: View {
     var body: some View {
-        VStack(alignment: .leading, spacing: 3) {
-            Text("Words from ENABLE and SCOWL.")
-            Text("Definitions and etymologies from Wiktionary, CC BY-SA 4.0.")
-            Text(Vocabulary.typeCredit)
+        // Two stacks rather than one, so the dedication can be centred over the
+        // credits without moving them.
+        //
+        // The credits keep their leading alignment inside the inner stack; the
+        // outer stack centres, and its width is the credit block's width, so
+        // the dedication sits centred over that block and nothing else shifts.
+        // Putting `.frame(maxWidth: .infinity)` on the dedication instead would
+        // have centred it by making the whole colophon full width, which drags
+        // the left-aligned credits out to the screen edge: the same appearance
+        // for the one line, a different layout for the other three.
+        VStack(spacing: 3) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text("Words from ENABLE and SCOWL.")
+                Text("Definitions and etymologies from Wiktionary, CC BY-SA 4.0.")
+                Text(Vocabulary.typeCredit)
+            }
             // Below the type credit, which is where `Game.tsx` puts it, and set
             // apart from the credits by a hair of space rather than by a rule
             // or a heading. The web spends `margin-top: 0.9rem` against a
@@ -54,6 +66,17 @@ struct Colophon: View {
             // face and `.italic()` would render the upright while reading in
             // the source as though the styling had been matched. See
             // `CuteFont.bodyOblique`.
+            //
+            // **Centred, and only this line.** Bea's reason is the whole brief:
+            // "it made it feel more intentional". Left-aligned it reads as the
+            // next item in the list above it; centred it reads as placed.
+            //
+            // The web centres it too, though not by a rule of its own:
+            // `footer.colophon` sets `text-align: center` on everything,
+            // credits included. Matching that here would make the block read as
+            // a poem rather than a credit, so only the dedication moves. The
+            // two surfaces therefore agree on this line and differ on the three
+            // above it, which is deliberate rather than drift.
             Text(Vocabulary.dedication)
                 .font(CuteFont.bodyOblique(11, relativeTo: .caption2))
                 .padding(.top, 8)
