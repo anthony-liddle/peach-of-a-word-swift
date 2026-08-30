@@ -39,6 +39,12 @@ import SwiftUI
 /// is where the web puts its footer, and a credit that interrupts a game is a
 /// credit nobody thanks you for.
 struct Colophon: View {
+    /// Whether the explainer is up. Owned here rather than by `GameModel`,
+    /// because nothing about the game changes while it is open: it is a page of
+    /// prose reached from the credits, not a moment in play like the reveal or
+    /// the completion card, which is why it is not a `GameModel.Moment`.
+    @State private var explaining = false
+
     var body: some View {
         // Two stacks rather than one, so the dedication can be centred over the
         // credits without moving them.
@@ -80,6 +86,26 @@ struct Colophon: View {
             Text(Vocabulary.dedication)
                 .font(CuteFont.bodyOblique(11, relativeTo: .caption2))
                 .padding(.top, 8)
+
+            // The quiet expansion of the colophon, where the web puts it and
+            // for the same reason: this is where a curious person already
+            // looks, and it stays off the play surface.
+            //
+            // It carries no attribution weight. The credits above discharge
+            // that, along with `Data/ATTRIBUTION.md` in the bundle, so the
+            // explainer's links are there because they are interesting. See
+            // `Vocabulary.explainerLinks`.
+            Button { explaining = true } label: {
+                Text(Vocabulary.explainerTrigger)
+                    .font(CuteFont.body(11, relativeTo: .caption2))
+                    .foregroundStyle(Cute.inkSoft)
+                    .underline()
+                    .frame(minHeight: 44)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .padding(.top, 2)
+            .accessibilityHint("Opens an explanation of how words are chosen")
         }
         .font(CuteFont.body(11, relativeTo: .caption2))
         .foregroundStyle(Cute.inkFaint)
@@ -89,7 +115,11 @@ struct Colophon: View {
         // One element to VoiceOver rather than two orphaned fragments, and it
         // says what the lines are for, which "Words from ENABLE and SCOWL" on
         // its own does not.
-        .accessibilityElement(children: .combine)
+        // `.contain` rather than `.combine`, now that the block holds a
+        // control. Combining would fold the button into one flat label and
+        // take its action with it, which is how a tappable thing becomes
+        // unreachable to VoiceOver while still being on screen.
+        .accessibilityElement(children: .contain)
         // The dedication is spoken too. It is quiet, not secret, and the one
         // person it names is as likely to meet it here as on screen.
         .accessibilityLabel(
@@ -97,6 +127,20 @@ struct Colophon: View {
             + "Definitions and etymologies from Wiktionary, CC BY-SA 4.0. "
             + Vocabulary.typeCredit + " " + Vocabulary.dedication
         )
+        #if DEBUG
+        // `-openExplainer 1` opens it without a tap, the same hook shape
+        // `FoundSummary` uses for `-openRung`. Opening a sheet needs a tap and
+        // simctl cannot tap, so the explainer would otherwise be unscreenshottable
+        // and its nested Safari sheet untestable.
+        .onAppear {
+            if UserDefaults.standard.bool(forKey: "openExplainer") { explaining = true }
+        }
+        #endif
+        .sheet(isPresented: $explaining) {
+            HowItWorks { explaining = false }
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+        }
     }
 }
 
