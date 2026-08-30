@@ -132,12 +132,14 @@ struct ContentView: View {
                     CompletionCard(setTotal: setTotal, score: score) { model.moment = nil }
                         .presentationDetents([.medium, .large])
                 case .definition(let word, let category):
-                    DefinitionCard(
+                    // `DefinitionSheet` rather than `DefinitionCard`, because a
+                    // rung sheet now opens the same card and two constructions
+                    // would be free to drift. See `DefinitionSheet`.
+                    DefinitionSheet(
                         word: word,
                         category: category,
                         definition: model.definitions[word]
                     ) { model.moment = nil }
-                        .presentationDetents([.medium, .large])
                 }
             }
             // Medium rather than full, so the board stays visible behind it and
@@ -437,7 +439,8 @@ struct ContentView: View {
         Group {
             if let puzzle = model.puzzle, let standing = model.standing {
                 FoundSummary(puzzle: puzzle, found: model.found,
-                             standing: standing, boardDate: model.boardDate)
+                             standing: standing, boardDate: model.boardDate,
+                             definitions: model.definitions)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
