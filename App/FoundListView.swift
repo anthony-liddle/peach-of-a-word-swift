@@ -194,15 +194,19 @@ struct FoundListView: View {
     /// it renders. It is already built from a puzzle, a word list and a
     /// standing rather than from `GameModel`, and handing it the model to reach
     /// one method would trade that for nothing.
+    /// The glosses, carried through to the summary's rung sheets.
+    var definitions: [String: String] = [:]
     var onSelect: (FoundWord) -> Void = { _ in }
 
     init(puzzle: Puzzle, found: [String], standing: TierStanding,
          boardDate: Date = Date(),
+         definitions: [String: String] = [:],
          onSelect: @escaping (FoundWord) -> Void = { _ in }) {
         self.puzzle = puzzle
         self.found = found
         self.standing = standing
         self.boardDate = boardDate
+        self.definitions = definitions
         self.onSelect = onSelect
         self.words = classifyFound(found, in: puzzle)
     }
@@ -233,18 +237,42 @@ struct FoundListView: View {
             //
             // Together they also sit where the web puts them, immediately above
             // the word groups.
-            VStack(alignment: .leading, spacing: 2) {
+            // The heading, with Share on its trailing edge.
+            //
+            // A section header carrying its own action is the standard iOS
+            // shape, it reclaims a row on a screen where 62pt of chrome was a
+            // project, and it keeps Share reachable without scrolling to it.
+            // It moves an existing pairing rather than inventing one: Share sat
+            // with the summary row before this.
+            HStack(alignment: .firstTextBaseline) {
                 Text(Vocabulary.glossaryTitle)
                     .font(CuteFont.display(20, relativeTo: .title3))
                     .foregroundStyle(Cute.ink)
-                if !found.isEmpty {
-                    Text("\(counted(words.count, "word")) found")
-                        .font(CuteFont.body(13, relativeTo: .footnote))
-                        .foregroundStyle(Cute.inkFaint)
-                        .monospacedDigit()
-                }
+                Spacer(minLength: 8)
+                // Invisible rather than absent before the first find, which is
+                // the argument `FoundSummary` already makes about its own
+                // zeros: a control that appears later is a row that changes
+                // height later.
+                ShareSummaryButton(puzzle: puzzle, found: found,
+                                   standing: standing, boardDate: boardDate)
+                    .opacity(found.isEmpty ? 0 : 1)
+                    .allowsHitTesting(!found.isEmpty)
+                    .accessibilityHidden(found.isEmpty)
             }
-            .accessibilityElement(children: .combine)
+
+            // The counts, no longer pinned above the scroll. See `ContentView`
+            // for the reversal this is.
+            FoundSummary(puzzle: puzzle, found: found, standing: standing,
+                         boardDate: boardDate, definitions: definitions)
+
+            if !found.isEmpty {
+                Text("\(counted(words.count, "word")) found")
+                    .font(CuteFont.body(13, relativeTo: .footnote))
+                    .foregroundStyle(Cute.inkFaint)
+                    .monospacedDigit()
+            }
+
+            bestWord
 
             if found.isEmpty {
                 // The line, and stars around it. This is the screen she sees
@@ -294,7 +322,68 @@ struct FoundListView: View {
                     }
                 }
             }
+            legend
             Colophon()
+        }
+    }
+
+    /// The single highest-scoring find.
+    ///
+    /// Ported from the web's `bestOf`: the highest score wins and a tie goes to
+    /// the earliest found, since its reduce keeps the incumbent on equality.
+    /// The chip is the same one the list below renders, so the mark, the colour
+    /// and the points agree by construction rather than by being copied.
+    @ViewBuilder
+    private var bestWord: some View {
+        if let best = words.reduce(nil, { (b: FoundWord?, w) in
+            b == nil || w.score > b!.score ? w : b
+        }) {
+            HStack(spacing: 8) {
+                Text("Best word")
+                    .font(CuteFont.body(12, weight: "SemiBold", relativeTo: .caption))
+                    .tracking(1.4)
+                    .textCase(.uppercase)
+                    .foregroundStyle(Cute.inkFaint)
+                WordChip(found: best) { onSelect(best) }
+            }
+        }
+    }
+
+    /// What the marks mean.
+    ///
+    /// The app has never had this and the web has always had it, which makes it
+    /// the one item in this pass that adds an element rather than moving one.
+    /// It earns its place because the rung marks are implicitly labelled by the
+    /// tally row above and the other two are not: nothing in the app says what
+    /// the heart or the peach stand for.
+    ///
+    /// Last, after the groups, where the web puts it and where space is
+    /// cheapest: the foot of a scroll region.
+    ///
+    /// `accessibilityHidden`, as the web's is. It is a key to a visual code,
+    /// and every chip it explains already says its own category aloud.
+    private var legend: some View {
+        FlowLayout(horizontalSpacing: 12, verticalSpacing: 6) {
+            Text(Vocabulary.legendCaption)
+                .font(CuteFont.body(11, weight: "SemiBold", relativeTo: .caption2))
+                .tracking(1.2)
+                .textCase(.uppercase)
+            entry(.set, Vocabulary.keyInContainer)
+            entry(.uncommon, "Uncommon")
+            entry(.rare, "Rare")
+            entry(.mythic, "Mythic")
+            entry(.source, Vocabulary.keySourceWord)
+        }
+        .font(CuteFont.body(11, relativeTo: .caption2))
+        .foregroundStyle(Cute.inkFaint)
+        .padding(.top, 10)
+        .accessibilityHidden(true)
+    }
+
+    private func entry(_ category: WordCategory, _ label: String) -> some View {
+        HStack(spacing: 4) {
+            RarityMark(category: category)
+            Text(label)
         }
     }
 

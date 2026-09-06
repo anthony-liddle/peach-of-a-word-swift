@@ -161,6 +161,15 @@ enum Vocabulary {
         ("SCOWL", "https://wordlist.aspell.net/scowl_v1-readme/"),
     ]
 
+    /// The legend's caption and the one label in it that carries the metaphor.
+    ///
+    /// The rung names are shared vocabulary and the source word is called the
+    /// source word on both surfaces; only the set's own name is themed, which
+    /// is why this is the single string here rather than five.
+    static let legendCaption = "Key"
+    static let keyInContainer = "in the \(container)"
+    static let keySourceWord = "source word"
+
     /// The found list's heading, mirroring the web's `glossaryTitle`.
     ///
     /// The app had no heading at all, which is one of the three ways Bea

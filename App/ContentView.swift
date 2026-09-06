@@ -353,10 +353,6 @@ struct ContentView: View {
                 // and they are not the two points to spend.
                 .padding(.top, 8)
 
-            // Pinned, above the scroll rather than inside it.
-            pinnedSummary
-                .padding(.top, 10)
-
             scrollingList
                 // The floor. Without it the list is the flexible element and
                 // absorbs every shortfall, which is how it reached zero height
@@ -394,7 +390,6 @@ struct ContentView: View {
                                feedbackSeq: model.feedbackSeq)
                 TypeCase(model: model, commitOnTouchDown: false)
                 Controls(model: model)
-                pinnedSummary
                 foundList
             }
             .padding(.horizontal, 18)
@@ -440,7 +435,8 @@ struct ContentView: View {
         Group {
             if let puzzle = model.puzzle, let standing = model.standing {
                 FoundListView(puzzle: puzzle, found: model.found,
-                              standing: standing, boardDate: model.boardDate) { word in
+                              standing: standing, boardDate: model.boardDate,
+                              definitions: model.definitions) { word in
                     model.revealFound(word)
                 }
             }
@@ -448,32 +444,31 @@ struct ContentView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    /// The status row, outside the scroll region.
+    /// **The status row is no longer pinned, and that reverses Bea's own
+    /// earlier feedback rather than overruling it.**
     ///
-    /// **Rendered on an empty board too, showing zeros.** It used to be gated on
-    /// `!model.found.isEmpty`, and a row that is absent is a row whose height
-    /// arrives later: on a fresh day the first find inserted the row AND the
-    /// 10pt padding above it, 52.67pt measured on an iPhone 17 at default size,
-    /// which the found list absorbed by dropping its top from 512.00 to 564.67
-    /// at the moment the first word landed. Same defect class as the message
-    /// line and the tier caption, one level up: those two reserved a row that
-    /// could grow, this one hid a row that could appear.
+    /// She asked for it pinned because she missed it when it scrolled away, and
+    /// that was a correction to a call made without her. What changed is the
+    /// list rather than the preference. It was about 160pt then, sitting
+    /// between the rack and the controls; it is 257pt now and bleeds to the
+    /// screen edge, so scrolling to the counts costs less than it did.
     ///
-    /// Zeros rather than reserved blank space, because `FoundSummary` already
-    /// makes that argument about itself: it prints a rung with nothing at it as
-    /// "0 Uncommon" rather than hiding it, so the row cannot grow the first time
-    /// a Rare turns up. Hiding the whole row undid that one level up. A tally
-    /// reading zero is information; 42.67pt of nothing is not.
-    private var pinnedSummary: some View {
-        Group {
-            if let puzzle = model.puzzle, let standing = model.standing {
-                FoundSummary(puzzle: puzzle, found: model.found,
-                             standing: standing, boardDate: model.boardDate,
-                             definitions: model.definitions)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
+    /// It moved because she asked for something else that this was in the way
+    /// of: "I don't feel as accomplished on the app as I do on web when I can't
+    /// see my counts until I share them", and a goal that someone moving
+    /// between the two surfaces recognises where everything is. The web keeps
+    /// the heading, the counts, the best word and Share together above the
+    /// groups. Splitting the counts out to pin them was the app's own
+    /// invention, and it is what made the block unrecognisable.
+    ///
+    /// The same shape as the control reorder: both arrangements are hers, and
+    /// the axis changed rather than the taste.
+    ///
+    /// The argument the old note made still holds and is now made one level
+    /// down, in `FoundSummary` and in the found list's header: a control or a
+    /// row that appears with the first find is a row whose height arrives late,
+    /// so the zeros still print and Share is still invisible rather than
+    /// absent.
 
     /// The scrolling list, with its boundaries faded.
     ///
@@ -496,8 +491,21 @@ struct ContentView: View {
     /// **This is now the bottom-most view, and that is worth a number rather
     /// than a shrug.** Moving the controls up under the rack does not change
     /// how much furniture there is, so the list was expected to measure exactly
-    /// the same and on an iPhone SE it does: 107.5 / 84.5 / 63.5 at L, XL and
+    /// the same and on an iPhone SE it did: 107.5 / 84.5 / 63.5 at L, XL and
     /// XXL, unchanged to the hundredth of a point.
+    ///
+    /// **Those three numbers stopped being true, and are kept as history rather
+    /// than as measurements.** Re-measured on 2026-09-06, before the summary was
+    /// unpinned, the same phone read 97.50 at L, 73.50 at XL, and the fallback
+    /// at XXL: about 10pt shorter at the two sizes that still fitted, and one
+    /// cell already over the line the note was written to protect. Something in
+    /// the intervening week cost that 10pt and it has not been established
+    /// what; it is filed as its own investigation rather than guessed at here.
+    ///
+    /// Recorded because a number in a comment that describes something which
+    /// stopped being true is worse than no number: it is trusted at exactly the
+    /// moment it is wrong, which is the failure this project has spent a month
+    /// cataloguing.
     ///
     /// On an iPhone 13 the frame gained **34.00pt at every size**, and the 34
     /// is not a coincidence: it is the bottom safe-area inset. A scroll view
@@ -549,6 +557,18 @@ struct ContentView: View {
     /// the bottom one, so it is the lower half of one pill, the 7pt between the
     /// rows, and the upper half of the next. Intra-component whitespace, not a
     /// gap in the layout.
+    ///
+    /// **The current matrix, after the summary left the fixed furniture.**
+    /// Measured on an iPhone SE 3 on 2026-09-06 by `LayoutBudget.testSweep`:
+    ///
+    ///   L      FIXED  150.00      XXXL             FIXED  86.50
+    ///   XL     FIXED  130.50      AccessibilityM   fallback
+    ///   XXL    FIXED  113.00      AccessibilityXXXL fallback
+    ///
+    /// Unpinning gave the list roughly 55pt at every size, because the summary
+    /// stopped being furniture the fixed layout had to fit around. XXL and XXXL
+    /// came back from the fallback with it, so the cell that had already
+    /// crossed the line is inside it again by a wide margin.
     private var scrollingList: some View {
         ScrollView {
             // Padding inside the scrolled content, so at rest the fade eats

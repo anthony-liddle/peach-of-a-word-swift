@@ -68,37 +68,19 @@ struct FoundSummary: View {
                 RarityMark(category: .set)
                 Text("\(standing.setFound) of \(counted(standing.setTotal, "word"))")
                     .font(CuteFont.body(15, weight: "SemiBold", relativeTo: .subheadline))
-                    // **A known unmatched colour, pending a decision.** The web
-                    // sets this line in `--good` (`#c42e60`, `Cute.accent`) at
-                    // weight 600, the same pink as the heart beside it; the app
-                    // has always used plain ink here.
-                    //
-                    // Found on 2026-08-29 while matching the three found-list
-                    // differences Bea did raise, and deliberately not changed
-                    // with them: this line lives in the pinned summary, and the
-                    // brief for that work was to leave the pinned row alone.
-                    // Recorded here rather than left to be rediscovered as a
-                    // defect, which is what happened to the four differences
-                    // that pass through this file already.
-                    .foregroundStyle(Cute.ink)
+                    // The pink of the heart beside it, which is the web's
+                    // `--good`. Recorded here as pending on 2026-08-29 and
+                    // settled now: it was left alone then because it lives in
+                    // the summary, and that pass was scoped to leave the
+                    // summary alone. The summary is no longer pinned and parity
+                    // is the brief, so the scope that deferred it is gone.
+                    .foregroundStyle(Cute.accent)
                     .monospacedDigit()
                     // A stable handle for the UI tests. They used to find this
                     // label by its exact text, which embeds the day's set size,
                     // so the query only matched on days whose crown happened to
                     // have that many words. See UITests/LayoutBudget.swift.
                     .accessibilityIdentifier("FoundSummaryCount")
-                Spacer(minLength: 8)
-                // Kept in the layout on an empty board, not removed from it.
-                // The row is pinned above the list and now renders from the
-                // first launch of the day, so anything that comes and goes
-                // inside it is another way for the row to change height. There
-                // is nothing worth sharing before the first find, so the button
-                // is invisible and untappable, and its space is still spent.
-                ShareSummaryButton(puzzle: puzzle, found: found,
-                                   standing: standing, boardDate: boardDate)
-                    .opacity(found.isEmpty ? 0 : 1)
-                    .allowsHitTesting(!found.isEmpty)
-                    .accessibilityHidden(found.isEmpty)
             }
 
             // Three across normally, stacked at accessibility sizes. Side by
