@@ -22,9 +22,14 @@ enum WordCategory: Hashable {
 
     /// Spoken name. The mark carries the category visually and is decorative, so
     /// this is the only place a screen reader can learn it.
+    ///
+    /// The source word's name is read from `Vocabulary` rather than written
+    /// again here. The legend prints the same words for the same mark, and two
+    /// copies would be free to drift the first time either was reworded, which
+    /// is what `AppVocabularyTests` caught the moment the legend was added.
     var spokenName: String {
         switch self {
-        case .source: "source word"
+        case .source: Vocabulary.keySourceWord
         case .set: "on the page"
         case .uncommon: "Uncommon"
         case .rare: "Rare"
