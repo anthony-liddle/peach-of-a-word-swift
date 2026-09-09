@@ -162,7 +162,28 @@ public final class GameStorage {
 
     /// Record that a daily reached the streak rank. Consecutive days extend the
     /// streak, a gap restarts it, and recording the same day twice is a no-op.
-    public func recordDailyCleared(dayIndex: Int) {
+    ///
+    /// **The streak must not move backwards, and `todayIndex` is what stops it.**
+    /// This function assumed the index it was handed was today, which was true
+    /// of every caller until a board could be opened from the archive. Handed a
+    /// July index it compares against `lastClearedDayIndex`, sees a gap, and
+    /// restarts a live seventy-day streak at 1. That is the worst single outcome
+    /// this feature can produce, so the rule is enforced here, in the engine,
+    /// where it runs under `swift test` rather than only where it is called.
+    ///
+    /// **`>= todayIndex - 1` rather than `== todayIndex`, deliberately.** A board
+    /// opened at 23:58 and cleared at 00:01 records under the day it was built
+    /// for, because `storageDayIndex` is captured once when the board is adopted
+    /// and never recomputed while it is in play. By then that day is yesterday.
+    /// It works today, nobody would think to test it, and a strict equality
+    /// guard would silently drop the clear and cost her the day.
+    ///
+    /// The upper bound is the other half. A day that has not happened cannot
+    /// have been cleared, and accepting a future index would additionally freeze
+    /// the streak, since every real day after it then reads as a gap. That is
+    /// the same reasoning `adoptStreak` records for the same reason.
+    public func recordDailyCleared(dayIndex: Int, todayIndex: Int) {
+        guard dayIndex >= todayIndex - 1, dayIndex <= todayIndex else { return }
         var state = read()
         let last = state.streak.lastClearedDayIndex
         if last == dayIndex { return }

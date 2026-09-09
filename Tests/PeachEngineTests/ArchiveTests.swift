@@ -114,3 +114,125 @@ struct ArchiveTests {
         #expect(archiveDayIndices(firstPlayableDayIndex: 173, todayIndex: 172).isEmpty)
     }
 }
+
+/// The two guards that decide whether a past board behaves like a past board.
+///
+/// Both are in the engine rather than in `GameModel` because the app target
+/// compiles no unit tests: everything left in the model is reachable only from a
+/// UI test, and these two are the items most likely to ship looking fine.
+@Suite("archive guards")
+struct ArchiveGuardTests {
+    // MARK: The rollover
+
+    @Test("a live board rolls over when the day has changed")
+    func liveBoardRollsOver() {
+        #expect(shouldRollOver(boardDayIndex: 250, todayIndex: 251, isArchive: false))
+    }
+
+    @Test("a live board on today's day does not roll over")
+    func liveBoardOnTodayStays() {
+        #expect(!shouldRollOver(boardDayIndex: 251, todayIndex: 251, isArchive: false))
+    }
+
+    /// The single most likely bug in the feature. `rollOverIfNewDay` rebuilds
+    /// whenever the board's day differs from today, and an archive board differs
+    /// by definition, so the first foregrounding would replace a July board with
+    /// today's while she was still playing it.
+    @Test("an archive board never rolls over, however old it is")
+    func archiveBoardNeverRollsOver() {
+        #expect(!shouldRollOver(boardDayIndex: 182, todayIndex: 251, isArchive: true),
+                "a foregrounding replaced an archive board with today's")
+        #expect(!shouldRollOver(boardDayIndex: 250, todayIndex: 251, isArchive: true))
+    }
+
+    // MARK: The celebration
+
+    /// `adopt` seeds `completionSeen` from the restored found list. On a day
+    /// whose words have aged out of the fourteen-day window that list is empty,
+    /// so re-completing an already-completed board fires the whole peak again
+    /// while the grid is drawing that day filled.
+    @Test("a day already recorded as a full basket has had its celebration")
+    func completedDayHasBeenSeen() {
+        let done = DayOutcome(reached: DayOutcome.basket, on: 200, web: false)
+        #expect(completionAlreadySeen(outcome: done))
+    }
+
+    @Test("a day cleared but not filled has not had its celebration")
+    func clearedDayHasNotBeenSeen() {
+        let cleared = DayOutcome(reached: DayOutcome.cleared, on: 200, web: false)
+        #expect(!completionAlreadySeen(outcome: cleared))
+    }
+
+    @Test("a day with no record has not had its celebration")
+    func unknownDayHasNotBeenSeen() {
+        #expect(!completionAlreadySeen(outcome: nil))
+    }
+
+    /// The point of the substitution: the outcome remembers what the found list
+    /// is allowed to forget.
+    @Test("a completed day whose words were pruned has still had its celebration")
+    func prunedButCompletedDayHasBeenSeen() {
+        let store = InMemoryStore()
+        let storage = GameStorage(store: store)
+        storage.recordOutcome(
+            dayIndex: 200, DayOutcome(reached: DayOutcome.basket, on: 200, web: false))
+
+        // The words are gone; nothing was ever saved under this day.
+        #expect(storage.loadDayProgress(dayIndex: 200, sourceWord: "motorway") == [])
+        // The outcome is not.
+        #expect(completionAlreadySeen(outcome: storage.outcome(dayIndex: 200)))
+    }
+}
+
+/// The streak guard, which is the rule that must not move backwards.
+@Suite("streak cannot move backwards")
+struct StreakGuardTests {
+    let store = InMemoryStore()
+    var storage: GameStorage { GameStorage(store: store) }
+
+    @Test("clearing today extends the streak as it always did")
+    func todayStillCounts() {
+        storage.recordDailyCleared(dayIndex: 250, todayIndex: 250)
+        storage.recordDailyCleared(dayIndex: 251, todayIndex: 251)
+        #expect(storage.currentStreak(todayIndex: 251) == 2)
+    }
+
+    /// A board opened at 23:58 and cleared at 00:01 records under the day it was
+    /// built for, which is now yesterday. That works today, and a strict
+    /// equality guard would silently break it.
+    @Test("a board finished just after midnight still counts for the day it belongs to")
+    func yesterdayStillCounts() {
+        storage.recordDailyCleared(dayIndex: 250, todayIndex: 250)
+        storage.recordDailyCleared(dayIndex: 251, todayIndex: 252)
+        #expect(storage.currentStreak(todayIndex: 252) == 2,
+                "a clear that landed just after midnight was refused")
+    }
+
+    /// The guard itself. Completing a board from three weeks ago must not
+    /// restart a live seventy-day streak at 1.
+    @Test("clearing a board from weeks ago does not touch the streak")
+    func archiveClearIsRefused() {
+        storage.adoptStreak(count: 70, lastClearedDayIndex: 251, todayIndex: 251)
+        storage.recordDailyCleared(dayIndex: 200, todayIndex: 251)
+        #expect(storage.currentStreak(todayIndex: 251) == 70,
+                "an archive board reset a live streak")
+    }
+
+    /// The assertion here is the consequence, not the reading, and the first
+    /// version of this test got that wrong. Asserting the streak is still 1
+    /// straight after the bogus clear passes either way: with the guard nothing
+    /// was written, and without it `lastCleared` becomes 300 with a count of 1,
+    /// which still reads as 1 today. The defect only shows up the next day.
+    @Test("a day that has not happened yet cannot be cleared")
+    func futureClearIsRefused() {
+        storage.recordDailyCleared(dayIndex: 251, todayIndex: 251)
+        storage.recordDailyCleared(dayIndex: 300, todayIndex: 251)
+
+        // Tomorrow must still extend. If the future index was accepted,
+        // `lastCleared` is 300, tomorrow reads as a gap, and the streak restarts
+        // at 1: the freeze the guard exists to prevent.
+        storage.recordDailyCleared(dayIndex: 252, todayIndex: 252)
+        #expect(storage.currentStreak(todayIndex: 252) == 2,
+                "a future index was accepted, which froze the streak")
+    }
+}

@@ -61,3 +61,39 @@ public func archiveDayIndices(firstPlayableDayIndex: Int, todayIndex: Int) -> [I
     guard firstPlayableDayIndex <= todayIndex else { return [] }
     return Array(firstPlayableDayIndex...todayIndex)
 }
+
+/// Whether the board on screen should be replaced with today's.
+///
+/// **An archive board never rolls over, and that is the single most likely bug
+/// in this feature.** `rollOverIfNewDay` rebuilds whenever the board's day
+/// differs from today, which is correct for every board that existed before the
+/// archive and wrong for every board the archive opens: a past board differs by
+/// definition, so without this the first foregrounding would swap a July board
+/// for today's while it was still being played. The code would look right in
+/// review, because it is right for the only case it was written against.
+public func shouldRollOver(boardDayIndex: Int, todayIndex: Int, isArchive: Bool) -> Bool {
+    guard !isArchive else { return false }
+    return boardDayIndex != todayIndex
+}
+
+/// Whether this day's completion has already been celebrated.
+///
+/// **Read from the stored outcome, never from the restored found list**, and the
+/// substitution is the point rather than an implementation detail.
+///
+/// `GameModel.adopt` used to seed its `completionSeen` flag by recomputing
+/// `isComplete` over the words it had just restored. That is correct only while
+/// a completed day always has its words: the found list is pruned and the
+/// outcome is not, so a board completed in September and reopened after its
+/// words have aged out restores an empty list, seeds `false`, and fires the
+/// whole peak a second time while the calendar is already drawing that day
+/// filled.
+///
+/// **The outcome remembers what the found list is allowed to forget.** That is
+/// the whole reason the two facts are stored separately and pruned on different
+/// schedules, and it is why this reads a different source from the one directly
+/// to hand.
+public func completionAlreadySeen(outcome: DayOutcome?) -> Bool {
+    guard let outcome else { return false }
+    return outcome.reached >= DayOutcome.basket
+}
