@@ -230,6 +230,15 @@ public final class GameStorage {
         state.streak.count = count
         state.streak.lastClearedDayIndex = lastClearedDayIndex
         write(state)
+
+        // Re-arm the expansion. A transfer can land after the app has already
+        // launched and marked the back-fill done, and without this the run she
+        // just handed over would never be expanded into the calendar.
+        var outcomes = readOutcomes()
+        if outcomes.backFilled {
+            outcomes.backFilled = false
+            writeOutcomes(outcomes)
+        }
         return true
     }
 }
@@ -305,12 +314,18 @@ struct OutcomeState: Codable {
 
     var version: Int
     var days: [String: DayOutcome]
+    /// Whether the one-time expansion of a transferred streak run has happened.
+    ///
+    /// Kept here rather than beside the streak so the whole archive, including
+    /// the record of how it was built, lives under one key and moves together.
+    var backFilled: Bool
 
-    static let empty = OutcomeState(version: currentVersion, days: [:])
+    static let empty = OutcomeState(version: currentVersion, days: [:], backFilled: false)
 
-    init(version: Int, days: [String: DayOutcome]) {
+    init(version: Int, days: [String: DayOutcome], backFilled: Bool) {
         self.version = version
         self.days = days
+        self.backFilled = backFilled
     }
 
     /// **Deliberately NOT version-gated, and that is the difference from
@@ -326,6 +341,7 @@ struct OutcomeState: Codable {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         version = c.lenient(.version, Self.currentVersion)
         days = c.lenient(.days, [:])
+        backFilled = c.lenient(.backFilled, false)
     }
 }
 
@@ -387,5 +403,71 @@ extension GameStorage {
             if let day = Int(key) { result[day] = value }
         }
         return result
+    }
+}
+
+extension GameStorage {
+    /// Expand a transferred streak run into one outcome per day it covers. Once.
+    ///
+    /// **Why this exists at all.** A streak is a run-length encoding of cleared
+    /// days: `recordDailyCleared` only increments when `last == dayIndex - 1`, so
+    /// `count: 70, lastClearedDayIndex: L` proves that every day from `L - 69` to
+    /// `L` reached the streak rank. That is seventy days of history the web never
+    /// stored per-day and this app never stored at all, and it is destroyed by
+    /// the first clear after a missed day, when `count` is set back to 1. This
+    /// converts it into something durable before that happens.
+    ///
+    /// **It reads the STORED pair, never `currentStreak(todayIndex:)`.** That
+    /// function returns 0 once the run is dead, and a dead run is still a true
+    /// record of the days it covers. Reading the live value would silently expand
+    /// nothing in exactly the case this was written for.
+    ///
+    /// **It clamps at the first playable day.** A run reaching back past the
+    /// daily epoch would write outcomes for dates that have no board. Bea's
+    /// seventy days start nine days after the epoch, so this is theoretical
+    /// today; it stops being theoretical the moment a run is longer or
+    /// `dailyEpoch` is re-anchored, which `Config.swift` documents as a thing
+    /// that can happen.
+    ///
+    /// **It never overwrites a day that already has an outcome.** A day played
+    /// here carries a richer record than the run can express, and the run can
+    /// only ever claim `cleared`: the web did not record basket completion, so an
+    /// expanded day must not claim it.
+    ///
+    /// - Parameter firstPlayableDayIndex: the daily epoch in storage days. Passed
+    ///   in rather than derived here for the same reason `dayIndex` takes a time
+    ///   zone: the engine does not reach for ambient values.
+    /// - Returns: how many days were written, so a caller can tell whether the
+    ///   expansion actually found anything.
+    @discardableResult
+    public func backFillOutcomesFromStreak(firstPlayableDayIndex: Int) -> Int {
+        var outcomes = readOutcomes()
+        guard !outcomes.backFilled else { return 0 }
+        // Marked done even when there is nothing to expand, so this does not run
+        // on every launch forever. `adoptStreak` re-arms it if a transfer lands
+        // later.
+        outcomes.backFilled = true
+
+        let streak = read().streak
+        guard streak.count > 0, let last = streak.lastClearedDayIndex else {
+            writeOutcomes(outcomes)
+            return 0
+        }
+
+        let firstOfRun = max(firstPlayableDayIndex, last - streak.count + 1)
+        guard firstOfRun <= last else {
+            writeOutcomes(outcomes)
+            return 0
+        }
+
+        var written = 0
+        for day in firstOfRun...last where outcomes.days[String(day)] == nil {
+            outcomes.days[String(day)] = DayOutcome(
+                reached: DayOutcome.cleared, on: day, web: true
+            )
+            written += 1
+        }
+        writeOutcomes(outcomes)
+        return written
     }
 }

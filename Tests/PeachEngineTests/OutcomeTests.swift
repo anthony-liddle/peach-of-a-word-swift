@@ -130,3 +130,131 @@ struct OutcomeTests {
         #expect(blob["version"] as? Int == 1)
     }
 }
+
+/// Expanding a transferred streak run into per-day outcomes.
+///
+/// The run is the only record of seventy cleared days that exists anywhere: the
+/// web never stored per-day completion, and `recordDailyCleared` destroys the run
+/// on the first clear after a miss. This is the one-time conversion of a
+/// perishable encoding into a durable one.
+@Suite("streak back-fill")
+struct BackFillTests {
+    let store = InMemoryStore()
+    var storage: GameStorage { GameStorage(store: store) }
+
+    /// Bea's real numbers, as recorded on 2026-09-09: a run of 70 ending on
+    /// storage day 251, which is 2026-09-09. The daily epoch, 2026-06-23, is
+    /// storage day 173.
+    static let firstPlayable = 173
+    static let today = 251
+
+    @Test("a run is expanded into one outcome per day it covers")
+    func expandsTheRun() {
+        storage.adoptStreak(count: 70, lastClearedDayIndex: Self.today,
+                            todayIndex: Self.today)
+
+        let written = storage.backFillOutcomesFromStreak(
+            firstPlayableDayIndex: Self.firstPlayable)
+
+        #expect(written == 70)
+        // 251 - 69 = 182 is the first day of the run.
+        #expect(storage.outcome(dayIndex: 182)?.reached == DayOutcome.cleared)
+        #expect(storage.outcome(dayIndex: 251)?.reached == DayOutcome.cleared)
+        #expect(storage.outcome(dayIndex: 181) == nil, "the run was expanded one day too far")
+        #expect(storage.allOutcomes().count == 70)
+    }
+
+    @Test("an expanded day says it was played on the web, on its own day")
+    func marksTheDaysAsWeb() {
+        storage.adoptStreak(count: 70, lastClearedDayIndex: Self.today,
+                            todayIndex: Self.today)
+        storage.backFillOutcomesFromStreak(firstPlayableDayIndex: Self.firstPlayable)
+
+        let day = storage.outcome(dayIndex: 200)
+        #expect(day?.web == true)
+        #expect(day?.on == 200, "a web day was recorded as caught up later")
+        // The web never recorded basket completion, so no expanded day may claim it.
+        #expect(day?.reached != DayOutcome.basket)
+    }
+
+    /// The clamp. Theoretical for a 70-day run starting nine days after the
+    /// epoch, and not theoretical the moment a run is longer or `dailyEpoch` is
+    /// re-anchored, which `Config.swift` says can happen.
+    @Test("the back-fill clamps at the first playable day")
+    func clampsAtTheEpoch() {
+        storage.adoptStreak(count: 300, lastClearedDayIndex: Self.today,
+                            todayIndex: Self.today)
+
+        let written = storage.backFillOutcomesFromStreak(
+            firstPlayableDayIndex: Self.firstPlayable)
+
+        // 251 - 173 + 1 = 79 days actually have a board.
+        #expect(written == 79)
+        #expect(storage.outcome(dayIndex: Self.firstPlayable) != nil)
+        #expect(storage.outcome(dayIndex: Self.firstPlayable - 1) == nil,
+                "the back-fill wrote an outcome for a day with no board")
+        #expect(storage.allOutcomes().keys.min() == Self.firstPlayable)
+    }
+
+    /// The whole reason the snapshot note exists. A run that has since died is
+    /// still a true record of the days it covers.
+    @Test("a dead run is still expanded, because its history is still true")
+    func deadRunStillExpands() {
+        storage.adoptStreak(count: 70, lastClearedDayIndex: Self.today,
+                            todayIndex: Self.today)
+        let muchLater = Self.today + 40
+
+        // Dead by the app's own rule, so the meter would show nothing.
+        #expect(storage.currentStreak(todayIndex: muchLater) == 0)
+
+        let written = storage.backFillOutcomesFromStreak(
+            firstPlayableDayIndex: Self.firstPlayable)
+
+        #expect(written == 70, "the back-fill read the live streak instead of the stored pair")
+    }
+
+    @Test("the back-fill runs once, however often it is called")
+    func runsOnce() {
+        storage.adoptStreak(count: 70, lastClearedDayIndex: Self.today,
+                            todayIndex: Self.today)
+        #expect(storage.backFillOutcomesFromStreak(firstPlayableDayIndex: Self.firstPlayable) == 70)
+        #expect(storage.backFillOutcomesFromStreak(firstPlayableDayIndex: Self.firstPlayable) == 0)
+        #expect(storage.allOutcomes().count == 70)
+    }
+
+    @Test("a day already played here keeps its own record")
+    func doesNotOverwriteRealPlay() {
+        storage.recordOutcome(
+            dayIndex: 200, DayOutcome(reached: DayOutcome.basket, on: 200, web: false))
+        storage.adoptStreak(count: 70, lastClearedDayIndex: Self.today,
+                            todayIndex: Self.today)
+
+        storage.backFillOutcomesFromStreak(firstPlayableDayIndex: Self.firstPlayable)
+
+        let day = storage.outcome(dayIndex: 200)
+        #expect(day?.reached == DayOutcome.basket, "the back-fill downgraded a real basket")
+        #expect(day?.web == false, "a day played here was relabelled as a web day")
+    }
+
+    @Test("no streak means nothing to expand")
+    func nothingToExpand() {
+        #expect(storage.backFillOutcomesFromStreak(firstPlayableDayIndex: Self.firstPlayable) == 0)
+        #expect(storage.allOutcomes().isEmpty)
+    }
+
+    /// The ordering problem: a transfer can arrive after the app has already
+    /// launched and marked the back-fill done. Adopting one has to re-arm it, or
+    /// the run she just handed over is never expanded.
+    @Test("adopting a transfer re-arms a back-fill that has already run")
+    func adoptingReArmsTheBackFill() {
+        // First launch, nothing to expand, marked done.
+        #expect(storage.backFillOutcomesFromStreak(firstPlayableDayIndex: Self.firstPlayable) == 0)
+
+        // The transfer lands afterwards.
+        storage.adoptStreak(count: 70, lastClearedDayIndex: Self.today,
+                            todayIndex: Self.today)
+
+        #expect(storage.backFillOutcomesFromStreak(firstPlayableDayIndex: Self.firstPlayable) == 70,
+                "a transfer that arrived after first launch was never expanded")
+    }
+}
