@@ -233,3 +233,159 @@ public final class GameStorage {
         return true
     }
 }
+
+// MARK: - Day outcomes
+
+extension KeyedDecodingContainer {
+    /// Decode a field, or fall back. **Never throws.**
+    ///
+    /// A missing key, a key of the wrong type, and a malformed value all give
+    /// the fallback. `decodeIfPresent` alone covers only the first of those: it
+    /// throws on the other two, and a throw inside a hand-written `init(from:)`
+    /// propagates out and costs the caller the whole value.
+    func lenient<T: Decodable>(_ key: Key, _ fallback: T) -> T {
+        ((try? decodeIfPresent(T.self, forKey: key)) ?? nil) ?? fallback
+    }
+}
+
+/// What happened on one day's board: how far it got, when that happened, and
+/// whether it was earned here or transferred from the web.
+///
+/// **`reached` is an `Int` rather than an enum, deliberately.** An enum with a
+/// raw value throws on a case this build has not heard of, and this is exactly
+/// the field a later build would extend. Read it with `>=` against the constants
+/// below and a rung from the future still reads as at least a full basket,
+/// rather than as nothing at all. That is the opposite of the usual advice in
+/// this package, where `Rung` is an enum precisely so a `switch` over it is
+/// checked; the difference is that a `Rung` is computed and this is read back
+/// off a disk that a newer build may have written.
+public struct DayOutcome: Codable, Equatable, Sendable {
+    /// Opened, and no more. Not written today: the zero-find case was conceded
+    /// rather than given a write on a path that currently never writes. Named
+    /// anyway, so the ladder has its floor.
+    public static let opened = 0
+    /// Reached `streakTierIndex`, the rank that counts toward the streak.
+    public static let cleared = 1
+    /// Every set word found. The peak.
+    public static let basket = 2
+
+    public var reached: Int
+    /// The storage day index on which this was achieved. Equal to the day's own
+    /// index when it was played on the day, greater when it was caught up after.
+    public var on: Int
+    /// True when this came from the web back-fill rather than from play here.
+    /// Such a day may claim `cleared` and never `basket`: the web never recorded
+    /// basket completion, so a missing crown there means "not known".
+    public var web: Bool
+
+    public init(reached: Int, on: Int, web: Bool) {
+        self.reached = reached
+        self.on = on
+        self.web = web
+    }
+
+    /// Every field defaults, and every field is read leniently.
+    ///
+    /// `PersistedState`'s decoder defaults every MISSING field and still loses
+    /// the whole blob to one field that is present and the wrong type, because a
+    /// throwing `decodeIfPresent` propagates out to `read`'s catch. That is a
+    /// narrower guarantee than its own comment claims. This type does not
+    /// inherit it: one bad field costs that field, never the entry.
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        reached = c.lenient(.reached, Self.opened)
+        on = c.lenient(.on, 0)
+        web = c.lenient(.web, false)
+    }
+}
+
+/// The container under the outcomes key.
+struct OutcomeState: Codable {
+    static let currentVersion = 1
+
+    var version: Int
+    var days: [String: DayOutcome]
+
+    static let empty = OutcomeState(version: currentVersion, days: [:])
+
+    init(version: Int, days: [String: DayOutcome]) {
+        self.version = version
+        self.days = days
+    }
+
+    /// **Deliberately NOT version-gated, and that is the difference from
+    /// `PersistedState`.**
+    ///
+    /// `GameStorage.read` discards a blob stamped newer than this build, which
+    /// is right for a value whose shape it cannot guess at. It is wrong here.
+    /// Discarding would throw away the archive on a rollback, which is the exact
+    /// problem the separate key exists to avoid. Fields here are additive only,
+    /// so an older build reads what it understands and `Codable` ignores the
+    /// rest.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        version = c.lenient(.version, Self.currentVersion)
+        days = c.lenient(.days, [:])
+    }
+}
+
+extension GameStorage {
+    /// A second key, and the reason is worth stating where it is used.
+    ///
+    /// The outcomes map is never pruned and is written at most twice a day,
+    /// where the main blob is pruned to fourteen days and is rewritten on every
+    /// find. Keeping them apart means the find path never carries the archive's
+    /// weight, and it means an older build that has never heard of this key
+    /// cannot rewrite it. A TestFlight rollback therefore loses nothing here,
+    /// rather than silently dropping the history on the next find.
+    ///
+    /// It is also why `PersistedState.currentVersion` stays at 1. Adding this
+    /// fact needed no change to that blob at all, and a bump would mean an older
+    /// build reading a newer blob, failing the `version <=` guard in `read`, and
+    /// starting clean: the streak gone, for a field it did not need to
+    /// understand.
+    static let outcomesKey = "peach-of-a-word/outcomes/v1"
+
+    private func readOutcomes() -> OutcomeState {
+        guard let data = store.data(forKey: Self.outcomesKey) else { return .empty }
+        // Corrupt or truncated costs the outcomes and nothing else. The streak
+        // lives under a different key and is not in reach of this failure.
+        return (try? JSONDecoder().decode(OutcomeState.self, from: data)) ?? .empty
+    }
+
+    private func writeOutcomes(_ state: OutcomeState) {
+        var state = state
+        state.version = OutcomeState.currentVersion
+        guard let data = try? JSONEncoder().encode(state) else { return }
+        store.set(data, forKey: Self.outcomesKey)
+    }
+
+    /// What happened on a day, or nil if nothing was ever recorded for it.
+    ///
+    /// Nil means "no record", which the calendar must draw as *before this*
+    /// rather than as *you did not finish*.
+    public func outcome(dayIndex: Int) -> DayOutcome? {
+        readOutcomes().days[String(dayIndex)]
+    }
+
+    /// Record how far a day's board got. **There is no prune here, and that is
+    /// the point of the type existing separately.**
+    public func recordOutcome(dayIndex: Int, _ outcome: DayOutcome) {
+        var state = readOutcomes()
+        state.days[String(dayIndex)] = outcome
+        writeOutcomes(state)
+    }
+
+    /// Every outcome, keyed by day index, for drawing the grid.
+    ///
+    /// Keys that are not integers are dropped rather than crashing: they cannot
+    /// be produced by this code, and a hand-edited or foreign blob is not worth
+    /// a trap.
+    public func allOutcomes() -> [Int: DayOutcome] {
+        var result: [Int: DayOutcome] = [:]
+        for (key, value) in readOutcomes().days {
+            if let day = Int(key) { result[day] = value }
+        }
+        return result
+    }
+}
