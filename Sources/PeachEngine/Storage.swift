@@ -269,10 +269,18 @@ extension KeyedDecodingContainer {
 /// checked; the difference is that a `Rung` is computed and this is read back
 /// off a disk that a newer build may have written.
 public struct DayOutcome: Codable, Equatable, Sendable {
-    /// Opened, and no more. Not written today: the zero-find case was conceded
-    /// rather than given a write on a path that currently never writes. Named
-    /// anyway, so the ladder has its floor.
-    public static let opened = 0
+    /// Found at least one word, and did not reach the rank that counts.
+    ///
+    /// **This is "Incomplete" as it was deliberately narrowed.** The state the
+    /// calendar wanted was "opened, not completed", and a board opened and
+    /// abandoned with no finds leaves no trace at all: `foundDidChange` is the
+    /// only writer of persisted state and is reached only from a successful
+    /// find. Writing on open would have put an exception in the property that
+    /// taps, delete, clear and shuffle never write, for a case that is rare and
+    /// nearly always indistinguishable from never having opened the board. So
+    /// the state was conceded and redefined, and a zero-find day reads as
+    /// "No record" rather than as "you did not finish".
+    public static let played = 0
     /// Reached `streakTierIndex`, the rank that counts toward the streak.
     public static let cleared = 1
     /// Every set word found. The peak.
@@ -302,7 +310,7 @@ public struct DayOutcome: Codable, Equatable, Sendable {
     /// inherit it: one bad field costs that field, never the entry.
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
-        reached = c.lenient(.reached, Self.opened)
+        reached = c.lenient(.reached, Self.played)
         on = c.lenient(.on, 0)
         web = c.lenient(.web, false)
     }

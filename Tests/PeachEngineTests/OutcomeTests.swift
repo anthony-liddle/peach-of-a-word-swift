@@ -93,7 +93,7 @@ struct OutcomeTests {
 
         let out = storage.outcome(dayIndex: 200)
         #expect(out != nil, "one bad field discarded the whole entry")
-        #expect(out?.reached == DayOutcome.opened, "the bad field did not default")
+        #expect(out?.reached == DayOutcome.played, "the bad field did not default")
         #expect(out?.on == 251, "a good field beside a bad one was lost")
         #expect(out?.web == true)
     }
