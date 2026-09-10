@@ -18,8 +18,14 @@ import PeachEngine
 ///
 ///   still on the tree  #FFF4EE  L* 96.9  faint ink  5.52:1
 ///   started            #FFD9C8  L* 89.4  ink        6.27:1   step  7.5
-///   finished           #ECB5C1  L* 78.8  ink        4.67:1   step 10.6
-///   basket full        #C42E60  L* 45.0  white      5.38:1   step 33.8
+///   finished           #ECB5C1  L* 78.9  ink        4.68:1   step 10.5
+///   basket full        #C42E60  L* 45.0  white      5.38:1   step 33.9
+///
+/// Those are the colours the app actually renders, sampled from a
+/// `simctl io screenshot` PNG rather than computed from the blend. The two
+/// differ: the blend is a float and the frame buffer is eight bits a channel,
+/// which moves finished by a tenth of a point of L*. Small, and the wrong
+/// direction to guess in.
 ///
 /// **L*, not relative luminance, and the difference is not pedantry.** An
 /// earlier version of this comment gave the gaps as 0.17, 0.21 and 0.40 and
@@ -33,12 +39,12 @@ import PeachEngine
 /// L* 77.6 or lighter to carry `Cute.ink` at 4.5:1, and L* 49.9 or darker to
 /// carry white. Nothing passes between those two, and that gap is exactly where
 /// a mid pink lives. So there is no mid fill available at all: finished sits at
-/// 78.8, the darkest pink ink can still carry, one point inside the ceiling.
+/// 78.9, the darkest pink ink can still carry, one point inside the ceiling.
 /// The design this came from asked for "mid pink, white number", which has no
 /// solution rather than a difficult one.
 ///
 /// **The weakest greyscale pair is Started against Still on the tree**, 7.5
-/// points of L* apart. Accepted deliberately: for the player this is built for,
+/// points of L* apart, 246 against 225 in eight-bit grey. Accepted deliberately: for the player this is built for,
 /// who finishes nearly every day, Started is the rarest state on the calendar.
 /// Hue moves as well, paper to peach to pink to deep pink, but it is
 /// reinforcement rather than the signal.
