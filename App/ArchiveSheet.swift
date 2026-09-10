@@ -139,8 +139,21 @@ struct ArchiveSheet: View {
                     .contentMargins(.bottom, ArchiveCellFace.ringOutset, for: .scrollContent)
                     .defaultScrollAnchor(.bottom)
                     .task {
-                        guard let today = days.first(where: { $0.isToday })?.day else { return }
                         await Task.yield()
+                        #if DEBUG
+                        // `-archiveTop 1` opens at the oldest end instead.
+                        //
+                        // The same argument as `-openArchive` and `-scrollBottom`:
+                        // simctl cannot scroll, so a view that can only be reached
+                        // by a finger can only be reasoned about. This is how the
+                        // June section reaches a screenshot.
+                        if UserDefaults.standard.bool(forKey: "archiveTop"),
+                           let first = days.first?.day {
+                            scroller.scrollTo(first, anchor: .top)
+                            return
+                        }
+                        #endif
+                        guard let today = days.first(where: { $0.isToday })?.day else { return }
                         scroller.scrollTo(today, anchor: .bottom)
                     }
                 }
