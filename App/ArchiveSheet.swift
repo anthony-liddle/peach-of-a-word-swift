@@ -40,10 +40,13 @@ struct ArchiveSheet: View {
     let onPick: (Int) -> Void
     let onClose: () -> Void
 
-    /// The cell the layout would like. What it gets is this or whatever fits,
-    /// whichever is smaller: see `cellSize`.
-    @ScaledMetric(relativeTo: .body) private var idealCell: CGFloat = 30
-    @ScaledMetric(relativeTo: .body) private var gap: CGFloat = 5
+    /// The space between cells. **Fixed, not scaled, and that is deliberate.**
+    ///
+    /// A scaled gap does not make the grid more legible at large text sizes: the
+    /// column count is fixed at seven, so every point the gap grows is a point
+    /// taken off the cells. At AX5 on an iPhone SE 3 it took them to 36.5, under
+    /// the 44pt tap target, which is the opposite of what scaling it was for.
+    private let gap: CGFloat = 5
 
     private let gutter: CGFloat = 18
 
@@ -118,22 +121,31 @@ struct ArchiveSheet: View {
         .background(Cute.paper.ignoresSafeArea())
     }
 
-    /// The cell size, capped to what the width can actually hold.
+    /// The cell size: the column, divided seven ways.
     ///
-    /// A `@ScaledMetric` alone overflows: seven cells of 30pt grow past 90pt
-    /// each at AX5, which needs roughly 628 points on a 375 point screen, and
-    /// the sheet slides sideways taking its title and its way out with it. That
-    /// was measured, not predicted. Capping is the same lesson `ContentView`
-    /// records about `.adaptive`, which negotiated and negotiated wrong: decide
-    /// on the constraint that actually binds.
+    /// **The width drives at every size, and it used to drive at almost none.**
+    /// This read `min(idealCell, available / 7)` with `idealCell` a 30pt
+    /// `@ScaledMetric`, added to stop the grid overflowing at accessibility
+    /// sizes. It did stop that, and it also won everywhere else: below the
+    /// accessibility range the width never binds, so every phone drew a 30pt
+    /// cell. Measured on an iPhone SE 3, 30.00 by 30.00 at default against a
+    /// 44pt tap target, in a grid 240pt wide inside a 339pt column. A cap
+    /// written for one end of the range was being applied across all of it.
     ///
-    /// The numbers stop growing with the text at the top of the range, which is
-    /// a real cost and a smaller one than a sheet nobody can read or leave.
-    /// Accessibility sizes probably want a different shape entirely rather than
-    /// a squeezed grid, and that is its own question rather than this one.
+    /// Dividing the column is the rule the cap was standing in for, and it
+    /// cannot overflow by construction. Measured after: 44.14 on an SE 3 at
+    /// every text size, 46.29 on a 390pt phone.
+    ///
+    /// The floor stays for the pathological case of a container narrower than
+    /// anything Apple ships.
+    ///
+    /// Accessibility sizes now get a cell of the same size as everywhere else
+    /// with a number that does not scale past it, which is a capped grid by
+    /// another name. That remains a decision rather than an omission: a real
+    /// treatment is a second layout for a case nobody has reported.
     private func cellSize(in width: CGFloat) -> CGFloat {
         let available = width - gutter * 2 - gap * 6
-        return max(18, min(idealCell, available / 7))
+        return max(18, available / 7)
     }
 
     // MARK: The top
