@@ -258,3 +258,41 @@ struct BackFillTests {
                 "a transfer that arrived after first launch was never expanded")
     }
 }
+
+/// Replacing the whole outcome map at once.
+///
+/// Written because a seeded calendar that merges with whatever was already on
+/// the device is a picture you cannot trust: two cells meant to be empty came
+/// back carrying values from a previous seed, and the only reason that was
+/// caught is that the render was checked against the spec cell by cell.
+@Suite("replacing outcomes")
+struct ReplaceOutcomesTests {
+    let store = InMemoryStore()
+    var storage: GameStorage { GameStorage(store: store) }
+
+    @Test("replacing drops everything that was there before")
+    func replaceIsNotAMerge() {
+        storage.recordOutcome(dayIndex: 10, DayOutcome(reached: DayOutcome.basket, on: 10, web: false))
+        storage.recordOutcome(dayIndex: 11, DayOutcome(reached: DayOutcome.cleared, on: 11, web: false))
+
+        storage.replaceOutcomes([20: DayOutcome(reached: DayOutcome.played, on: 20, web: false)])
+
+        #expect(storage.outcome(dayIndex: 10) == nil, "a stale outcome survived a replace")
+        #expect(storage.outcome(dayIndex: 11) == nil)
+        #expect(storage.outcome(dayIndex: 20)?.reached == DayOutcome.played)
+        #expect(storage.allOutcomes().count == 1)
+    }
+
+    /// The back-fill marker is a fact about history, not one of the outcomes, so
+    /// replacing the map must not re-arm an expansion that already ran.
+    @Test("replacing does not re-arm the back-fill")
+    func replaceKeepsTheBackFillMarker() {
+        storage.adoptStreak(count: 5, lastClearedDayIndex: 251, todayIndex: 251)
+        #expect(storage.backFillOutcomesFromStreak(firstPlayableDayIndex: 173) == 5)
+
+        storage.replaceOutcomes([:])
+
+        #expect(storage.backFillOutcomesFromStreak(firstPlayableDayIndex: 173) == 0,
+                "replacing the map made the back-fill run a second time")
+    }
+}

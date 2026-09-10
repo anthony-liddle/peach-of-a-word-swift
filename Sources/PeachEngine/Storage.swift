@@ -421,6 +421,25 @@ extension GameStorage {
         writeOutcomes(state)
     }
 
+    /// Replace the whole map, keeping the back-fill marker.
+    ///
+    /// **A replace, deliberately, not a merge.** The one caller that wants this
+    /// is putting a known history in place, and merging would leave whatever was
+    /// there before showing through: a seeded calendar came back with two cells
+    /// that were meant to be empty carrying values from an earlier seed, and it
+    /// was only caught by checking the render against the spec cell by cell.
+    ///
+    /// The marker survives because it records something about the streak
+    /// expansion rather than about any day, and re-arming it here would make a
+    /// dead run expand a second time over the map that just replaced it.
+    public func replaceOutcomes(_ outcomes: [Int: DayOutcome]) {
+        var state = readOutcomes()
+        state.days = Dictionary(
+            uniqueKeysWithValues: outcomes.map { (String($0.key), $0.value) }
+        )
+        writeOutcomes(state)
+    }
+
     /// Every outcome, keyed by day index, for drawing the grid.
     ///
     /// Keys that are not integers are dropped rather than crashing: they cannot

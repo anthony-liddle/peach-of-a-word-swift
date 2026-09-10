@@ -557,6 +557,16 @@ final class GameModel {
                 submitTyped()
             }
         }
+        // `-seedArchive showcase` fills the calendar so it can be looked at.
+        //
+        // Seeding the outcome map directly rather than playing boards, because
+        // the alternative is seventy-nine loads of the word lists and seventy-
+        // nine completed racks to produce a picture. The outcome map IS the
+        // archive's whole state, so writing it is not a shortcut around the
+        // feature, it is the feature's input.
+        if let spec = UserDefaults.standard.string(forKey: "seedArchive") {
+            seedArchive(spec)
+        }
         // `-tapWords motorway,tram` goes through the TILE path: each letter is
         // resolved to a specific unused tile id and placed, exactly as tapping
         // would. This is what verifies duplicate-letter handling headlessly,
@@ -1051,6 +1061,63 @@ final class GameModel {
     func returnToToday() async {
         await openArchiveDay(storageDay: Self.todayStorageIndex)
     }
+
+    #if DEBUG
+    /// Fill the calendar with a history worth looking at.
+    ///
+    /// **`showcase` is shaped like Bea's, not like a swatch sheet.** Seventy
+    /// consecutive transferred days and then a short tail of days played here,
+    /// because a long stretch of one state is what her calendar actually is and
+    /// the question worth asking of it is whether that reads as achievement or
+    /// as a wall. A grid with one of each state evenly spaced would answer a
+    /// question nobody has.
+    ///
+    /// Everything is written straight into the outcome map. That is not a
+    /// shortcut past the feature: the map is the feature's entire persisted
+    /// state, and the alternative is completing seventy-nine racks to produce a
+    /// picture.
+    func seedArchive(_ spec: String) {
+        guard spec == "showcase" else { return }
+        let first = Self.firstPlayableStorageIndex
+        let today = Self.todayStorageIndex
+        guard today - first >= 9 else { return }
+
+        // Built whole and written once, so the seed is authoritative. Adding to
+        // whatever is already on the device produced a calendar with two cells
+        // that were meant to be empty showing an earlier seed's values, which is
+        // a picture that lies about the thing it exists to let you look at.
+        var seeded: [Int: DayOutcome] = [:]
+
+        // The transferred run: cleared, never a basket, because the web never
+        // recorded basket completion and the back-fill cannot invent it.
+        let runEnd = today - 9
+        for day in max(first, runEnd - 69)...runEnd {
+            seeded[day] = DayOutcome(reached: DayOutcome.cleared, on: day, web: true)
+        }
+
+        // The tail, played here. One of each remaining state, adjacent, so they
+        // are judged against each other rather than one at a time.
+        let tail: [(offset: Int, reached: Int, caughtUpLater: Bool)] = [
+            (8, DayOutcome.played, false),    // started, below the rank
+            (6, DayOutcome.cleared, false),   // finished on the day
+            (5, DayOutcome.basket, false),    // basket on the day
+            (4, DayOutcome.cleared, true),    // finished after the day
+            (3, DayOutcome.basket, true),     // basket after the day
+            (1, DayOutcome.cleared, false),   // finished on the day
+        ]
+        for entry in tail {
+            let day = today - entry.offset
+            seeded[day] = DayOutcome(
+                reached: entry.reached,
+                on: entry.caughtUpLater ? today : day,
+                web: false
+            )
+        }
+        storage.replaceOutcomes(seeded)
+        // Offsets 7, 2 and 0 are deliberately left unwritten: two gaps and
+        // today itself, so "no record" and the today ring are both on screen.
+    }
+    #endif
 
     /// A small JSON dump beside load_ms.txt, so relaunch and rollover checks can
     /// be scripted with `simctl get_app_container` rather than read off a
