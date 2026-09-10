@@ -549,15 +549,12 @@ final class GameModel {
     /// which is the standard trick for this.
     private func runLaunchArguments() {
         #if DEBUG
-        // `-guesses a,b,c` goes through the typed path, so arbitrary strings
-        // (including ones the rack cannot spell) can still be tested.
-        if let raw = UserDefaults.standard.string(forKey: "guesses") {
-            for word in raw.split(separator: ",") {
-                guess = String(word)
-                submitTyped()
-            }
-        }
         // `-seedArchive showcase` fills the calendar so it can be looked at.
+        //
+        // Runs before the guesses, and the order is load-bearing: the seed
+        // replaces the whole outcome map, so a find recorded before it is
+        // wiped by it. Seeding the world and then playing in it is also the
+        // only order that means anything.
         //
         // Seeding the outcome map directly rather than playing boards, because
         // the alternative is seventy-nine loads of the word lists and seventy-
@@ -575,6 +572,14 @@ final class GameModel {
         let back = UserDefaults.standard.integer(forKey: "archiveDay")
         if back > 0 {
             Task { await self.openArchiveDay(storageDay: Self.todayStorageIndex - back) }
+        }
+        // `-guesses a,b,c` goes through the typed path, so arbitrary strings
+        // (including ones the rack cannot spell) can still be tested.
+        if let raw = UserDefaults.standard.string(forKey: "guesses") {
+            for word in raw.split(separator: ",") {
+                guess = String(word)
+                submitTyped()
+            }
         }
         // `-tapWords motorway,tram` goes through the TILE path: each letter is
         // resolved to a specific unused tile id and placed, exactly as tapping
