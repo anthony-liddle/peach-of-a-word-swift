@@ -40,7 +40,7 @@ final class ArchiveEntry: XCTestCase {
     /// `LayoutBudget` records that trap after being caught by it.
     func testAPastDayOpensItsOwnBoard() {
         let app = launched()
-        XCTAssertFalse(app.staticTexts["ArchiveDateChip"].exists,
+        XCTAssertFalse(app.staticTexts["ArchiveDateRow"].exists,
                        "today's board is claiming to be an archive board")
 
         app.buttons["Past days"].firstMatch.tap()
@@ -65,7 +65,7 @@ final class ArchiveEntry: XCTestCase {
         }
         past.tap()
 
-        XCTAssertTrue(app.staticTexts["ArchiveDateChip"].waitForExistence(timeout: 20),
+        XCTAssertTrue(app.staticTexts["ArchiveDateRow"].waitForExistence(timeout: 20),
                       "tapping a past day did not open its board")
     }
 
@@ -76,10 +76,16 @@ final class ArchiveEntry: XCTestCase {
         app.buttons["Past days"].firstMatch.tap()
         XCTAssertTrue(app.buttons["Back to the basket"].waitForExistence(timeout: 10))
 
+        // The grid runs to the end of the current month now, so days after
+        // today are drawn rather than absent: that is the seventh state, and it
+        // had nowhere to appear while the range stopped at today. Drawn is not
+        // the same as offered, and this asserts the difference.
         let notYet = app.buttons.matching(
             NSPredicate(format: "label CONTAINS %@", "Not yet")
         )
-        XCTAssertEqual(notYet.count, 0,
+        XCTAssertGreaterThan(notYet.count, 0,
+                             "no future day was drawn, so the seventh state is unreachable")
+        XCTAssertFalse(notYet.element(boundBy: 0).isEnabled,
                        "the archive offered a day that has not happened yet")
     }
 }

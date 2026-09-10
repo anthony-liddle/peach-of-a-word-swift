@@ -462,7 +462,8 @@ struct ContentView: View {
                     streak: model.streak,
                     // Nil for the live daily, so the caption keeps the streak.
                     archiveDate: model.isArchiveBoard ? model.boardDate : nil,
-                    onOpenArchive: { showingArchive = true }
+                    onOpenArchive: { showingArchive = true },
+                    onReturnToToday: { Task { await model.returnToToday() } }
                 )
             }
         }

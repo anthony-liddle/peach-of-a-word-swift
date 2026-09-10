@@ -238,8 +238,13 @@ enum Vocabulary {
     static let markOnTheWeb = "played on the web"
     static let markToday = "today"
 
-    /// Shown under the grid, because a badge nobody can decode is decoration.
-    static let archiveLegend = "A ring is a finished day, a filled square is a full \(container), and a dashed edge means it was caught up after the day."
+    /// The way back from a past board.
+    ///
+    /// Text rather than an icon, because a date is information and this is the
+    /// action, and the two sat as two calendar glyphs in the same row before:
+    /// one beside the points and one beside the date, two affordances for one
+    /// thing to do.
+    static let backToToday = "Back to today"
 
     /// The completion card's one line.
     static let completionLine = "Every common word these letters can grow, picked."

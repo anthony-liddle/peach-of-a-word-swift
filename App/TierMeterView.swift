@@ -23,6 +23,9 @@ struct TierMeterView: View {
     /// Opens the calendar of past days.
     var onOpenArchive: () -> Void = {}
 
+    /// Leaves a past board for the live daily.
+    var onReturnToToday: () -> Void = {}
+
     /// Off-page points can push the score past reachable. The bar fills to full
     /// and the named rank caps at the top; the overflow is the climb toward the
     /// completion peak, which this bar does not measure.
@@ -72,7 +75,12 @@ struct TierMeterView: View {
                 Text("\(percent)%")
                     .monospacedDigit()
                 Group {
-                    if let next = standing.next {
+                    if archiveDate != nil {
+                        // Yields. Three tenants do not fit one reserved
+                        // line at XXXL, and this is the one the bar
+                        // directly above already says.
+                        EmptyView()
+                    } else if let next = standing.next {
                         Text("Next: \(Vocabulary.tierNames[next.index]) at \(Int((next.threshold * 100).rounded()))%")
                     } else {
                         // "Top rank" is enough. The explanation that the full
@@ -83,16 +91,32 @@ struct TierMeterView: View {
                 }
                 Spacer(minLength: 4)
                 if let archiveDate {
-                    HStack(spacing: 3) {
-                        Image(systemName: "calendar")
-                        Text(archiveDate, format: .dateTime.month(.abbreviated).day())
+                    // The date and the way back live in the caption's own row.
+                    //
+                    // **A row of their own was built first, then measured out of
+                    // existence.** `LayoutBudget.testArchiveSweep` priced it at
+                    // 24.5, 27.5 and 22.5 points on an iPhone SE 3, taking the
+                    // list from 150.00 to 125.50 at L and from 86.50 at XXXL
+                    // into the scrolling fallback. XXXL has about sixteen points
+                    // of slack and one line of text at that size already costs
+                    // sixteen, so a second text row does not fit on that phone
+                    // at all: the shape asked for does not exist there.
+                    //
+                    // This row is reserved height already paid for, and on an
+                    // archive board its other two tenants are idle: a streak has
+                    // nothing to do with a past board, and the next rank is
+                    // legible from the bar directly above. So the date and the
+                    // way back take space rather than adding it, and the fixed
+                    // layout keeps every size it had.
+                    Text(archiveDate, format: .dateTime.weekday(.abbreviated)
+                        .day().month(.abbreviated))
+                        .accessibilityIdentifier("ArchiveDateRow")
+                    Spacer(minLength: 6)
+                    Button(action: onReturnToToday) {
+                        Text(Vocabulary.backToToday)
+                            .foregroundStyle(Cute.accentDeep)
                     }
-                    .foregroundStyle(Cute.accentDeep)
-                    // Found by identifier, never by the date it prints: the
-                    // archive's dates move every day and a test that matches the
-                    // string passes on one day in seventy. `LayoutBudget` has the
-                    // same note for the same reason.
-                    .accessibilityIdentifier("ArchiveDateChip")
+                    .buttonStyle(.plain)
                 } else if streak > 0 {
                     // A flame and a number said nothing about what it counted.
                     // The word is short enough to just print.

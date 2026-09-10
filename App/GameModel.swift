@@ -567,6 +567,15 @@ final class GameModel {
         if let spec = UserDefaults.standard.string(forKey: "seedArchive") {
             seedArchive(spec)
         }
+        // `-archiveDay 7` opens the board from seven days ago at launch.
+        //
+        // The board itself cannot be reached without a tap, and the meter grows
+        // a row on an archive board, so without this the layout budget for that
+        // row could only be reasoned about. Same argument as `-revealCard`.
+        let back = UserDefaults.standard.integer(forKey: "archiveDay")
+        if back > 0 {
+            Task { await self.openArchiveDay(storageDay: Self.todayStorageIndex - back) }
+        }
         // `-tapWords motorway,tram` goes through the TILE path: each letter is
         // resolved to a specific unused tile id and placed, exactly as tapping
         // would. This is what verifies duplicate-letter handling headlessly,
@@ -1013,9 +1022,25 @@ final class GameModel {
     func archiveDays() -> [ArchiveDay] {
         let outcomes = storage.allOutcomes()
         let today = Self.todayStorageIndex
-        return archiveDayIndices(
+        var indices = archiveDayIndices(
             firstPlayableDayIndex: Self.firstPlayableStorageIndex, todayIndex: today
-        ).map { day in
+        )
+
+        // Run on to the end of the month containing today.
+        //
+        // A calendar that stops mid-week is not a calendar, and the seventh
+        // state had nowhere to appear: `archiveDayIndices` ends at today, so
+        // nothing was ever handed to `dayMark` that could come back `.notYet`.
+        // The refusals are unchanged; these days are drawn and inert.
+        let calendar = Foundation.Calendar.current
+        let todayDate = Self.date(forStorageDay: today)
+        if let month = calendar.range(of: .day, in: .month, for: todayDate),
+           let dayOfMonth = calendar.dateComponents([.day], from: todayDate).day {
+            indices += (1...max(1, month.count - dayOfMonth)).map { today + $0 }
+                .filter { $0 > today }
+        }
+
+        return indices.map { day in
             ArchiveDay(
                 day: day,
                 date: Self.date(forStorageDay: day),
