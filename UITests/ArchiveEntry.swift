@@ -58,7 +58,7 @@ final class ArchiveEntry: XCTestCase {
         let past = app.buttons
             .matching(NSPredicate(
                 format: "label CONTAINS %@ AND NOT (label CONTAINS %@)",
-                "Not played", "today"))
+                "Still on the tree", "today"))
             .element(boundBy: 0)
         guard past.waitForExistence(timeout: 10) else {
             return XCTFail("the calendar drew no playable past day")

@@ -228,7 +228,17 @@ enum Vocabulary {
 
     /// The six states, as a player reads them. Also the VoiceOver text, so the
     /// screen and the announcement cannot say different things.
-    static let markNoRecord = "Not played"
+    /// An empty past day.
+    ///
+    /// **"Not played" claimed a fact the app does not have.** The empty cells on
+    /// Bea's calendar are the days before her transferred run, and she may well
+    /// have played every one of them on the web: the transfer carries two bits
+    /// and only one survived. Saying "not played" about those is the same
+    /// mistake as marking transferred days as lesser, from the other direction.
+    ///
+    /// The boards are still there and still playable, so this says the thing
+    /// that is true of every empty cell regardless of what happened on the web.
+    static let markNoRecord = "Still on the tree"
     static let markIncomplete = "Started"
     static let markCleared = "Finished"
     static let markBasket = "\(containerCapitalized) full"

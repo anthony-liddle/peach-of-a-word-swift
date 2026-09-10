@@ -396,17 +396,18 @@ struct ArchiveCellFace: View {
         }
     }
 
-    private var showsHeart: Bool {
-        if case .basket = mark { return true }
-        return false
-    }
-
     private var caughtUpLater: Bool {
         switch mark {
         case .cleared(let onTheDay, _), .basket(let onTheDay): !onTheDay
         default: false
         }
     }
+
+    private var showsHeart: Bool {
+        if case .basket = mark { return true }
+        return false
+    }
+
 }
 
 /// One cell, and whether it can be opened.
