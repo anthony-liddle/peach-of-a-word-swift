@@ -191,9 +191,23 @@ struct TierMeterView: View {
     /// points to spare, on the cell the source already calls one small
     /// regression away from falling back.
     ///
-    /// Drawn as an overlay instead. The meter is at least 60pt tall, so a 44pt
-    /// box anchored to its top trailing corner adds no height at all, and the
-    /// row above reserves the width so nothing is drawn over the points total.
+    /// Drawn as an overlay instead, and the overlay adds no height wherever it
+    /// is anchored, which is the property worth keeping.
+    ///
+    /// **It hangs off the points total, not off the meter's corner, and that
+    /// moved once.** Anchored to the corner, a 44pt box centres its glyph 22pt
+    /// down from the meter's top, where the row's text centres near 13: the
+    /// glyph sat 9.25pt below the points label and its box lay across the track.
+    /// Anchoring to the row got that to 1.25pt and no further, because the row
+    /// baseline-aligns an 18pt rank label with a 15pt points total and the row's
+    /// centre is neither of theirs. On the label itself it is exact at every
+    /// text size by construction, measured at +0.25pt at L and at XXXL.
+    ///
+    /// The row still reserves the width, so nothing is drawn over the points
+    /// total. Measured off a screenshot on an iPhone SE 3, the drawn glyph
+    /// clears the track by 9.00pt at L and 10.50pt at XXXL, and clears the
+    /// points total by 6.00pt and 14.00pt. The 44pt hit box does lie across the
+    /// track, which is not interactive and is the whole point of the overlay.
     private var archiveButton: some View {
         Button(action: onOpenArchive) {
             Image(systemName: "calendar")
