@@ -11,18 +11,37 @@ import PeachEngine
 /// ones, and seventy transferred days in a row read as one texture rather than
 /// as seventy days of achievement.
 ///
-/// The fills are a luminance ramp, measured rather than picked. Each fill is
-/// composited over the sheet's paper and checked against the number it carries:
+/// The fills are a lightness ramp, measured rather than picked. Each fill is
+/// composited over the sheet's paper, then reported in CIE L*, which is the
+/// scale that matches how large a step looks, alongside the contrast ratio for
+/// the number it carries:
 ///
-///   no record   #FFF4EE  lum 0.921   faint ink  5.52:1
-///   played      #FFD9C8  lum 0.751   ink        6.27:1
-///   finished    #ECB5C1  lum 0.546   ink        4.67:1
-///   basket      #C42E60  lum 0.145   white      5.38:1
+///   still on the tree  #FFF4EE  L* 96.9  faint ink  5.52:1
+///   started            #FFD9C8  L* 89.4  ink        6.27:1   step  7.5
+///   finished           #ECB5C1  L* 78.8  ink        4.67:1   step 10.6
+///   basket full        #C42E60  L* 45.0  white      5.38:1   step 33.8
 ///
-/// Every step clears 4.5:1 for its own number, and the luminance falls
-/// monotonically with gaps of 0.17, 0.21 and 0.40, which is what makes the grid
-/// survive being desaturated. Hue moves as well, peach to pink to deep pink, but
-/// it is reinforcement rather than the signal.
+/// **L*, not relative luminance, and the difference is not pedantry.** An
+/// earlier version of this comment gave the gaps as 0.17, 0.21 and 0.40 and
+/// said that was what made the grid survive desaturation. Those were relative
+/// luminance, which is linear light: exactly right for the contrast ratios in
+/// the right-hand column and wrong for the question the sentence was answering,
+/// because a step in linear light is not a step the eye sees as that size. A
+/// real number measuring the wrong thing.
+///
+/// **Why finished sits where it does, so nobody moves it.** A fill has to be
+/// L* 77.6 or lighter to carry `Cute.ink` at 4.5:1, and L* 49.9 or darker to
+/// carry white. Nothing passes between those two, and that gap is exactly where
+/// a mid pink lives. So there is no mid fill available at all: finished sits at
+/// 78.8, the darkest pink ink can still carry, one point inside the ceiling.
+/// The design this came from asked for "mid pink, white number", which has no
+/// solution rather than a difficult one.
+///
+/// **The weakest greyscale pair is Started against Still on the tree**, 7.5
+/// points of L* apart. Accepted deliberately: for the player this is built for,
+/// who finishes nearly every day, Started is the rarest state on the calendar.
+/// Hue moves as well, paper to peach to pink to deep pink, but it is
+/// reinforcement rather than the signal.
 ///
 /// **The heart is the shape half of the top state**, so a full basket does not
 /// rest on fill alone. Not a peach: a bare peach means the source word on both
@@ -95,6 +114,14 @@ struct ArchiveSheet: View {
                     // default size still shows today and at accessibility sizes,
                     // where two rows fit, was a screenful of inert future days.
                     .accessibilityIdentifier("ArchiveScroll")
+                    // The sheet opens already scrolled, and when it lands on a
+                    // row boundary the pinned month heading covers the rows
+                    // above it with nothing to say they are there. Under the
+                    // showcase seed that is June and the first four days of
+                    // July, and the sheet reads as a month starting on the 5th.
+                    // A flash of the indicator is the smallest honest signal
+                    // that the content runs past the top edge.
+                    .scrollIndicatorsFlash(onAppear: true)
                     // Room for the today ring at the bottom edge.
                     //
                     // The sheet opens by putting today's bottom edge on the
