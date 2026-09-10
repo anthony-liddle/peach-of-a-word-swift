@@ -57,11 +57,31 @@ struct TierMeterView: View {
                     .font(CuteFont.body(15, weight: "Bold", relativeTo: .subheadline))
                     .foregroundStyle(Cute.ink)
                     .monospacedDigit()
+                    .accessibilityIdentifier("MeterPoints")
+                    // **Overlaid on the points total, not on the row.**
+                    //
+                    // Anchoring to the row centres the glyph on the row, and the
+                    // row is not what it should line up with: the HStack aligns
+                    // its two texts on their first baseline, so an 18pt rank
+                    // label and a 15pt points total have different centres, and
+                    // the row's centre is neither. That left the glyph 1.25pt
+                    // off at default and 1.75pt at XXXL after it was moved off
+                    // the meter's corner, where it had been 9.25pt off.
+                    //
+                    // Overlaid on the points total itself, the vertical answer
+                    // is exact at every text size by construction. The offset
+                    // then puts it back where it was horizontally: the box's
+                    // trailing edge lands on the column edge, inside the width
+                    // the row reserves above.
+                    .overlay(alignment: .trailing) {
+                        archiveButton.offset(x: archiveReserve)
+                    }
             }
             // Width reserved for the archive button, which is drawn as an
             // overlay rather than as a third item in this row. See
             // `archiveButton` for why.
             .padding(.trailing, archiveReserve)
+            // The glyph rides the points total inside this row; see there.
 
             track
 
@@ -134,13 +154,6 @@ struct TierMeterView: View {
             .font(CuteFont.body(12, relativeTo: .caption))
             .foregroundStyle(Cute.inkFaint)
         }
-        // The 44pt target, laid over the meter rather than inside a row of it.
-        //
-        // Anchored to the top trailing corner, where the width above was
-        // reserved for it. The meter is taller than 44pt at every size this
-        // layout survives, so the button sits entirely within bounds it did not
-        // create.
-        .overlay(alignment: .topTrailing) { archiveButton }
         // The button is lifted out of the combined element, or it becomes a
         // fragment of one long label with no way to activate it. `MessageLine`
         // and the rack both record the same trap: a container that combines its
@@ -186,6 +199,11 @@ struct TierMeterView: View {
             Image(systemName: "calendar")
                 .font(CuteFont.body(15, weight: "SemiBold", relativeTo: .subheadline))
                 .foregroundStyle(Cute.accentDeep)
+                // The drawn mark, identified separately from the 44pt box around
+                // it, so a test can ask where the glyph is rather than where the
+                // hit area is. The two are allowed to differ and the difference
+                // is the whole point of the overlay.
+                .accessibilityIdentifier("ArchiveGlyph")
                 .frame(width: Cute.minTapTarget, height: Cute.minTapTarget)
                 .contentShape(Rectangle())
         }
@@ -217,6 +235,7 @@ struct TierMeterView: View {
         // session: a GeometryReader consumes all offered space rather than
         // reporting an intrinsic size.
         .frame(height: 12)
+        .accessibilityIdentifier("MeterTrack")
         .motion(Feel.settle, value: standing.score)
         .background(Cute.paperDeep)
         .clipShape(Capsule())
