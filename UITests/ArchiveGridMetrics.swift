@@ -8,12 +8,24 @@ import XCTest
 final class ArchiveGridMetrics: XCTestCase {
     /// Grows the sheet's header by this many points before opening it.
     ///
-    /// **A permanent fixture, because it is the only reproducer this bug ever
-    /// had.** Issue #65 was found on a 390pt phone at AX5 and bisected to the
-    /// commit that renamed the empty state, which took the key from two wrapped
-    /// lines to four and cost the scroll view 50.4pt from its top edge. Growing
-    /// the header by that same amount reproduces the shortfall on any phone,
-    /// including the SE 3, where nothing else did.
+    /// **A permanent fixture, because a squeezed container is a case worth
+    /// holding.** Its stated reason used to be that it was the only reproducer
+    /// this bug ever had, and that was wrong twice over. Issue #65 was found on
+    /// a 390pt phone at AX5 and bisected to the commit that renamed the empty
+    /// state, which took the key from two wrapped lines to four and cost the
+    /// scroll view 50.4pt from its top edge. Growing the header by that amount
+    /// was then said to reproduce the same shortfall on the SE 3.
+    ///
+    /// It does not. Measured at `1508760` with this fixture, the SE fails at the
+    /// **top**, +118.50pt grown and +68.00 ungrown, with today above the scroll
+    /// view rather than beneath the way out. The screenshot that was read as a
+    /// bottom collision has 12.5pt of clearance and a ring whose top is covered
+    /// by the pinned month heading. So the fixture reproduces a squeezed
+    /// viewport, which is useful, and not #65, which has only ever appeared on
+    /// the 390pt phone under XCUITest.
+    ///
+    /// The pinned heading drawn over the ring is invisible here, because this
+    /// guard only asks whether the ring overshoots the scroll view's edges.
     private var headerPad: Double = 0
     private var headerPadArguments: [String] {
         headerPad > 0 ? ["-headerPad", String(headerPad)] : []
