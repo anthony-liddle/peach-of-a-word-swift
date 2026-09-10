@@ -6,12 +6,25 @@ import XCTest
 /// than in a screenshot: a cell that is too small to hit and a ring clipped by
 /// three points are both invisible in a picture and both decided by numbers.
 final class ArchiveGridMetrics: XCTestCase {
+    /// Grows the sheet's header by this many points before opening it.
+    ///
+    /// **A permanent fixture, because it is the only reproducer this bug ever
+    /// had.** Issue #65 was found on a 390pt phone at AX5 and bisected to the
+    /// commit that renamed the empty state, which took the key from two wrapped
+    /// lines to four and cost the scroll view 50.4pt from its top edge. Growing
+    /// the header by that same amount reproduces the shortfall on any phone,
+    /// including the SE 3, where nothing else did.
+    private var headerPad: Double = 0
+    private var headerPadArguments: [String] {
+        headerPad > 0 ? ["-headerPad", String(headerPad)] : []
+    }
+
     private func openArchive(_ size: String) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = [
             "-resetProgress", "1", "-seedArchive", "showcase", "-openArchive", "1",
             "-UIPreferredContentSizeCategoryName", size,
-        ]
+        ] + headerPadArguments
         app.launch()
         XCTAssertTrue(app.buttons["Back to the basket"].waitForExistence(timeout: 30),
                       "the archive sheet never opened")
@@ -57,6 +70,18 @@ final class ArchiveGridMetrics: XCTestCase {
 
 /// The today ring, and whether the scroll view eats it on open.
 ///
+/// **Every number here is an instrumented landing, and that is not the same as
+/// what a plain launch does.** On a 390pt phone at AX5 this guard reads +46.33,
+/// stable to the decimal over three repeats and unmoving for twelve seconds of
+/// polling, while the same build launched through `simctl` with the same
+/// arguments lands correctly in ten screenshots out of ten, at two seconds and
+/// at sixteen. The likeliest reason is that driving the accessibility tree
+/// materialises rows the lazy stack would not have built, which moves the
+/// content-height estimate the landing was resolved against. That makes this
+/// guard a fair model of a device with an assistive technology attached and a
+/// poor model of one without, so read a failure here as "wrong under
+/// VoiceOver", not as "wrong for everyone".
+///
 /// The ring is drawn 3pt outside the cell through an overlay with negative
 /// padding, which does not change the cell's frame. The sheet then opens by
 /// scrolling today's bottom edge onto the scroll view's bottom edge, so the
@@ -85,13 +110,28 @@ extension ArchiveGridMetrics {
         // size on a 390pt phone and to one on the SE, and holding it to one line
         // fixes the landing. `XCTExpectFailure` is strict, so this test goes red
         // the day that stops being true, which a skip would never do.
+        //
+        // Scoped to the ungrown header as well, and that scope was earned: with
+        // the header grown this case lands at +0.00, and a strict expectation
+        // over both of them went red for the wrong reason, reporting a landing
+        // that works as a failure.
         let width = app.windows.firstMatch.frame.width
-        if width > 380, size == "UICTContentSizeCategoryAccessibilityXXXL" {
+        if width > 380, headerPad == 0,
+           size == "UICTContentSizeCategoryAccessibilityXXXL" {
             XCTExpectFailure(
                 "issue #65: today lands under the way out at AX5 on a 390pt phone")
         }
         let today = app.buttons["ArchiveTodayCell"].firstMatch
-        XCTAssertTrue(today.waitForExistence(timeout: 10), "today is not on screen at all",
+        XCTAssertTrue(today.waitForExistence(timeout: 10), "today is not in the tree at all",
+                      file: file, line: line)
+        // **Existing is not being on screen, and this guard learned that the
+        // hard way.** With the landing scroll removed the sheet opened on August
+        // with today far below the fold, and every overshoot below came back
+        // comfortably negative: XCUITest reports a frame for a cell the lazy
+        // stack has built but is not showing. A negative number is only good news
+        // if the thing is actually visible.
+        XCTAssertTrue(today.isHittable,
+                      "today has a frame but is not on screen",
                       file: file, line: line)
         let scroll = app.scrollViews["ArchiveScroll"].firstMatch
         XCTAssertTrue(scroll.exists, "no archive scroll view", file: file, line: line)
@@ -141,6 +181,12 @@ extension ArchiveGridMetrics {
     }
 
     func testTodayRingIsWholeOnOpenAtAccessibilitySize() {
+        assertRingIsWhole("UICTContentSizeCategoryAccessibilityXXXL")
+    }
+
+    /// The case that reproduced issue #65 on every phone.
+    func testTodayRingIsWholeWithTheHeaderGrown() {
+        headerPad = 50.4
         assertRingIsWhole("UICTContentSizeCategoryAccessibilityXXXL")
     }
 }

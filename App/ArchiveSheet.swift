@@ -75,11 +75,35 @@ struct ArchiveSheet: View {
 
     private let gutter: CGFloat = 18
 
+    #if DEBUG
+    /// Extra header height, in points, from `-headerPad`. Zero in every run
+    /// that does not ask for it, including every run on a device.
+    private var headerPad: Double { UserDefaults.standard.double(forKey: "headerPad") }
+    #endif
+
     var body: some View {
         GeometryReader { geo in
             let cell = cellSize(in: geo.size.width)
             VStack(spacing: 0) {
                 header(cell: cell)
+                #if DEBUG
+                // `-headerPad 50.4` grows the header, and it is a permanent
+                // fixture because it is the only reproducer issue #65 ever had.
+                //
+                // #65 bisected to the commit that renamed the empty state, which
+                // took the key from two wrapped lines to four and cost the scroll
+                // view 50.4pt off its top edge. Every other lever moved the whole
+                // sheet; this one shrinks the scroll view's container while the
+                // content stays the length it was, which is the shape of the bug.
+                // Growing the header by the same amount reproduces the shortfall
+                // on phones where nothing else did.
+                //
+                // It grows before the first layout rather than after it, so what
+                // it reproduces is a header that is taller, not one that changes
+                // height late. Those are different failures and only the first is
+                // #65.
+                Color.clear.frame(height: CGFloat(headerPad))
+                #endif
 
                 ScrollViewReader { scroller in
                     ScrollView {
@@ -142,6 +166,18 @@ struct ArchiveSheet: View {
                     // where it was, since `scrollTo` aligns a view's edge to the
                     // viewport's. A margin moves the viewport's edge, which is
                     // the thing that was in the wrong place.
+                    //
+                    // **Kept after measuring what removing it costs, now that
+                    // the content ends at today's week and the stack's 16pt
+                    // bottom padding already sits below today's row.** On the
+                    // SE the margin is worth exactly its 3pt, -16.50 against
+                    // -13.50, so it is no longer what stops a clip. On the SE
+                    // at AX5 with the header grown, where the scroll view is
+                    // 95.5pt tall, removing it loses today's cell altogether:
+                    // the lazy stack never builds it and it is not in the
+                    // accessibility tree at all. Three points is the margin
+                    // between today existing and not, on the tightest container
+                    // the grid has.
                     .contentMargins(.bottom, ArchiveCellFace.ringOutset, for: .scrollContent)
                     .defaultScrollAnchor(.bottom)
                     .task {
