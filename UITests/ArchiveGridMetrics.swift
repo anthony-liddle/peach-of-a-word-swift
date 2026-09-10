@@ -69,22 +69,27 @@ extension ArchiveGridMetrics {
     private static let ringOutset: CGFloat = 3
 
     private func assertRingIsWhole(_ size: String, file: StaticString = #filePath,
-                                   line: UInt = #line) throws {
+                                   line: UInt = #line) {
         let app = openArchive(size)
-        // Specified for the iPhone SE 3, and scoped to it deliberately.
+        // **Not scoped to a phone, and it was for a while.**
         //
-        // On a 390pt phone at AX5 this fails by 46pt, and it is right to: the
-        // header takes so much of the sheet that the scroll view is left about
-        // 227pt, and the last row of the grid ends up behind the pinned way out.
-        // That is a real collision and it is not the ring being clipped by three
-        // points, which is what this measures. It is recorded in
-        // reports/2026-09-10 Calendar Grid Second Pass.md rather than fixed
-        // here, because a grid at accessibility sizes is a decision this project
-        // has already taken and not a defect this pass introduced.
+        // This guard was narrowed to the SE 3 when it failed on a 390pt phone at
+        // AX5, on the reasoning that the SE was the device it was specified for.
+        // It was not: the cell-size guard names a device, this one asks for
+        // default and AX5 and names none. Narrowing a guard to where it passes
+        // stops it reporting the thing it found, and what it found is on the
+        // standard iPhone width.
+        //
+        // So the failure is expected rather than hidden. Issue #65 has the
+        // measurements and the mechanism: the way out wraps to two lines at this
+        // size on a 390pt phone and to one on the SE, and holding it to one line
+        // fixes the landing. `XCTExpectFailure` is strict, so this test goes red
+        // the day that stops being true, which a skip would never do.
         let width = app.windows.firstMatch.frame.width
-        try XCTSkipIf(width > 380,
-                      "specified for the SE 3; a wider phone at AX5 has a "
-                      + "separate problem, see the second pass report")
+        if width > 380, size == "UICTContentSizeCategoryAccessibilityXXXL" {
+            XCTExpectFailure(
+                "issue #65: today lands under the way out at AX5 on a 390pt phone")
+        }
         let today = app.buttons["ArchiveTodayCell"].firstMatch
         XCTAssertTrue(today.waitForExistence(timeout: 10), "today is not on screen at all",
                       file: file, line: line)
@@ -112,9 +117,14 @@ extension ArchiveGridMetrics {
         let visible = scroll.frame
         let overshootBottom = ring.maxY - visible.maxY
         let overshootTop = visible.minY - ring.minY
-        print(String(format: "RING %@ ring %.1f..%.1f scroll %.1f..%.1f bottom %+.2f top %+.2f",
-                     size, ring.minY, ring.maxY, visible.minY, visible.maxY,
-                     overshootBottom, overshootTop))
+        // The way out is measured alongside, because it is the only furniture
+        // between the scroll view's bottom edge and the sheet's.
+        let wayOut = app.buttons["Back to the basket"].firstMatch
+        print(String(format:
+            "RING %@ ring %.1f..%.1f scroll %.1f..%.1f h=%.1f wayOut h=%.1f bottom %+.2f top %+.2f",
+            size, ring.minY, ring.maxY, visible.minY, visible.maxY, visible.height,
+            wayOut.exists ? wayOut.frame.height : -1,
+            overshootBottom, overshootTop))
 
         XCTAssertLessThanOrEqual(
             overshootBottom, 0,
@@ -126,11 +136,11 @@ extension ArchiveGridMetrics {
             file: file, line: line)
     }
 
-    func testTodayRingIsWholeOnOpenAtDefaultSize() throws {
-        try assertRingIsWhole("UICTContentSizeCategoryL")
+    func testTodayRingIsWholeOnOpenAtDefaultSize() {
+        assertRingIsWhole("UICTContentSizeCategoryL")
     }
 
-    func testTodayRingIsWholeOnOpenAtAccessibilitySize() throws {
-        try assertRingIsWhole("UICTContentSizeCategoryAccessibilityXXXL")
+    func testTodayRingIsWholeOnOpenAtAccessibilitySize() {
+        assertRingIsWhole("UICTContentSizeCategoryAccessibilityXXXL")
     }
 }
