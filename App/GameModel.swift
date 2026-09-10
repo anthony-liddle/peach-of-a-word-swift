@@ -1033,13 +1033,24 @@ final class GameModel {
 
         // Run on to the end of today's week, and no further.
         //
-        // **Today's row is the last row of the content, and that is what lets the
-        // sheet open with nothing to resolve.** It anchors to the bottom, which
-        // costs nothing and cannot be wrong. This used to run on to the end of
-        // the month and then ask `scrollTo` to find today again, which is issue
-        // #65: a lazy container's estimate of the content above today settled
-        // 873pt wrong, and the scroll resolved against it. The run on and that
-        // scroll were one decision, not two, and they go together.
+        // **Today's row is the last row of the content**, which is what lets the
+        // sheet land at the end rather than hunting for a row in the middle of
+        // it. This used to run on to the end of the month, which is issue #65: a
+        // lazy container's estimate of the content above today settled 873pt
+        // wrong and the opening `scrollTo` resolved against it.
+        //
+        // **It did not turn out to remove the need to resolve anything, and the
+        // comment here said it had.** Ending the content at today's week was
+        // meant to let `.defaultScrollAnchor(.bottom)` carry the landing alone,
+        // with the `scrollTo` deleted. That was tried and reverted: the anchor
+        // tracks the end while the estimate settles and then stops tracking,
+        // finishing 505pt short. It sets an initial offset, it is not a standing
+        // rule, so the `scrollTo` in `ArchiveSheet` stays.
+        //
+        // What this does buy is real and measured. On an iPhone SE 3 the landing
+        // now reaches the maximum offset at every size, ungrown and grown alike,
+        // because there is nothing below today's row but padding. On a 390pt
+        // phone it does not, and #65 stays open.
         //
         // Both reasons the run on exists are kept. A calendar that stops mid-week
         // is not a calendar, and `.notYet` had nowhere to appear while the range
