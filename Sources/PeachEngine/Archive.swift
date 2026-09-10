@@ -62,6 +62,38 @@ public func archiveDayIndices(firstPlayableDayIndex: Int, todayIndex: Int) -> [I
     return Array(firstPlayableDayIndex...todayIndex)
 }
 
+/// The days drawn after today, so the calendar does not stop mid-week.
+///
+/// **Today's row has to be the last row of the content, and that is a landing
+/// requirement rather than a visual one.** The sheet opens by anchoring to the
+/// bottom, which costs nothing and resolves nothing. Anything drawn below
+/// today's row would push today off the bottom by exactly that much, and the
+/// alternative, asking `scrollTo` to find today, is what issue #65 is: a lazy
+/// container's estimate of the content above today settled 873pt wrong and the
+/// scroll resolved against it.
+///
+/// So the run on stops at the end of today's week, and never later. The cap at
+/// the month's end is the same requirement seen from the other side: a week that
+/// crossed into the next month would open a new month section, heading and all,
+/// and every row of it would sit below today's.
+///
+/// The two reasons the run on exists are both kept. A calendar that stops
+/// mid-week is not a calendar, and `.notYet` had nowhere to appear while the
+/// range ended at today.
+///
+/// - Parameters:
+///   - weekdayOffset: today's position in its own week, 0 for the first weekday
+///     and 6 for the last. The caller resolves it against the reader's calendar,
+///     because the week does not start on the same day everywhere.
+///   - daysLeftInMonth: days after today in today's month.
+public func archiveRunOn(todayIndex: Int, weekdayOffset: Int, daysLeftInMonth: Int) -> [Int] {
+    guard (0...6).contains(weekdayOffset), daysLeftInMonth > 0 else { return [] }
+    let toEndOfWeek = 6 - weekdayOffset
+    let count = min(toEndOfWeek, daysLeftInMonth)
+    guard count > 0 else { return [] }
+    return (1...count).map { todayIndex + $0 }
+}
+
 /// Whether the board on screen should be replaced with today's.
 ///
 /// **An archive board never rolls over, and that is the single most likely bug

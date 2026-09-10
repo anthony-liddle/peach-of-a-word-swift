@@ -1031,19 +1031,29 @@ final class GameModel {
             firstPlayableDayIndex: Self.firstPlayableStorageIndex, todayIndex: today
         )
 
-        // Run on to the end of the month containing today.
+        // Run on to the end of today's week, and no further.
         //
-        // A calendar that stops mid-week is not a calendar, and the seventh
-        // state had nowhere to appear: `archiveDayIndices` ends at today, so
-        // nothing was ever handed to `dayMark` that could come back `.notYet`.
-        // The refusals are unchanged; these days are drawn and inert.
+        // **Today's row is the last row of the content, and that is what lets the
+        // sheet open with nothing to resolve.** It anchors to the bottom, which
+        // costs nothing and cannot be wrong. This used to run on to the end of
+        // the month and then ask `scrollTo` to find today again, which is issue
+        // #65: a lazy container's estimate of the content above today settled
+        // 873pt wrong, and the scroll resolved against it. The run on and that
+        // scroll were one decision, not two, and they go together.
+        //
+        // Both reasons the run on exists are kept. A calendar that stops mid-week
+        // is not a calendar, and `.notYet` had nowhere to appear while the range
+        // ended at today. The rule and its month cap live in `archiveRunOn`.
         let calendar = Foundation.Calendar.current
         let todayDate = Self.date(forStorageDay: today)
-        if let month = calendar.range(of: .day, in: .month, for: todayDate),
-           let dayOfMonth = calendar.dateComponents([.day], from: todayDate).day {
-            indices += (1...max(1, month.count - dayOfMonth)).map { today + $0 }
-                .filter { $0 > today }
-        }
+        let weekday = calendar.component(.weekday, from: todayDate)
+        let offset = (weekday - calendar.firstWeekday + 7) % 7
+        let daysLeft = calendar.range(of: .day, in: .month, for: todayDate).flatMap { month in
+            calendar.dateComponents([.day], from: todayDate).day.map { month.count - $0 }
+        } ?? 0
+        indices += archiveRunOn(
+            todayIndex: today, weekdayOffset: offset, daysLeftInMonth: daysLeft
+        )
 
         return indices.map { day in
             ArchiveDay(
