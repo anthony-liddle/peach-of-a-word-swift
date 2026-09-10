@@ -1,0 +1,76 @@
+import XCTest
+
+/// The way in to the archive, and one past board opened through it.
+///
+/// The entry point could not be checked any other way. It is a 44pt target drawn
+/// as an overlay on a row it deliberately does not belong to, and the thing worth
+/// asserting is that it is still reachable and still opens a board, which is a
+/// gesture rather than a state a launch argument can set up.
+final class ArchiveEntry: XCTestCase {
+    private func launched() -> XCUIApplication {
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "-resetProgress", "1",
+            "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryL",
+        ]
+        app.launch()
+        XCTAssertTrue(app.staticTexts["FoundSummaryCount"].waitForExistence(timeout: 30),
+                      "the app never rendered the found summary")
+        return app
+    }
+
+    /// The button rides the meter's top row as an overlay, so "is it hittable"
+    /// is a real question rather than a formality.
+    func testTheArchiveButtonOpensTheCalendar() {
+        let app = launched()
+        let entry = app.buttons["Past days"].firstMatch
+        XCTAssertTrue(entry.waitForExistence(timeout: 10), "no way in to the archive")
+        XCTAssertTrue(entry.isHittable, "the archive button is present but not hittable")
+        entry.tap()
+
+        XCTAssertTrue(app.buttons["Back to the basket"].waitForExistence(timeout: 10),
+                      "the archive sheet did not open")
+    }
+
+    /// The whole path: open the calendar, pick a day that is not today, and end
+    /// up on that board.
+    ///
+    /// The day is chosen by its spoken state rather than by its date. Dates move
+    /// every morning, and a test that names one passes on one day in seventy;
+    /// `LayoutBudget` records that trap after being caught by it.
+    func testAPastDayOpensItsOwnBoard() {
+        let app = launched()
+        XCTAssertFalse(app.staticTexts["ArchiveDateChip"].exists,
+                       "today's board is claiming to be an archive board")
+
+        app.buttons["Past days"].firstMatch.tap()
+        XCTAssertTrue(app.buttons["Back to the basket"].waitForExistence(timeout: 10))
+
+        // Oldest first, so the first unplayed cell is a past day rather than
+        // today. A board never opened is the only state a fresh install has.
+        let past = app.buttons
+            .matching(NSPredicate(format: "label CONTAINS %@", "Not played"))
+            .element(boundBy: 0)
+        guard past.waitForExistence(timeout: 10) else {
+            return XCTFail("the calendar drew no playable past day")
+        }
+        past.tap()
+
+        XCTAssertTrue(app.staticTexts["ArchiveDateChip"].waitForExistence(timeout: 20),
+                      "tapping a past day did not open its board")
+    }
+
+    /// A day that has not happened is the seventh state, and it must be inert in
+    /// the grid as well as refused in the model.
+    func testTomorrowIsNotOfferedAtAll() {
+        let app = launched()
+        app.buttons["Past days"].firstMatch.tap()
+        XCTAssertTrue(app.buttons["Back to the basket"].waitForExistence(timeout: 10))
+
+        let notYet = app.buttons.matching(
+            NSPredicate(format: "label CONTAINS %@", "Not yet")
+        )
+        XCTAssertEqual(notYet.count, 0,
+                       "the archive offered a day that has not happened yet")
+    }
+}

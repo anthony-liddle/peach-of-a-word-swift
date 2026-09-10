@@ -68,6 +68,9 @@ struct ContentView: View {
     /// a diagnostic concern.
     @Environment(\.scenePhase) private var scenePhase
 
+    /// Whether the calendar of past days is on screen.
+    @State private var showingArchive = false
+
     /// Whether the app has been away since launch.
     ///
     /// Only the debug clock needs this; the rollover itself is safe on any
@@ -180,6 +183,24 @@ struct ContentView: View {
         .onChange(of: model.feedbackSeq) {
             guard let message = model.feedback.message else { return }
             AccessibilityNotification.Announcement(message).post()
+        }
+        // The calendar of past days.
+        //
+        // A sheet rather than a pushed screen, because there is no navigation
+        // stack to push onto: the play surface has no chrome and the layout
+        // budget has no room to grow any. See `ArchiveSheet`.
+        .sheet(isPresented: $showingArchive) {
+            ArchiveSheet(
+                days: model.archiveDays(),
+                canPlay: model.canPlayArchive,
+                onPick: { day in
+                    showingArchive = false
+                    Task { await model.openArchiveDay(storageDay: day) }
+                },
+                onClose: { showingArchive = false }
+            )
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
         }
         // The one-time streak transfer from the web build. Disposable: when the
         // handoff is done, this modifier, `StreakTransfer`, `adoptStreak`, and
@@ -426,7 +447,13 @@ struct ContentView: View {
     private var header: some View {
         Group {
             if let standing = model.standing {
-                TierMeterView(standing: standing, streak: model.streak)
+                TierMeterView(
+                    standing: standing,
+                    streak: model.streak,
+                    // Nil for the live daily, so the caption keeps the streak.
+                    archiveDate: model.isArchiveBoard ? model.boardDate : nil,
+                    onOpenArchive: { showingArchive = true }
+                )
             }
         }
     }

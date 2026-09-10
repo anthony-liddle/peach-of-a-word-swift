@@ -994,14 +994,24 @@ final class GameModel {
         )
     }
 
-    /// Every day the calendar can draw, oldest first, with its mark.
-    func archiveMarks() -> [(day: Int, mark: DayMark)] {
+    /// Every day the calendar can draw, oldest first.
+    ///
+    /// Read once per sheet presentation rather than per cell: `allOutcomes`
+    /// decodes the whole map, and doing that inside a `ForEach` over ninety rows
+    /// is the kind of thing that is free at seventy-nine days and is not at four
+    /// hundred.
+    func archiveDays() -> [ArchiveDay] {
         let outcomes = storage.allOutcomes()
         let today = Self.todayStorageIndex
         return archiveDayIndices(
             firstPlayableDayIndex: Self.firstPlayableStorageIndex, todayIndex: today
         ).map { day in
-            (day, dayMark(for: day, outcome: outcomes[day], todayIndex: today))
+            ArchiveDay(
+                day: day,
+                date: Self.date(forStorageDay: day),
+                mark: dayMark(for: day, outcome: outcomes[day], todayIndex: today),
+                isToday: day == today
+            )
         }
     }
 

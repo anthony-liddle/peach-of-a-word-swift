@@ -12,6 +12,17 @@ struct TierMeterView: View {
     let standing: TierStanding
     let streak: Int
 
+    /// The day this board belongs to, when it is not today's.
+    ///
+    /// Nil for the live daily. Non-nil turns the caption's trailing slot from
+    /// the streak into the date, which is two fixes in one: a past board gets
+    /// the "which day am I on" signal it otherwise has nowhere to put, and the
+    /// streak stops being shown beside a board it has nothing to do with.
+    var archiveDate: Date?
+
+    /// Opens the calendar of past days.
+    var onOpenArchive: () -> Void = {}
+
     /// Off-page points can push the score past reachable. The bar fills to full
     /// and the named rank caps at the top; the overflow is the climb toward the
     /// completion peak, which this bar does not measure.
@@ -44,6 +55,10 @@ struct TierMeterView: View {
                     .foregroundStyle(Cute.ink)
                     .monospacedDigit()
             }
+            // Width reserved for the archive button, which is drawn as an
+            // overlay rather than as a third item in this row. See
+            // `archiveButton` for why.
+            .padding(.trailing, archiveReserve)
 
             track
 
@@ -67,7 +82,18 @@ struct TierMeterView: View {
                     }
                 }
                 Spacer(minLength: 4)
-                if streak > 0 {
+                if let archiveDate {
+                    HStack(spacing: 3) {
+                        Image(systemName: "calendar")
+                        Text(archiveDate, format: .dateTime.month(.abbreviated).day())
+                    }
+                    .foregroundStyle(Cute.accentDeep)
+                    // Found by identifier, never by the date it prints: the
+                    // archive's dates move every day and a test that matches the
+                    // string passes on one day in seventy. `LayoutBudget` has the
+                    // same note for the same reason.
+                    .accessibilityIdentifier("ArchiveDateChip")
+                } else if streak > 0 {
                     // A flame and a number said nothing about what it counted.
                     // The word is short enough to just print.
                     HStack(spacing: 3) {
@@ -84,11 +110,63 @@ struct TierMeterView: View {
             .font(CuteFont.body(12, relativeTo: .caption))
             .foregroundStyle(Cute.inkFaint)
         }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(
-            "\(label). \(standing.score) of \(standing.reachable) points, \(percent) percent."
-            + (streak > 0 ? " Streak \(streak)." : "")
-        )
+        // The 44pt target, laid over the meter rather than inside a row of it.
+        //
+        // Anchored to the top trailing corner, where the width above was
+        // reserved for it. The meter is taller than 44pt at every size this
+        // layout survives, so the button sits entirely within bounds it did not
+        // create.
+        .overlay(alignment: .topTrailing) { archiveButton }
+        // The button is lifted out of the combined element, or it becomes a
+        // fragment of one long label with no way to activate it. `MessageLine`
+        // and the rack both record the same trap: a container that combines its
+        // children swallows anything tappable inside it.
+        .accessibilityElement(children: .contain)
+    }
+
+    /// Width held back on the top row so the overlay has somewhere to sit.
+    ///
+    /// Slightly under the target, because the row already ends in a gutter and
+    /// the glyph is centred in its 44pt box: reserving the full 44 would leave a
+    /// visible gap between the points total and the icon.
+    @ScaledMetric(relativeTo: .subheadline) private var archiveReserve: CGFloat = 34
+
+    /// The way in to the archive, and the only navigation affordance in the app.
+    ///
+    /// **It rides this row rather than sitting in a toolbar, and that was
+    /// measured rather than preferred.** On an iPhone SE 3 at XXXL the fixed
+    /// layout has about sixteen points of slack before it falls back to
+    /// scrolling, and the smallest real tap target is forty-four; nothing that
+    /// could hold one fits in a row of its own. A third item in an `HStack` that
+    /// already exists costs **zero vertical points** and turns the question into
+    /// width on a 375pt screen, which the `ViewThatFits` budget never sees.
+    ///
+    /// The trade is the rank label's width, and this row already competes: see
+    /// `Vocabulary.ladderPeak`, which was shortened after being measured against
+    /// the caption at accessibility sizes rather than guessed at.
+    ///
+    /// **"Costs zero vertical points" is a claim about the design and was not
+    /// true of the first implementation, which is why it was measured.** A 44pt
+    /// button placed as a third item in the top row sets that row's height to
+    /// 44, where the text alone was about 26. Measured on an iPhone SE 3 that
+    /// cost the found list 21pt at L and 13pt at XXXL, taking the XXXL cell from
+    /// 86.50 to 73.50 against a floor near 70: it still fitted, with about three
+    /// points to spare, on the cell the source already calls one small
+    /// regression away from falling back.
+    ///
+    /// Drawn as an overlay instead. The meter is at least 60pt tall, so a 44pt
+    /// box anchored to its top trailing corner adds no height at all, and the
+    /// row above reserves the width so nothing is drawn over the points total.
+    private var archiveButton: some View {
+        Button(action: onOpenArchive) {
+            Image(systemName: "calendar")
+                .font(CuteFont.body(15, weight: "SemiBold", relativeTo: .subheadline))
+                .foregroundStyle(Cute.accentDeep)
+                .frame(width: Cute.minTapTarget, height: Cute.minTapTarget)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(Vocabulary.archiveTitle)
     }
 
     /// Three segments fill the track: on-page set points, off-page discovery

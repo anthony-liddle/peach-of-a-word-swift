@@ -215,6 +215,32 @@ enum Vocabulary {
     /// too, so the budget is smaller than the caption alone suggests.
     static let ladderPeak = "\(containerCapitalized) full"
 
+    // MARK: - The archive
+
+    /// What the calendar of past boards is called, and the label on the control
+    /// that opens it.
+    ///
+    /// Plain rather than themed. "Past days" says what it is at a glance and
+    /// survives being read aloud by VoiceOver, where a cute noun would have to be
+    /// decoded first. The basket vocabulary is for the thing you fill, not for
+    /// the way back to a day you already filled.
+    static let archiveTitle = "Past days"
+
+    /// The six states, as a player reads them. Also the VoiceOver text, so the
+    /// screen and the announcement cannot say different things.
+    static let markNoRecord = "Not played"
+    static let markIncomplete = "Started"
+    static let markCleared = "Finished"
+    static let markBasket = "\(containerCapitalized) full"
+    static let markNotYet = "Not yet"
+    /// Said after the state, so "Finished, caught up later" reads as one phrase.
+    static let markCaughtUpLater = "caught up later"
+    static let markOnTheWeb = "played on the web"
+    static let markToday = "today"
+
+    /// Shown under the grid, because a badge nobody can decode is decoration.
+    static let archiveLegend = "A ring is a finished day, a filled square is a full \(container), and a dashed edge means it was caught up after the day."
+
     /// The completion card's one line.
     static let completionLine = "Every common word these letters can grow, picked."
 
