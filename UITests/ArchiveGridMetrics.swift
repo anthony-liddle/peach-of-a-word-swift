@@ -54,3 +54,50 @@ final class ArchiveGridMetrics: XCTestCase {
         assertTapTarget("UICTContentSizeCategoryAccessibilityXXXL")
     }
 }
+
+/// The today ring, and whether the scroll view eats it on open.
+///
+/// The ring is drawn 3pt outside the cell through an overlay with negative
+/// padding, which does not change the cell's frame. The sheet then opens by
+/// scrolling today's bottom edge onto the scroll view's bottom edge, so the
+/// ring's bottom stroke lands outside the visible region and is clipped, every
+/// time the sheet is opened.
+extension ArchiveGridMetrics {
+    /// How far the ring is drawn outside the cell. Mirrors
+    /// `ArchiveCellFace.ringOutset`, deliberately duplicated here: a test that
+    /// imported the value would pass whatever the app changed it to.
+    private static let ringOutset: CGFloat = 3
+
+    private func assertRingIsWhole(_ size: String, file: StaticString = #filePath,
+                                   line: UInt = #line) {
+        let app = openArchive(size)
+        let today = app.buttons["ArchiveTodayCell"].firstMatch
+        XCTAssertTrue(today.waitForExistence(timeout: 10), "today is not on screen at all",
+                      file: file, line: line)
+        let scroll = app.scrollViews["ArchiveScroll"].firstMatch
+        XCTAssertTrue(scroll.exists, "no archive scroll view", file: file, line: line)
+
+        let ring = today.frame.insetBy(dx: -Self.ringOutset, dy: -Self.ringOutset)
+        let visible = scroll.frame
+        let overshootBottom = ring.maxY - visible.maxY
+        let overshootTop = visible.minY - ring.minY
+        print(String(format: "RING %@ bottom %+.2f top %+.2f", size, overshootBottom, overshootTop))
+
+        XCTAssertLessThanOrEqual(
+            overshootBottom, 0,
+            "the today ring is clipped by \(overshootBottom)pt at the bottom",
+            file: file, line: line)
+        XCTAssertLessThanOrEqual(
+            overshootTop, 0,
+            "the today ring is clipped by \(overshootTop)pt at the top",
+            file: file, line: line)
+    }
+
+    func testTodayRingIsWholeOnOpenAtDefaultSize() {
+        assertRingIsWhole("UICTContentSizeCategoryL")
+    }
+
+    func testTodayRingIsWholeOnOpenAtAccessibilitySize() {
+        assertRingIsWhole("UICTContentSizeCategoryAccessibilityXXXL")
+    }
+}

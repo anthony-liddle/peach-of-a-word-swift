@@ -94,6 +94,22 @@ struct ArchiveSheet: View {
                     // end of the current month rather than today, which at
                     // default size still shows today and at accessibility sizes,
                     // where two rows fit, was a screenful of inert future days.
+                    .accessibilityIdentifier("ArchiveScroll")
+                    // Room for the today ring at the bottom edge.
+                    //
+                    // The sheet opens by putting today's bottom edge on the
+                    // scroll view's, and the ring is drawn `ringOutset` beyond
+                    // the cell through an overlay with negative padding, which
+                    // does not change the cell's frame. So the ring's bottom
+                    // stroke landed outside the visible region and was clipped,
+                    // measured at exactly 3.00pt, on every open at every size.
+                    //
+                    // A content margin rather than padding on the stack:
+                    // padding makes the content longer and leaves the anchor
+                    // where it was, since `scrollTo` aligns a view's edge to the
+                    // viewport's. A margin moves the viewport's edge, which is
+                    // the thing that was in the wrong place.
+                    .contentMargins(.bottom, ArchiveCellFace.ringOutset, for: .scrollContent)
                     .defaultScrollAnchor(.bottom)
                     .task {
                         guard let today = days.first(where: { $0.isToday })?.day else { return }
@@ -292,6 +308,13 @@ struct ArchiveDay: Equatable {
 
 /// The drawing, with no behaviour, so the key and the grid share one face.
 struct ArchiveCellFace: View {
+    /// How far the today ring is drawn beyond the cell.
+    ///
+    /// Shared with the scroll view, which has to leave this much room at the
+    /// bottom edge, and with the test that checks it does. Three copies of one
+    /// number is how the ring got clipped in the first place.
+    static let ringOutset: CGFloat = 3
+
     let mark: DayMark
     /// The day of the month, or nil in the key, where a number would be a date
     /// that does not exist.
@@ -412,15 +435,18 @@ private struct ArchiveCell: View {
                 // Today, ringed outside its own fill, so the ring says "here"
                 // without overwriting what the day achieved.
                 if day.isToday {
-                    RoundedRectangle(cornerRadius: size * 0.3 + 3)
+                    RoundedRectangle(cornerRadius: size * 0.3 + ArchiveCellFace.ringOutset)
                         .strokeBorder(Cute.ink, lineWidth: 1.5)
-                        .padding(-3)
+                        .padding(-ArchiveCellFace.ringOutset)
                 }
             }
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .disabled(!isPlayable)
+        // Identified, never matched on its date: the archive's dates move every
+        // morning and `LayoutBudget` records what a date-dependent query costs.
+        .accessibilityIdentifier(day.isToday ? "ArchiveTodayCell" : "ArchiveDayCell")
         .accessibilityLabel(label)
         .accessibilityAddTraits(isPlayable ? [.isButton] : [])
     }
