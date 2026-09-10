@@ -97,10 +97,32 @@ public func dailySourceWord(
     epoch: EpochDate = dailyEpoch,
     timeZone: TimeZone
 ) throws -> String {
-    guard !calendar.isEmpty else { throw EngineError.emptyCalendar }
+    guard let word = sourceWord(
+        calendar: calendar,
+        dailyIndex: dayIndex(date, epoch: epoch, timeZone: timeZone)
+    ) else { throw EngineError.emptyCalendar }
+    return word
+}
 
-    // Guard against pre-epoch dates by flooring at cycle/position 0.
-    let safeIndex = max(0, dayIndex(date, epoch: epoch, timeZone: timeZone))
+/// The source word at a given position in the daily sequence.
+///
+/// **The index form is the primitive and the date form is the wrapper**, which
+/// is the opposite of how this started. The archive asks for a board by number:
+/// it already holds a day index, and converting that to a `Date` only to have
+/// `dayIndex` convert it straight back would reintroduce the time-zone question
+/// that function exists to answer exactly once. Writing the wrapper in terms of
+/// this also means the two cannot disagree, which `SourceWordByIndexTests`
+/// checks rather than assumes.
+///
+/// Returns nil for an empty calendar rather than throwing, because the caller
+/// that has an index in hand is drawing a grid cell and has somewhere sensible
+/// to put "no word"; the date form keeps the throw for the launch path, where an
+/// empty calendar is a broken bundle and must be loud.
+public func sourceWord(calendar: [String], dailyIndex: Int) -> String? {
+    guard !calendar.isEmpty else { return nil }
+    // Floored at zero, so a pre-epoch index reads as the first day rather than
+    // trapping on a negative modulo.
+    let safeIndex = max(0, dailyIndex)
     let n = calendar.count
     let cycle = safeIndex / n
     let position = safeIndex % n

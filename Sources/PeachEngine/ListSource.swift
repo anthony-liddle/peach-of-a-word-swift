@@ -4,7 +4,7 @@
 /// protocols, so this list-backed form (used for the baked assets and for
 /// tests) can be swapped for a sorted binary file or SQLite later without the
 /// engine noticing.
-public struct ListWordSource: WordSource {
+public struct ListWordSource: WordSource, Sendable {
     private let words: [String]
 
     public init(_ words: some Sequence<String>) {
@@ -17,7 +17,7 @@ public struct ListWordSource: WordSource {
 }
 
 /// A `ValidationDictionary` (a `WordSource` plus membership) backed by a list.
-public struct ListDictionary: ValidationDictionary {
+public struct ListDictionary: ValidationDictionary, Sendable {
     private let words: Set<String>
 
     public init(_ words: some Sequence<String>) {

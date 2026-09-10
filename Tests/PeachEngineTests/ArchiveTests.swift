@@ -236,3 +236,48 @@ struct StreakGuardTests {
                 "a future index was accepted, which froze the streak")
     }
 }
+
+/// Selecting a board by index rather than by date.
+///
+/// The archive knows which day it wants as a number. Going index -> Date ->
+/// index to ask for it would reintroduce the time-zone question that `dayIndex`
+/// exists to answer once, so the index form is the primitive and the date form
+/// is the wrapper.
+@Suite("source word by index")
+struct SourceWordByIndexTests {
+    let calendar = ["alpha", "bravo", "charlie", "delta"]
+
+    @Test("the first cycle is the committed order")
+    func firstCycleIsCommittedOrder() {
+        for i in calendar.indices {
+            #expect(sourceWord(calendar: calendar, dailyIndex: i) == calendar[i])
+        }
+    }
+
+    @Test("a pre-epoch index floors at the first day rather than trapping")
+    func negativeIndexFloors() {
+        #expect(sourceWord(calendar: calendar, dailyIndex: -5) == calendar[0])
+    }
+
+    /// The wrapper and the primitive must not be able to disagree, which is the
+    /// whole reason one is written in terms of the other.
+    @Test("the date form agrees with the index form")
+    func dateFormAgrees() throws {
+        let utc = TimeZone(identifier: "UTC")!
+        let epoch = EpochDate(year: 2026, month: 6, day: 23)
+        let start = Foundation.Calendar(identifier: .gregorian).date(
+            from: DateComponents(timeZone: utc, year: 2026, month: 6, day: 23))!
+
+        for offset in 0..<8 {
+            let day = start.addingTimeInterval(Double(offset) * 86_400)
+            let byDate = try dailySourceWord(
+                calendar: calendar, date: day, epoch: epoch, timeZone: utc)
+            #expect(byDate == sourceWord(calendar: calendar, dailyIndex: offset))
+        }
+    }
+
+    @Test("an empty calendar has no word for any index")
+    func emptyCalendar() {
+        #expect(sourceWord(calendar: [], dailyIndex: 3) == nil)
+    }
+}
