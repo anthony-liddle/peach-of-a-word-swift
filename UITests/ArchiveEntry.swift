@@ -46,10 +46,19 @@ final class ArchiveEntry: XCTestCase {
         app.buttons["Past days"].firstMatch.tap()
         XCTAssertTrue(app.buttons["Back to the basket"].waitForExistence(timeout: 10))
 
-        // Oldest first, so the first unplayed cell is a past day rather than
-        // today. A board never opened is the only state a fresh install has.
+        // Explicitly not today, and that exclusion is load-bearing.
+        //
+        // The grid opens anchored to its newest end, and `LazyVGrid` does not
+        // build rows that start off screen, so "the first unplayed cell" is
+        // whatever happens to be visible rather than the oldest day. On a fresh
+        // install today is unplayed too, and picking it would open today's board
+        // and fail this test for a reason that has nothing to do with the
+        // archive. Issue #40 is the same lazy-grid behaviour biting a different
+        // test.
         let past = app.buttons
-            .matching(NSPredicate(format: "label CONTAINS %@", "Not played"))
+            .matching(NSPredicate(
+                format: "label CONTAINS %@ AND NOT (label CONTAINS %@)",
+                "Not played", "today"))
             .element(boundBy: 0)
         guard past.waitForExistence(timeout: 10) else {
             return XCTFail("the calendar drew no playable past day")

@@ -30,6 +30,17 @@ struct ArchiveSheet: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            // The sheet says what it is. A drag indicator and a wall of squares
+            // is a puzzle rather than a screen, and this is the one place in the
+            // app that has room for a heading: the play surface gave its
+            // masthead up for 35 points of found list and this did not.
+            Text(Vocabulary.archiveTitle)
+                .font(CuteFont.display(22, relativeTo: .title3))
+                .foregroundStyle(Cute.ink)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 18)
+                .padding(.top, 20)
+
             ScrollView {
                 VStack(alignment: .leading, spacing: 22) {
                     ForEach(months, id: \.first!.day) { month in
@@ -41,6 +52,14 @@ struct ArchiveSheet: View {
                 .padding(.vertical, 16)
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
+            // Opens at the newest end.
+            //
+            // The archive is append-only and grows by a day every morning, so
+            // the top is the least useful place to land and gets worse forever:
+            // at 626 days it is ninety rows above anything she played this week.
+            // Anchoring to the bottom also puts today on screen, which is the
+            // way back from a past board.
+            .defaultScrollAnchor(.bottom)
 
             // Pinned, like the reveal card's way out. A sheet whose only exit
             // scrolls off the bottom is a sheet you have to hunt your way out
@@ -161,6 +180,21 @@ private struct ArchiveCell: View {
         Button(action: action) {
             shape
                 .frame(width: size, height: size)
+                // Today, ringed.
+                //
+                // It reached the spoken label and never the drawing, which a
+                // screenshot found and no test would have: every assertion about
+                // this grid passed while the one cell a player needs to find
+                // looked like all the others. It is also the way back from a past
+                // board, so being able to pick it out is the difference between
+                // a calendar and a maze.
+                .overlay {
+                    if day.isToday {
+                        RoundedRectangle(cornerRadius: size * 0.28 + 3)
+                            .strokeBorder(Cute.ink, lineWidth: 1.5)
+                            .padding(-3)
+                    }
+                }
                 // The cell is the drawing; the target is the whole 44pt.
                 // Overlapping targets on a 6pt gap are the price of a grid this
                 // dense, and SwiftUI resolves to the nearest.
@@ -211,7 +245,7 @@ private struct ArchiveCell: View {
             RoundedRectangle(cornerRadius: radius)
                 .fill(Cute.accent)
                 .overlay(RoundedRectangle(cornerRadius: radius)
-                    .strokeBorder(Cute.crownDeep, style: border(onTheDay: onTheDay, width: 2))
+                    .strokeBorder(Cute.paper, style: border(onTheDay: onTheDay, width: 2))
                     .opacity(onTheDay ? 0 : 1))
         }
     }

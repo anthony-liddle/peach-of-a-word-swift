@@ -243,6 +243,16 @@ struct ContentView: View {
             Task { await model.rollOverIfNewDay() }
         }
         .task {
+            #if DEBUG
+            // `-openArchive 1` opens the calendar at launch.
+            //
+            // The same argument as `-revealCard` and `-holdLoading`: `simctl`
+            // has no way to tap, so a sheet that only a finger can open is a
+            // sheet that can only ever be reasoned about. This is the smallest
+            // thing that makes it screenshottable, and it is the only way the
+            // grid reaches a pull request.
+            if UserDefaults.standard.bool(forKey: "openArchive") { showingArchive = true }
+            #endif
             #if TAP_RECORDER
             // A session marker written immediately, so the log exists before any
             // taps do. That is what makes "is the recorder actually live" a
