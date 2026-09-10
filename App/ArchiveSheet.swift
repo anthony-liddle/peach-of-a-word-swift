@@ -360,18 +360,21 @@ struct ArchiveCellFace: View {
                     .foregroundStyle(Cute.paperDeep)
             }
 
-            // Caught up after the day, demoted to a corner.
+            // **A day caught up after the day carries no mark, deliberately.**
             //
-            // It was a dashed border, which competed with the fill for the
-            // achievement read and is most of the reason the grid needed a
-            // legend at all. It is secondary information and now looks like it.
-            if caughtUpLater {
-                Circle()
-                    .fill(numberColor.opacity(0.85))
-                    .frame(width: max(3, size * 0.14), height: max(3, size * 0.14))
-                    .padding(max(2, size * 0.1))
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
-            }
+            // There was a corner dot here, and a dashed border before that. Both
+            // are gone for the same reason: when she played is provenance, not
+            // achievement. That is the argument that keeps any mark off
+            // transferred days, and this is the same fact wearing a different
+            // hat. The game was built by taking the clock out of it, so the grid
+            // does not grade her on timeliness either.
+            //
+            // Nothing was lost from storage. The outcome still records `on`, and
+            // the spoken label still says "caught up later", which is where that
+            // fact belongs: available to anyone who asks a day about itself,
+            // absent from a glance across seventy of them.
+            //
+            // If this looks like a missing feature, it is a removed one.
         }
         .frame(width: size, height: size)
     }
@@ -393,13 +396,6 @@ struct ArchiveCellFace: View {
         case .noRecord: Cute.inkFaint
         case .incomplete, .cleared: Cute.ink
         case .basket: Cute.paperDeep
-        }
-    }
-
-    private var caughtUpLater: Bool {
-        switch mark {
-        case .cleared(let onTheDay, _), .basket(let onTheDay): !onTheDay
-        default: false
         }
     }
 

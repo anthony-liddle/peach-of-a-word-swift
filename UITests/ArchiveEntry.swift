@@ -89,3 +89,30 @@ final class ArchiveEntry: XCTestCase {
                        "the archive offered a day that has not happened yet")
     }
 }
+
+/// What survives the caught-up dot being removed.
+///
+/// The grid no longer distinguishes a day caught up later from the same state
+/// earned on the day, because when she played is provenance rather than
+/// achievement. The fact itself is not gone: it is in the outcome's `on` and in
+/// what the cell says when asked. **The absence of a drawn dot cannot be tested
+/// from here** and is confirmed by screenshot instead, so this guards the half
+/// that can fail.
+extension ArchiveEntry {
+    func testACaughtUpDayStillSaysSoWhenAsked() {
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "-resetProgress", "1", "-seedArchive", "showcase", "-openArchive", "1",
+        ]
+        app.launch()
+        XCTAssertTrue(app.buttons["Back to the basket"].waitForExistence(timeout: 30),
+                      "the archive sheet never opened")
+
+        let caughtUp = app.buttons.matching(
+            NSPredicate(format: "label CONTAINS %@", "caught up later")
+        )
+        XCTAssertGreaterThan(
+            caughtUp.count, 0,
+            "no day says it was caught up later, so the fact left with the dot")
+    }
+}
