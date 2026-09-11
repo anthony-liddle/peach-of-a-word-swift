@@ -82,8 +82,17 @@ final class ArchiveTiming {
         signpostID = id
         interval = signposter.beginInterval("archive open", id: id)
         log.notice("ARCHIVE-TIMING start \(label, privacy: .public)")
-        // Only if nothing primed it, so a primed link keeps its running history.
-        if link == nil { startLink(); longestGap = 0 }
+        // A primed link keeps its last tick, so there is something to measure
+        // the first gap from, but the tally starts here.
+        //
+        // **Both halves matter and each was wrong on its own.** Starting the
+        // link here left it with no previous tick when the sheet blocked the
+        // main thread in the same turn, and it recorded nothing in four runs out
+        // of five. Priming it and keeping the tally recorded the simulator not
+        // drawing while the app sat idle, which showed up as a 150ms gap inside
+        // a 120ms window: a number larger than the thing it was inside.
+        if link == nil { startLink() }
+        longestGap = 0
         // Nothing may ever move, on a day where today is not drawn. Say that
         // rather than logging silence, which reads identically to a crash.
         let deadline = patience
