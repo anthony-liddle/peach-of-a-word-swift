@@ -84,6 +84,11 @@ struct ArchiveSheet: View {
     /// Costs.md` has what the alternatives cost.
     @State private var monthIndex: Int
 
+    /// Which way the last step went, so the slide goes that way too.
+    @State private var advancing = true
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     init(days: [ArchiveDay], canPlay: Bool,
          onPick: @escaping (Int) -> Void, onClose: @escaping () -> Void) {
         self.days = days
@@ -319,28 +324,125 @@ struct ArchiveSheet: View {
     private func monthPage(cell: CGFloat) -> some View {
         let month = months[safeIndex]
         return VStack(alignment: .leading, spacing: 10) {
-            monthHeading(month)
-            monthGrid(month, cell: cell)
-                .padding(.horizontal, gutter)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            Spacer(minLength: 0)
+            monthBar(month)
+            ScrollViewReader { scroller in
+                ScrollView(.vertical) {
+                    monthGrid(month, cell: cell)
+                        .padding(.horizontal, gutter)
+                        .padding(.bottom, 16)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                // The grid alone scrolls, and the month's name does not go with
+                // it. At AX5 on a 390pt phone the space under the fixed header
+                // measured about 227pt against about 300pt for a six row month,
+                // so at those sizes a month does not fit and this is the only
+                // way to reach the rest of it. It is one eager month, where the
+                // eager probe showed `scrollTo` landing exact.
+                .accessibilityIdentifier("ArchiveScroll")
+                // No scrolling at all when the month fits, which is every case
+                // below the accessibility sizes.
+                .scrollBounceBehavior(.basedOnSize)
+                .task {
+                    // The current month opens with today in view. Every other
+                    // month opens at the top, which is its first week.
+                    guard let today = month.first(where: { $0.isToday })?.day else { return }
+                    await Task.yield()
+                    scroller.scrollTo(today, anchor: .center)
+                }
+            }
+            // **A fresh scroll for each month, and this is not cosmetic.** The
+            // scroll view is reused across page changes and keeps its offset, so
+            // paging back from a September scrolled to today would open August
+            // at September's offset rather than at its first week. Invisible at
+            // default size, where nothing scrolls at all.
+            .id(Self.monthKey(month))
+            .transition(slide)
         }
+        .clipped()
+        // Swipe is an enhancement on top of the buttons, doing the same thing.
+        // Simultaneous rather than exclusive so it takes nothing from the day
+        // cells underneath or from the grid's own vertical scrolling, and
+        // horizontal dominance so a vertical drag at AX5 still scrolls.
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 30)
+                .onEnded { drag in
+                    guard abs(drag.translation.width) > abs(drag.translation.height) else { return }
+                    step(drag.translation.width > 0 ? -1 : 1)
+                }
+        )
+    }
+
+    /// The month's name is the page title, with the previous and next buttons
+    /// either side of it. The buttons are the primary path and the accessible
+    /// one; the swipe only repeats what they do.
+    private func monthBar(_ month: [ArchiveDay]) -> some View {
+        HStack(spacing: 0) {
+            stepButton(-1)
+            Text(monthName(month[0].date))
+                .font(CuteFont.body(11, weight: "Bold", relativeTo: .caption))
+                .tracking(1.4)
+                .textCase(.uppercase)
+                .foregroundStyle(Cute.inkFaint)
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
+                .frame(maxWidth: .infinity)
+                .accessibilityAddTraits(.isHeader)
+                .accessibilityIdentifier("ArchiveMonthTitle")
+            stepButton(1)
+        }
+        .padding(.horizontal, gutter - 10)
+    }
+
+    private func stepButton(_ delta: Int) -> some View {
+        let target = safeIndex + delta
+        let reachable = months.indices.contains(target)
+        return Button { step(delta) } label: {
+            Image(systemName: delta < 0 ? "chevron.left" : "chevron.right")
+                .font(.system(size: 15, weight: .bold))
+                .frame(width: Cute.minTapTarget, height: Cute.minTapTarget)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(reachable ? Cute.accentDeep : Cute.inkFaint.opacity(0.30))
+        .disabled(!reachable)
+        .accessibilityIdentifier(delta < 0 ? "ArchivePreviousMonth" : "ArchiveNextMonth")
+        .accessibilityLabel(stepLabel(delta, target: target, reachable: reachable))
+    }
+
+    /// "Previous month, August 2026", so the button names where it goes.
+    private func stepLabel(_ delta: Int, target: Int, reachable: Bool) -> String {
+        let which = delta < 0 ? Vocabulary.archivePreviousMonth : Vocabulary.archiveNextMonth
+        guard reachable else {
+            let none = delta < 0 ? Vocabulary.archiveNoEarlierMonth : Vocabulary.archiveNoLaterMonth
+            return "\(which), \(none)"
+        }
+        return "\(which), \(monthName(months[target][0].date))"
+    }
+
+    private func step(_ delta: Int) {
+        let target = safeIndex + delta
+        guard months.indices.contains(target) else { return }
+        advancing = delta > 0
+        if reduceMotion {
+            monthIndex = target
+        } else {
+            withAnimation(.easeInOut(duration: 0.22)) { monthIndex = target }
+        }
+    }
+
+    /// The month slides the way it was asked to go. With Reduce Motion on it
+    /// does not slide at all.
+    private var slide: AnyTransition {
+        guard !reduceMotion else { return .identity }
+        return .asymmetric(
+            insertion: .move(edge: advancing ? .trailing : .leading),
+            removal: .move(edge: advancing ? .leading : .trailing)
+        )
     }
 
     /// Clamped, because `days` can change under a sheet that is already open.
     private var safeIndex: Int {
         min(max(monthIndex, 0), max(months.count - 1, 0))
-    }
-
-    /// The month's name, always on screen, because the page is one month.
-    private func monthHeading(_ month: [ArchiveDay]) -> some View {
-        Text(monthName(month[0].date))
-            .font(CuteFont.body(11, weight: "Bold", relativeTo: .caption))
-            .tracking(1.4)
-            .textCase(.uppercase)
-            .foregroundStyle(Cute.inkFaint)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, gutter)
     }
 
     private func monthGrid(_ month: [ArchiveDay], cell: CGFloat) -> some View {
@@ -358,6 +460,9 @@ struct ArchiveSheet: View {
                     ForEach(Array(row.enumerated()), id: \.offset) { _, slot in
                         if let day = slot {
                             ArchiveCell(day: day, size: cell, canPlay: canPlay) { onPick(day.day) }
+                                // The ForEach id is the column, so the day id
+                                // that `scrollTo` resolves has to be restated.
+                                .id(day.day)
                         } else {
                             Color.clear.frame(width: cell, height: cell)
                         }

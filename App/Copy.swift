@@ -225,6 +225,12 @@ enum Vocabulary {
     /// decoded first. The basket vocabulary is for the thing you fill, not for
     /// the way back to a day you already filled.
     static let archiveTitle = "Past days"
+    // Spoken as "Previous month, August 2026", so the button says where it goes
+    // rather than which way it points.
+    static let archivePreviousMonth = "Previous month"
+    static let archiveNextMonth = "Next month"
+    static let archiveNoEarlierMonth = "no earlier month"
+    static let archiveNoLaterMonth = "no later month"
 
     /// The six states, as a player reads them. Also the VoiceOver text, so the
     /// screen and the announcement cannot say different things.
