@@ -412,7 +412,7 @@ final class GameModel {
             }
             adopt(p, storageDay: Self.todayStorageIndex, isArchive: false)
             // Once, and only until it has run. See `backFillArchive`.
-            backFillArchive()
+            await backFillArchive()
             phase = .ready
             writeDebugState()
             runLaunchArguments()
@@ -963,13 +963,11 @@ final class GameModel {
         // which is the whole reason the zero-find case was conceded.
         guard !found.isEmpty else { return }
 
-        let reached = isComplete(standing) ? DayOutcome.basket
-            : standing.index >= streakTierIndex ? DayOutcome.cleared
-            : DayOutcome.played
+        let reached = rungReached(standing)
 
         if let existing = storage.outcome(dayIndex: day), existing.reached >= reached { return }
         storage.recordOutcome(
-            dayIndex: day, DayOutcome(reached: reached, on: today, web: false)
+            dayIndex: day, DayOutcome(reached: reached, on: today, fromStreak: false)
         )
     }
 
@@ -1015,10 +1013,49 @@ final class GameModel {
     /// after the daily epoch, so today nothing is trimmed, and a longer run or a
     /// re-anchored `dailyEpoch` would otherwise write outcomes for dates that
     /// have no board at all.
-    private func backFillArchive() {
-        storage.backFillOutcomesFromStreak(
+    /// Build the archive's history once, on the first launch that has one.
+    ///
+    /// **The days that still hold words are classified before the run fills the
+    /// rest, and that ordering is the whole point.** The streak establishes only
+    /// that a day reached the rank; a day whose words survive can say whether the
+    /// basket filled. Those words are pruned to a fortnight and this write is
+    /// never revised, so a recent basket day either keeps its heart here or
+    /// loses it permanently.
+    ///
+    /// The puzzles are built first, off the main actor, because classifying
+    /// needs one per day and the engine's hook is synchronous. At most fourteen,
+    /// bounded by the prune rather than by the length of the run.
+    @discardableResult
+    private func backFillArchive() async -> BackFillCounts {
+        guard let lexicon else { return BackFillCounts(fromPlay: 0, fromStreak: 0) }
+        // Asked before the puzzles are built, not after. The engine would refuse
+        // a second expansion anyway, but only once this has already rebuilt a
+        // fortnight of boards to hand it a classifier it will not call.
+        guard !storage.hasBackFilledOutcomes() else {
+            return BackFillCounts(fromPlay: 0, fromStreak: 0)
+        }
+
+        var puzzles: [Int: Puzzle] = [:]
+        for day in storage.daysWithProgress() {
+            let daily = day - Self.firstPlayableStorageIndex
+            guard daily >= 0 else { continue }
+            guard let puzzle = await Self.buildPuzzle(dailyIndex: daily, lexicon: lexicon) else {
+                continue
+            }
+            puzzles[day] = puzzle
+        }
+
+        return storage.backFillOutcomes(
             firstPlayableDayIndex: Self.firstPlayableStorageIndex
-        )
+        ) { day, storedSourceWord, found in
+            // The same mismatch rule `loadDayProgress` applies: a different
+            // source word means the calendar moved and these words belong to
+            // another puzzle.
+            guard let puzzle = puzzles[day], puzzle.sourceWord == storedSourceWord else {
+                return nil
+            }
+            return rungReached(computeTier(found: Set(found), puzzle: puzzle))
+        }
     }
 
     /// Every day the calendar can draw, oldest first.
@@ -1150,7 +1187,7 @@ final class GameModel {
         // recorded basket completion and the back-fill cannot invent it.
         let runEnd = today - 9
         for day in max(first, runEnd - 69)...runEnd {
-            seeded[day] = DayOutcome(reached: DayOutcome.cleared, on: day, web: true)
+            seeded[day] = DayOutcome(reached: DayOutcome.cleared, on: day, fromStreak: true)
         }
 
         // The tail, played here. One of each remaining state, adjacent, so they
@@ -1168,7 +1205,7 @@ final class GameModel {
             seeded[day] = DayOutcome(
                 reached: entry.reached,
                 on: entry.caughtUpLater ? today : day,
-                web: false
+                fromStreak: false
             )
         }
         storage.replaceOutcomes(seeded)

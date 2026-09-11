@@ -26,7 +26,7 @@ struct ArchiveTests {
     /// the refusal has to be here rather than left to the calendar's range.
     @Test("a future day with an outcome is still not yet playable")
     func futureBeatsAnyRecord() {
-        let planted = DayOutcome(reached: DayOutcome.basket, on: Self.today + 5, web: false)
+        let planted = DayOutcome(reached: DayOutcome.basket, on: Self.today + 5, fromStreak: false)
         #expect(mark(Self.today + 5, planted) == .notYet)
     }
 
@@ -44,31 +44,31 @@ struct ArchiveTests {
 
     @Test("a day played below the rank is incomplete")
     func incomplete() {
-        #expect(mark(200, DayOutcome(reached: DayOutcome.played, on: 200, web: false))
+        #expect(mark(200, DayOutcome(reached: DayOutcome.played, on: 200, fromStreak: false))
                 == .incomplete)
     }
 
     @Test("cleared on the day")
     func clearedOnTheDay() {
-        #expect(mark(200, DayOutcome(reached: DayOutcome.cleared, on: 200, web: false))
-                == .cleared(onTheDay: true, web: false))
+        #expect(mark(200, DayOutcome(reached: DayOutcome.cleared, on: 200, fromStreak: false))
+                == .cleared(onTheDay: true, fromStreak: false))
     }
 
     @Test("cleared after the day")
     func clearedAfterTheDay() {
-        #expect(mark(200, DayOutcome(reached: DayOutcome.cleared, on: 251, web: false))
-                == .cleared(onTheDay: false, web: false))
+        #expect(mark(200, DayOutcome(reached: DayOutcome.cleared, on: 251, fromStreak: false))
+                == .cleared(onTheDay: false, fromStreak: false))
     }
 
     @Test("basket on the day")
     func basketOnTheDay() {
-        #expect(mark(200, DayOutcome(reached: DayOutcome.basket, on: 200, web: false))
+        #expect(mark(200, DayOutcome(reached: DayOutcome.basket, on: 200, fromStreak: false))
                 == .basket(onTheDay: true))
     }
 
     @Test("basket after the day")
     func basketAfterTheDay() {
-        #expect(mark(200, DayOutcome(reached: DayOutcome.basket, on: 251, web: false))
+        #expect(mark(200, DayOutcome(reached: DayOutcome.basket, on: 251, fromStreak: false))
                 == .basket(onTheDay: false))
     }
 
@@ -76,16 +76,16 @@ struct ArchiveTests {
 
     @Test("a transferred day is cleared, on its own day, and says so")
     func webDay() {
-        #expect(mark(200, DayOutcome(reached: DayOutcome.cleared, on: 200, web: true))
-                == .cleared(onTheDay: true, web: true))
+        #expect(mark(200, DayOutcome(reached: DayOutcome.cleared, on: 200, fromStreak: true))
+                == .cleared(onTheDay: true, fromStreak: true))
     }
 
-    /// The web never recorded basket completion, so the back-fill never claims
-    /// it. If a `web` day ever carries a basket it came from somewhere else, and
-    /// the mark should not quietly relabel it.
-    @Test("a basket is never reported as a web day")
-    func basketCarriesNoWebFlag() {
-        let day = mark(200, DayOutcome(reached: DayOutcome.basket, on: 200, web: true))
+    /// A run records no basket completion, so the expansion never claims one.
+    /// If a flagged day ever carries a basket it came from somewhere else, and
+    /// the mark should not quietly hand the run the credit.
+    @Test("a basket never reports the streak as its source")
+    func basketCarriesNoStreakFlag() {
+        let day = mark(200, DayOutcome(reached: DayOutcome.basket, on: 200, fromStreak: true))
         #expect(day == .basket(onTheDay: true))
     }
 
@@ -95,7 +95,7 @@ struct ArchiveTests {
     /// as at least a full basket rather than falling through to incomplete.
     @Test("a rung from a newer build reads as at least a basket")
     func newerRungReadsAsBasket() {
-        #expect(mark(200, DayOutcome(reached: 7, on: 200, web: false))
+        #expect(mark(200, DayOutcome(reached: 7, on: 200, fromStreak: false))
                 == .basket(onTheDay: true))
     }
 
@@ -153,13 +153,13 @@ struct ArchiveGuardTests {
     /// while the grid is drawing that day filled.
     @Test("a day already recorded as a full basket has had its celebration")
     func completedDayHasBeenSeen() {
-        let done = DayOutcome(reached: DayOutcome.basket, on: 200, web: false)
+        let done = DayOutcome(reached: DayOutcome.basket, on: 200, fromStreak: false)
         #expect(completionAlreadySeen(outcome: done))
     }
 
     @Test("a day cleared but not filled has not had its celebration")
     func clearedDayHasNotBeenSeen() {
-        let cleared = DayOutcome(reached: DayOutcome.cleared, on: 200, web: false)
+        let cleared = DayOutcome(reached: DayOutcome.cleared, on: 200, fromStreak: false)
         #expect(!completionAlreadySeen(outcome: cleared))
     }
 
@@ -175,7 +175,7 @@ struct ArchiveGuardTests {
         let store = InMemoryStore()
         let storage = GameStorage(store: store)
         storage.recordOutcome(
-            dayIndex: 200, DayOutcome(reached: DayOutcome.basket, on: 200, web: false))
+            dayIndex: 200, DayOutcome(reached: DayOutcome.basket, on: 200, fromStreak: false))
 
         // The words are gone; nothing was ever saved under this day.
         #expect(storage.loadDayProgress(dayIndex: 200, sourceWord: "motorway") == [])

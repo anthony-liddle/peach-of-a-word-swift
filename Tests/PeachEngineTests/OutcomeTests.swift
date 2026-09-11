@@ -21,12 +21,12 @@ struct OutcomeTests {
     func roundTrip() {
         storage.recordOutcome(
             dayIndex: 200,
-            DayOutcome(reached: DayOutcome.basket, on: 251, web: false)
+            DayOutcome(reached: DayOutcome.basket, on: 251, fromStreak: false)
         )
         let out = storage.outcome(dayIndex: 200)
         #expect(out?.reached == DayOutcome.basket)
         #expect(out?.on == 251)
-        #expect(out?.web == false)
+        #expect(out?.fromStreak == false)
     }
 
     @Test("a day with no record has no outcome")
@@ -43,7 +43,7 @@ struct OutcomeTests {
         for day in 1...span {
             storage.recordOutcome(
                 dayIndex: day,
-                DayOutcome(reached: DayOutcome.cleared, on: day, web: false)
+                DayOutcome(reached: DayOutcome.cleared, on: day, fromStreak: false)
             )
             storage.saveDayProgress(dayIndex: day, sourceWord: "w\(day)", found: ["a"])
         }
@@ -66,7 +66,7 @@ struct OutcomeTests {
 
         storage.recordOutcome(
             dayIndex: 100,
-            DayOutcome(reached: DayOutcome.basket, on: 251, web: true)
+            DayOutcome(reached: DayOutcome.basket, on: 251, fromStreak: true)
         )
 
         #expect(store.data(forKey: GameStorage.storageKey) == before,
@@ -89,19 +89,19 @@ struct OutcomeTests {
     @Test("a malformed field in one entry defaults rather than discarding the entry")
     func malformedFieldDefaults() {
         plant(GameStorage.outcomesKey,
-              #"{"version":1,"days":{"200":{"reached":"basket","on":251,"web":true}}}"#)
+              #"{"version":1,"days":{"200":{"reached":"basket","on":251,"fromStreak":true}}}"#)
 
         let out = storage.outcome(dayIndex: 200)
         #expect(out != nil, "one bad field discarded the whole entry")
         #expect(out?.reached == DayOutcome.played, "the bad field did not default")
         #expect(out?.on == 251, "a good field beside a bad one was lost")
-        #expect(out?.web == true)
+        #expect(out?.fromStreak == true)
     }
 
     @Test("an outcome from a newer build decodes rather than throwing")
     func forwardCompatibleReach() {
         plant(GameStorage.outcomesKey,
-              #"{"version":2,"days":{"200":{"reached":7,"on":251,"web":false,"future":"x"}}}"#)
+              #"{"version":2,"days":{"200":{"reached":7,"on":251,"fromStreak":false,"future":"x"}}}"#)
 
         let out = storage.outcome(dayIndex: 200)
         #expect(out != nil, "a newer outcomes blob was discarded rather than read")
@@ -121,7 +121,7 @@ struct OutcomeTests {
         storage.recordDailyCleared(dayIndex: 220, todayIndex: 220)
         storage.recordOutcome(
             dayIndex: 100,
-            DayOutcome(reached: DayOutcome.cleared, on: 251, web: true)
+            DayOutcome(reached: DayOutcome.cleared, on: 251, fromStreak: true)
         )
 
         let blob = try! JSONSerialization.jsonObject(
@@ -164,16 +164,19 @@ struct BackFillTests {
         #expect(storage.allOutcomes().count == 70)
     }
 
-    @Test("an expanded day says it was played on the web, on its own day")
-    func marksTheDaysAsWeb() {
+    /// It says the run is what establishes the day, and nothing more. This test
+    /// used to be called "played on the web", which the run cannot know: it
+    /// covers the transfer and every day played here since.
+    @Test("an expanded day credits the streak, on its own day")
+    func marksTheDaysAsFromStreak() {
         storage.adoptStreak(count: 70, lastClearedDayIndex: Self.today,
                             todayIndex: Self.today)
         storage.backFillOutcomesFromStreak(firstPlayableDayIndex: Self.firstPlayable)
 
         let day = storage.outcome(dayIndex: 200)
-        #expect(day?.web == true)
-        #expect(day?.on == 200, "a web day was recorded as caught up later")
-        // The web never recorded basket completion, so no expanded day may claim it.
+        #expect(day?.fromStreak == true)
+        #expect(day?.on == 200, "an expanded day was recorded as caught up later")
+        // A run records no basket completion, so no expanded day may claim it.
         #expect(day?.reached != DayOutcome.basket)
     }
 
@@ -225,7 +228,7 @@ struct BackFillTests {
     @Test("a day already played here keeps its own record")
     func doesNotOverwriteRealPlay() {
         storage.recordOutcome(
-            dayIndex: 200, DayOutcome(reached: DayOutcome.basket, on: 200, web: false))
+            dayIndex: 200, DayOutcome(reached: DayOutcome.basket, on: 200, fromStreak: false))
         storage.adoptStreak(count: 70, lastClearedDayIndex: Self.today,
                             todayIndex: Self.today)
 
@@ -233,7 +236,7 @@ struct BackFillTests {
 
         let day = storage.outcome(dayIndex: 200)
         #expect(day?.reached == DayOutcome.basket, "the back-fill downgraded a real basket")
-        #expect(day?.web == false, "a day played here was relabelled as a web day")
+        #expect(day?.fromStreak == false, "a day played here was credited to the streak")
     }
 
     @Test("no streak means nothing to expand")
@@ -272,10 +275,10 @@ struct ReplaceOutcomesTests {
 
     @Test("replacing drops everything that was there before")
     func replaceIsNotAMerge() {
-        storage.recordOutcome(dayIndex: 10, DayOutcome(reached: DayOutcome.basket, on: 10, web: false))
-        storage.recordOutcome(dayIndex: 11, DayOutcome(reached: DayOutcome.cleared, on: 11, web: false))
+        storage.recordOutcome(dayIndex: 10, DayOutcome(reached: DayOutcome.basket, on: 10, fromStreak: false))
+        storage.recordOutcome(dayIndex: 11, DayOutcome(reached: DayOutcome.cleared, on: 11, fromStreak: false))
 
-        storage.replaceOutcomes([20: DayOutcome(reached: DayOutcome.played, on: 20, web: false)])
+        storage.replaceOutcomes([20: DayOutcome(reached: DayOutcome.played, on: 20, fromStreak: false)])
 
         #expect(storage.outcome(dayIndex: 10) == nil, "a stale outcome survived a replace")
         #expect(storage.outcome(dayIndex: 11) == nil)

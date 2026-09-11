@@ -152,6 +152,26 @@ public final class GameStorage {
         return day.found
     }
 
+    /// Whether the one-time archive expansion has already happened.
+    ///
+    /// **Asked before the work, not after.** `backFillOutcomes` needs a
+    /// classifier, and building one costs a puzzle per retained day. Without
+    /// this the caller pays that on every launch and the flag then throws the
+    /// answer away, which is the same wasted launch walk `archiveDays` was moved
+    /// off the launch path to avoid.
+    public func hasBackFilledOutcomes() -> Bool {
+        readOutcomes().backFilled
+    }
+
+    /// The days still holding found words, newest first.
+    ///
+    /// At most `maxDaysKept`, because `write` prunes to that on every write. The
+    /// archive back-fill walks this rather than the streak's run, which has no
+    /// bound: fourteen puzzles to rebuild instead of seventy.
+    public func daysWithProgress() -> [Int] {
+        read().days.keys.compactMap(Int.init).sorted(by: >)
+    }
+
     public func saveDayProgress(dayIndex: Int, sourceWord: String, found: [String]) {
         var state = read()
         state.days[String(dayIndex)] = DayProgress(sourceWord: sourceWord, found: found)
@@ -311,15 +331,26 @@ public struct DayOutcome: Codable, Equatable, Sendable {
     /// The storage day index on which this was achieved. Equal to the day's own
     /// index when it was played on the day, greater when it was caught up after.
     public var on: Int
-    /// True when this came from the web back-fill rather than from play here.
-    /// Such a day may claim `cleared` and never `basket`: the web never recorded
-    /// basket completion, so a missing crown there means "not known".
-    public var web: Bool
+    /// True when the streak's run is the only thing establishing this day,
+    /// rather than a record of the play itself.
+    ///
+    /// **It is not a claim about the web, and it used to be.** The field was
+    /// called `web` and VoiceOver read it as "played on the web", on the theory
+    /// that an expanded run was the transfer. The run is not all transfer: the
+    /// streak kept counting in this app after the transfer landed, so every day
+    /// played here since would have been labelled as the web's, permanently, by
+    /// the one write that is never revised.
+    ///
+    /// What a run does establish is that the day reached the streak rank, and
+    /// that is all this says. Such a day may claim `cleared` and never `basket`,
+    /// because a run records no basket completion: a missing crown on one of
+    /// these means "not known", not "not achieved".
+    public var fromStreak: Bool
 
-    public init(reached: Int, on: Int, web: Bool) {
+    public init(reached: Int, on: Int, fromStreak: Bool) {
         self.reached = reached
         self.on = on
-        self.web = web
+        self.fromStreak = fromStreak
     }
 
     /// Every field defaults, and every field is read leniently.
@@ -333,7 +364,7 @@ public struct DayOutcome: Codable, Equatable, Sendable {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         reached = c.lenient(.reached, Self.played)
         on = c.lenient(.on, 0)
-        web = c.lenient(.web, false)
+        fromStreak = c.lenient(.fromStreak, false)
     }
 }
 
@@ -489,33 +520,110 @@ extension GameStorage {
     ///   expansion actually found anything.
     @discardableResult
     public func backFillOutcomesFromStreak(firstPlayableDayIndex: Int) -> Int {
+        backFillOutcomes(
+            firstPlayableDayIndex: firstPlayableDayIndex, fromPlay: { _, _, _ in nil }
+        ).fromStreak
+    }
+
+    /// Build the archive once, taking the play record over the run wherever it
+    /// reaches further.
+    ///
+    /// **The run is the weakest true statement about a day, and some days can do
+    /// better.** A run establishes only that the day reached the streak rank. A
+    /// day whose found words are still in the main blob was played here and can
+    /// be classified exactly as live play classifies it, which is the difference
+    /// between a recent basket day keeping its heart and losing it for good: the
+    /// found lists are pruned to `maxDaysKept` and this write is never revised,
+    /// so no later pass can recover what is not taken now.
+    ///
+    /// **The play record may only ever raise a day inside the run, never lower
+    /// it.** `classify` recomputes a rung from stored words, and that
+    /// computation depends on the lexicon, the tier thresholds and the scoring,
+    /// none of which are frozen. If any of them moved between the build that
+    /// stored the words and the build running this, a day that genuinely cleared
+    /// can recompute below the rank and would be written as `incomplete`
+    /// permanently. Inside the run, the rung is floored at `cleared`, so the
+    /// worst this can do is agree with the run.
+    ///
+    /// - Parameters:
+    ///   - firstPlayableDayIndex: the daily epoch in storage days.
+    ///   - classify: given a day index, the source word stored with its
+    ///     progress, and the words found, the rung that day reached, or nil if
+    ///     it cannot be classified. Passed in because classifying needs the word
+    ///     lists, which the engine does not hold.
+    /// - Returns: how many days each source accounted for.
+    @discardableResult
+    public func backFillOutcomes(
+        firstPlayableDayIndex: Int,
+        fromPlay classify: (Int, String, [String]) -> Int?
+    ) -> BackFillCounts {
         var outcomes = readOutcomes()
-        guard !outcomes.backFilled else { return 0 }
+        guard !outcomes.backFilled else { return BackFillCounts(fromPlay: 0, fromStreak: 0) }
         // Marked done even when there is nothing to expand, so this does not run
         // on every launch forever. `adoptStreak` re-arms it if a transfer lands
         // later.
         outcomes.backFilled = true
 
-        let streak = read().streak
-        guard streak.count > 0, let last = streak.lastClearedDayIndex else {
-            writeOutcomes(outcomes)
-            return 0
+        let state = read()
+        let streak = state.streak
+        var run: ClosedRange<Int>?
+        if streak.count > 0, let last = streak.lastClearedDayIndex {
+            let firstOfRun = max(firstPlayableDayIndex, last - streak.count + 1)
+            if firstOfRun <= last { run = firstOfRun...last }
         }
 
-        let firstOfRun = max(firstPlayableDayIndex, last - streak.count + 1)
-        guard firstOfRun <= last else {
-            writeOutcomes(outcomes)
-            return 0
+        var counts = BackFillCounts(fromPlay: 0, fromStreak: 0)
+
+        // The play record first. Enumerated from the days that have progress,
+        // which the prune holds to `maxDaysKept`, rather than from the run,
+        // which can be any length.
+        for (key, progress) in state.days {
+            guard let day = Int(key), outcomes.days[key] == nil else { continue }
+            // An empty board must not claim to have been played. Same rule, and
+            // the same reason, as the guard in the caller that records live play.
+            guard !progress.found.isEmpty else { continue }
+            guard let reached = classify(day, progress.sourceWord, progress.found) else { continue }
+
+            if run?.contains(day) == true, reached < DayOutcome.cleared {
+                // The run knows more than the recomputation found. Take the run.
+                outcomes.days[key] = DayOutcome(
+                    reached: DayOutcome.cleared, on: day, fromStreak: true
+                )
+                counts.fromStreak += 1
+            } else {
+                // A board can only have been played on its own day here, because
+                // nothing could open a past one until the archive existed and
+                // this runs once, before it can have been used.
+                outcomes.days[key] = DayOutcome(reached: reached, on: day, fromStreak: false)
+                counts.fromPlay += 1
+            }
         }
 
-        var written = 0
-        for day in firstOfRun...last where outcomes.days[String(day)] == nil {
-            outcomes.days[String(day)] = DayOutcome(
-                reached: DayOutcome.cleared, on: day, web: true
-            )
-            written += 1
+        // Then the run, for every day the play record could not speak for.
+        if let run {
+            for day in run where outcomes.days[String(day)] == nil {
+                outcomes.days[String(day)] = DayOutcome(
+                    reached: DayOutcome.cleared, on: day, fromStreak: true
+                )
+                counts.fromStreak += 1
+            }
         }
+
         writeOutcomes(outcomes)
-        return written
+        return counts
+    }
+}
+
+/// What one run of the archive back-fill accounted for, by source.
+public struct BackFillCounts: Equatable, Sendable {
+    /// Days classified from words still held in the main blob.
+    public var fromPlay: Int
+    /// Days the streak's run established, including any the play record could
+    /// not raise above it.
+    public var fromStreak: Int
+
+    public init(fromPlay: Int, fromStreak: Int) {
+        self.fromPlay = fromPlay
+        self.fromStreak = fromStreak
     }
 }

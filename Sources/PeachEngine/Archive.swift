@@ -23,8 +23,9 @@ public enum DayMark: Equatable, Sendable {
     /// Reached the rank that counts toward the streak.
     /// - Parameters:
     ///   - onTheDay: recorded on the day itself rather than caught up later.
-    ///   - web: transferred from the web build rather than earned here.
-    case cleared(onTheDay: Bool, web: Bool)
+    ///   - fromStreak: established by the streak's run rather than by a record
+    ///     of the play itself. Not a claim about where it was played.
+    case cleared(onTheDay: Bool, fromStreak: Bool)
     /// Every set word found. The peak, and above the named ladder.
     case basket(onTheDay: Bool)
 }
@@ -43,15 +44,29 @@ public func dayMark(for dayIndex: Int, outcome: DayOutcome?, todayIndex: Int) ->
     guard let outcome else { return .noRecord }
 
     if outcome.reached >= DayOutcome.basket {
-        // No `web` here on purpose. The web never recorded basket completion, so
-        // the back-fill cannot produce this; a basket carrying the flag came
-        // from somewhere else and is not the web's claim to make.
+        // No `fromStreak` here on purpose. A run records no basket completion,
+        // so the expansion cannot produce this; a basket carrying the flag came
+        // from somewhere else and the run is not what established it.
         return .basket(onTheDay: outcome.on == dayIndex)
     }
     if outcome.reached >= DayOutcome.cleared {
-        return .cleared(onTheDay: outcome.on == dayIndex, web: outcome.web)
+        return .cleared(onTheDay: outcome.on == dayIndex, fromStreak: outcome.fromStreak)
     }
     return .incomplete
+}
+
+/// How far a board got, from its standing on the ladder.
+///
+/// **One function because there are two callers and they must not diverge.**
+/// Live play records an outcome as the board is played; the back-fill rebuilds
+/// one from words stored earlier. If those two disagreed, reopening a day could
+/// draw it differently from the day it was played, and the back-fill's floor
+/// inside a streak run is only safe while this is the same rule that wrote the
+/// run in the first place.
+public func rungReached(_ standing: TierStanding) -> Int {
+    if isComplete(standing) { return DayOutcome.basket }
+    if standing.index >= streakTierIndex { return DayOutcome.cleared }
+    return DayOutcome.played
 }
 
 /// Every day the archive can offer, oldest first.

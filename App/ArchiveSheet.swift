@@ -340,7 +340,7 @@ struct ArchiveSheet: View {
             VStack(alignment: .leading, spacing: 14) {
                 keyRow(.noRecord, Vocabulary.markNoRecord, size)
                 keyRow(.incomplete, Vocabulary.markIncomplete, size)
-                keyRow(.cleared(onTheDay: true, web: false), Vocabulary.markCleared, size)
+                keyRow(.cleared(onTheDay: true, fromStreak: false), Vocabulary.markCleared, size)
                 keyRow(.basket(onTheDay: true), Vocabulary.markBasket, size)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -348,7 +348,7 @@ struct ArchiveSheet: View {
             HStack(alignment: .top, spacing: 10) {
                 keyItem(.noRecord, Vocabulary.markNoRecord, size)
                 keyItem(.incomplete, Vocabulary.markIncomplete, size)
-                keyItem(.cleared(onTheDay: true, web: false), Vocabulary.markCleared, size)
+                keyItem(.cleared(onTheDay: true, fromStreak: false), Vocabulary.markCleared, size)
                 keyItem(.basket(onTheDay: true), Vocabulary.markBasket, size)
             }
         }
@@ -976,10 +976,10 @@ private struct ArchiveCell: View {
         case .notYet: parts.append(Vocabulary.markNotYet)
         case .noRecord: parts.append(Vocabulary.markNoRecord)
         case .incomplete: parts.append(Vocabulary.markIncomplete)
-        case .cleared(let onTheDay, let web):
+        case .cleared(let onTheDay, let fromStreak):
             parts.append(Vocabulary.markCleared)
             if !onTheDay { parts.append(Vocabulary.markCaughtUpLater) }
-            if web { parts.append(Vocabulary.markOnTheWeb) }
+            if fromStreak { parts.append(Vocabulary.markFromStreak) }
         case .basket(let onTheDay):
             parts.append(Vocabulary.markBasket)
             if !onTheDay { parts.append(Vocabulary.markCaughtUpLater) }

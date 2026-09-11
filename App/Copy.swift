@@ -251,7 +251,13 @@ enum Vocabulary {
     static let markNotYet = "Not yet"
     /// Said after the state, so "Finished, caught up later" reads as one phrase.
     static let markCaughtUpLater = "caught up later"
-    static let markOnTheWeb = "played on the web"
+    /// Said of a day the streak's run establishes and nothing else does.
+    ///
+    /// **Not "played on the web", which is what this said and could not know.**
+    /// The run expanded on first launch covers the transfer and every day played
+    /// here since, and the record cannot tell them apart. This says the thing
+    /// that is true of all of them.
+    static let markFromStreak = "kept by your streak"
     static let markToday = "today"
 
     /// The way back from a past board.
