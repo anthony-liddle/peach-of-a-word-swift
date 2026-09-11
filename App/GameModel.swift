@@ -1031,40 +1031,24 @@ final class GameModel {
             firstPlayableDayIndex: Self.firstPlayableStorageIndex, todayIndex: today
         )
 
-        // Run on to the end of today's week, and no further.
+        // Draw the rest of the current month, so a month page is a whole month.
         //
-        // **Today's row is the last row of the content**, which is what lets the
-        // sheet land at the end rather than hunting for a row in the middle of
-        // it. This used to run on to the end of the month, which is issue #65: a
-        // lazy container's estimate of the content above today settled 873pt
-        // wrong and the opening `scrollTo` resolved against it.
+        // **This used to stop at the end of today's week, and that cap was a
+        // landing requirement rather than a calendar one.** The sheet scrolled
+        // every month at once and had to put today's row at the end of the
+        // content, so anything drawn below today pushed it off the bottom. The
+        // sheet now shows one month at a time and has nothing to land on, so the
+        // cap bought nothing and cost the shape of a calendar: a month page that
+        // stops mid-month is not a page of a calendar.
         //
-        // **It did not turn out to remove the need to resolve anything, and the
-        // comment here said it had.** Ending the content at today's week was
-        // meant to let `.defaultScrollAnchor(.bottom)` carry the landing alone,
-        // with the `scrollTo` deleted. That was tried and reverted: the anchor
-        // tracks the end while the estimate settles and then stops tracking,
-        // finishing 505pt short. It sets an initial offset, it is not a standing
-        // rule, so the `scrollTo` in `ArchiveSheet` stays.
-        //
-        // What this does buy is real and measured. On an iPhone SE 3 the landing
-        // now reaches the maximum offset at every size, ungrown and grown alike,
-        // because there is nothing below today's row but padding. On a 390pt
-        // phone it does not, and #65 stays open.
-        //
-        // Both reasons the run on exists are kept. A calendar that stops mid-week
-        // is not a calendar, and `.notYet` had nowhere to appear while the range
-        // ended at today. The rule and its month cap live in `archiveRunOn`.
+        // Days after today are `.notYet`, which is the state that needed
+        // somewhere to appear in the first place.
         let calendar = Foundation.Calendar.current
         let todayDate = Self.date(forStorageDay: today)
-        let weekday = calendar.component(.weekday, from: todayDate)
-        let offset = (weekday - calendar.firstWeekday + 7) % 7
         let daysLeft = calendar.range(of: .day, in: .month, for: todayDate).flatMap { month in
             calendar.dateComponents([.day], from: todayDate).day.map { month.count - $0 }
         } ?? 0
-        indices += archiveRunOn(
-            todayIndex: today, weekdayOffset: offset, daysLeftInMonth: daysLeft
-        )
+        if daysLeft > 0 { indices += (1...daysLeft).map { today + $0 } }
 
         return indices.map { day in
             ArchiveDay(

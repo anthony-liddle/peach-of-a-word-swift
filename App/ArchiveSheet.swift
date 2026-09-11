@@ -57,13 +57,43 @@ import PeachEngine
 /// already means the thing being marked. It also survives 8pt, where `PeachMark`
 /// drops its face because it turns to mud.
 ///
-/// A grid rather than a list, built that way from the start: seventy-nine days
-/// exist today and the number goes up every morning.
+/// **One month at a time, decided 2026-09-10.** A grid rather than a list, and a
+/// page rather than a scroll of every month: a month is at most 42 cells, so it
+/// is built eagerly and costs the same on the day the archive holds three years
+/// as on the day it holds seventy-nine.
 struct ArchiveSheet: View {
     let days: [ArchiveDay]
     let canPlay: Bool
     let onPick: (Int) -> Void
     let onClose: () -> Void
+
+    /// The months, grouped once.
+    ///
+    /// Stored rather than computed, because a computed property regroups every
+    /// day in history on every body evaluation, including every page change.
+    /// The sheet draws one month and should do work proportional to one month.
+    let months: [[ArchiveDay]]
+
+    /// Which month is on screen.
+    ///
+    /// **Held here, and set before the first layout, deliberately.** Four
+    /// attempts at landing a continuous scroll on today failed because the
+    /// position was the framework's to decide and the answer depended on when it
+    /// decided it. A page index is ours, it is correct before anything is drawn,
+    /// and there is nothing to resolve. `2026-09-10 What Eager Layout Really
+    /// Costs.md` has what the alternatives cost.
+    @State private var monthIndex: Int
+
+    init(days: [ArchiveDay], canPlay: Bool,
+         onPick: @escaping (Int) -> Void, onClose: @escaping () -> Void) {
+        self.days = days
+        self.canPlay = canPlay
+        self.onPick = onPick
+        self.onClose = onClose
+        let grouped = Self.group(days)
+        self.months = grouped
+        _monthIndex = State(initialValue: Self.openingIndex(in: grouped))
+    }
 
     /// The space between cells. **Fixed, not scaled, and that is deliberate.**
     ///
@@ -105,100 +135,7 @@ struct ArchiveSheet: View {
                 Color.clear.frame(height: CGFloat(headerPad))
                 #endif
 
-                ScrollViewReader { scroller in
-                    ScrollView {
-                        LazyVStack(alignment: .leading, spacing: 18,
-                                   pinnedViews: [.sectionHeaders]) {
-                            ForEach(months, id: \.first!.day) { month in
-                                Section {
-                                    monthGrid(month, cell: cell)
-                                } header: {
-                                    monthHeading(month)
-                                }
-                            }
-                        }
-                        .padding(.horizontal, gutter)
-                        .padding(.bottom, 16)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                    // Opens on today, not at the top and not at the bottom.
-                    //
-                    // The top is the least useful place to land and gets worse
-                    // every morning, so this used to anchor to the bottom. Then
-                    // the month started running past today so the seventh state
-                    // had somewhere to appear, and the bottom became a screen of
-                    // inert future days: at accessibility sizes, where only two
-                    // rows fit, that was the whole view. Today is the answer to
-                    // both, and it is also the way back from a past board.
-                    // Two mechanisms, and both are needed.
-                    //
-                    // The anchor is the floor: it lands at the newest end
-                    // without waiting for anything, which matters because the
-                    // stack and the grids are both lazy and nothing offscreen
-                    // exists yet. `scrollTo` alone landed at the very top, since
-                    // `onAppear` runs before the cell it is asked to find has
-                    // been built.
-                    //
-                    // The scroll then refines it onto today. The bottom is the
-                    // end of the current month rather than today, which at
-                    // default size still shows today and at accessibility sizes,
-                    // where two rows fit, was a screenful of inert future days.
-                    .accessibilityIdentifier("ArchiveScroll")
-                    // The sheet opens already scrolled, and when it lands on a
-                    // row boundary the pinned month heading covers the rows
-                    // above it with nothing to say they are there. Under the
-                    // showcase seed that is June and the first four days of
-                    // July, and the sheet reads as a month starting on the 5th.
-                    // A flash of the indicator is the smallest honest signal
-                    // that the content runs past the top edge.
-                    .scrollIndicatorsFlash(onAppear: true)
-                    // Room for the today ring at the bottom edge.
-                    //
-                    // The sheet opens by putting today's bottom edge on the
-                    // scroll view's, and the ring is drawn `ringOutset` beyond
-                    // the cell through an overlay with negative padding, which
-                    // does not change the cell's frame. So the ring's bottom
-                    // stroke landed outside the visible region and was clipped,
-                    // measured at exactly 3.00pt, on every open at every size.
-                    //
-                    // A content margin rather than padding on the stack:
-                    // padding makes the content longer and leaves the anchor
-                    // where it was, since `scrollTo` aligns a view's edge to the
-                    // viewport's. A margin moves the viewport's edge, which is
-                    // the thing that was in the wrong place.
-                    //
-                    // **Kept after measuring what removing it costs, now that
-                    // the content ends at today's week and the stack's 16pt
-                    // bottom padding already sits below today's row.** On the
-                    // SE the margin is worth exactly its 3pt, -16.50 against
-                    // -13.50, so it is no longer what stops a clip. On the SE
-                    // at AX5 with the header grown, where the scroll view is
-                    // 95.5pt tall, removing it loses today's cell altogether:
-                    // the lazy stack never builds it and it is not in the
-                    // accessibility tree at all. Three points is the margin
-                    // between today existing and not, on the tightest container
-                    // the grid has.
-                    .contentMargins(.bottom, ArchiveCellFace.ringOutset, for: .scrollContent)
-                    .defaultScrollAnchor(.bottom)
-                    .task {
-                        await Task.yield()
-                        #if DEBUG
-                        // `-archiveTop 1` opens at the oldest end instead.
-                        //
-                        // The same argument as `-openArchive` and `-scrollBottom`:
-                        // simctl cannot scroll, so a view that can only be reached
-                        // by a finger can only be reasoned about. This is how the
-                        // June section reaches a screenshot.
-                        if UserDefaults.standard.bool(forKey: "archiveTop"),
-                           let first = days.first?.day {
-                            scroller.scrollTo(first, anchor: .top)
-                            return
-                        }
-                        #endif
-                        guard let today = days.first(where: { $0.isToday })?.day else { return }
-                        scroller.scrollTo(today, anchor: .bottom)
-                    }
-                }
+                monthPage(cell: cell)
 
                 Button(action: onClose) {
                     Text(Vocabulary.revealClose)
@@ -216,11 +153,11 @@ struct ArchiveSheet: View {
             .onAppear { ArchiveTiming.shared.appeared() }
             #endif
         }
-        // Flat paper rather than the play screen's gradient, and the reason is
-        // the pinned headers: a month heading has to sit on an opaque band or
-        // the cells scrolling under it show through, and a flat band cannot
-        // match a gradient at every scroll position. The sheet is a different
-        // surface from the board and is allowed to say so.
+        // Flat paper rather than the play screen's gradient. The sheet is a
+        // different surface from the board and is allowed to say so. It began as
+        // a requirement of the pinned month headings, which needed an opaque
+        // band to sit on; those are gone with the scroll, and the flat paper is
+        // kept because it was right on its own.
         .background(Cute.paper.ignoresSafeArea())
     }
 
@@ -327,7 +264,7 @@ struct ArchiveSheet: View {
 
     // MARK: Months
 
-    private var months: [[ArchiveDay]] {
+    private static func group(_ days: [ArchiveDay]) -> [[ArchiveDay]] {
         let calendar = Foundation.Calendar.current
         var grouped: [[ArchiveDay]] = []
         for day in days {
@@ -341,11 +278,61 @@ struct ArchiveSheet: View {
         return grouped
     }
 
-    /// Pinned, so the month is named even when its heading has scrolled past.
+    /// The month the sheet opens on: the current one, which is the last, because
+    /// the range now runs to the end of today's month.
+    private static func openingIndex(in months: [[ArchiveDay]]) -> Int {
+        guard !months.isEmpty else { return 0 }
+        #if DEBUG
+        // `-archiveMonth 2026-07` opens on that month instead.
+        //
+        // The same argument as `-openArchive`: simctl cannot tap, so a month
+        // that can only be reached by a finger can only be reasoned about. This
+        // replaces `-archiveTop`, which named an end of a scroll that no longer
+        // exists.
+        if let wanted = UserDefaults.standard.string(forKey: "archiveMonth"),
+           let found = months.firstIndex(where: { monthKey($0) == wanted }) {
+            return found
+        }
+        #endif
+        return months.count - 1
+    }
+
+    /// A month's stable name, for `-archiveMonth` and for view identity.
+    private static func monthKey(_ month: [ArchiveDay]) -> String {
+        let parts = Foundation.Calendar.current
+            .dateComponents([.year, .month], from: month[0].date)
+        return String(format: "%04d-%02d", parts.year ?? 0, parts.month ?? 0)
+    }
+
+    /// The month on screen, and nothing else.
     ///
-    /// The sheet opens at the newest end, which used to land mid-July with the
-    /// July heading above the fold and "AUGUST 2026" the first words on screen,
-    /// so the first block of cells belonged to nothing.
+    /// **One month is at most 42 cells, so it is built eagerly and costs the
+    /// same on every day the archive ever has.** The sheet used to scroll every
+    /// month at once, which had to land on today: in a lazy stack that landing
+    /// depended on timing and missed in two different ways on the two launch
+    /// paths (#65, #67), and making the stack eager fixed the landing at a main
+    /// thread stall that grew with every day of history, 599ms at 1080 days.
+    /// `2026-09-10 What Eager Layout Really Costs.md` has the measurements.
+    ///
+    /// A page has no scroll position to resolve, so there is nothing to land on
+    /// and nothing to get wrong.
+    private func monthPage(cell: CGFloat) -> some View {
+        let month = months[safeIndex]
+        return VStack(alignment: .leading, spacing: 10) {
+            monthHeading(month)
+            monthGrid(month, cell: cell)
+                .padding(.horizontal, gutter)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Spacer(minLength: 0)
+        }
+    }
+
+    /// Clamped, because `days` can change under a sheet that is already open.
+    private var safeIndex: Int {
+        min(max(monthIndex, 0), max(months.count - 1, 0))
+    }
+
+    /// The month's name, always on screen, because the page is one month.
     private func monthHeading(_ month: [ArchiveDay]) -> some View {
         Text(monthName(month[0].date))
             .font(CuteFont.body(11, weight: "Bold", relativeTo: .caption))
@@ -353,18 +340,29 @@ struct ArchiveSheet: View {
             .textCase(.uppercase)
             .foregroundStyle(Cute.inkFaint)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.vertical, 6)
-            .background(Cute.paper)
+            .padding(.horizontal, gutter)
     }
 
     private func monthGrid(_ month: [ArchiveDay], cell: CGFloat) -> some View {
-        let columns = Array(repeating: GridItem(.fixed(cell), spacing: gap), count: 7)
-        return LazyVGrid(columns: columns, alignment: .leading, spacing: gap) {
-            ForEach(0..<leadingBlanks(before: month[0].date), id: \.self) { _ in
-                Color.clear.frame(width: cell, height: cell)
-            }
-            ForEach(month, id: \.day) { day in
-                ArchiveCell(day: day, size: cell, canPlay: canPlay) { onPick(day.day) }
+        // Eager rows of seven. No `Lazy` container anywhere in the sheet: a
+        // month is at most 42 cells, and a lazy container's estimate of what it
+        // has not built is the whole of issue #65.
+        let blanks = leadingBlanks(before: month[0].date)
+        let slots: [ArchiveDay?] = Array(repeating: nil, count: blanks) + month.map { $0 }
+        let rows = stride(from: 0, to: slots.count, by: 7).map {
+            Array(slots[$0..<min($0 + 7, slots.count)])
+        }
+        return VStack(alignment: .leading, spacing: gap) {
+            ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
+                HStack(spacing: gap) {
+                    ForEach(Array(row.enumerated()), id: \.offset) { _, slot in
+                        if let day = slot {
+                            ArchiveCell(day: day, size: cell, canPlay: canPlay) { onPick(day.day) }
+                        } else {
+                            Color.clear.frame(width: cell, height: cell)
+                        }
+                    }
+                }
             }
         }
     }
