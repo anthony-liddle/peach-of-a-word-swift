@@ -758,25 +758,39 @@ extension ArchiveSheet {
     /// target laid out inside it does not arrive as 44pt of glass. Measured at
     /// default size, reading a day cell out of the running app:
     ///
-    /// | Device | Screen | iOS | Cell laid out | On the glass |
-    /// |---|---|---|---|---|
-    /// | iPhone 13 | 390x844 | 26.4 | 46.29 | 44.43 |
-    /// | iPhone 13 mini | 375x812 | 26.4 | 44.14 | 42.12 |
-    /// | iPhone SE 3 | 375x667 | 26.4 | 44.14 | 42.12 |
-    /// | iPhone 13 mini | 375x812 | 17.5 | 44.14 | 44.00 |
-    /// | iPhone SE 3 | 375x667 | 17.5 | 44.14 | 44.00 |
+    /// | Device | Screen | iOS | Cell laid out | On the glass | Ratio |
+    /// |---|---|---|---|---|---|
+    /// | iPhone 16 | 393x852 | 26.4 | 46.71 | 44.77 | 0.9584 |
+    /// | iPhone 13 | 390x844 | 26.4 | 46.29 | 44.43 | 0.9599 |
+    /// | iPhone 13 mini | 375x812 | 26.4 | 44.14 | 42.12 | 0.9542 |
+    /// | iPhone SE 3 | 375x667 | 26.4 | 44.14 | 42.12 | 0.9542 |
+    /// | iPhone 13 mini | 375x812 | 17.5 | 44.14 | 44.00 | no card |
+    /// | iPhone SE 3 | 375x667 | 17.5 | 44.14 | 44.00 | no card |
     ///
-    /// **It is the OS, not the home indicator, and it tracks width.** An
-    /// earlier reading of one phone put the scale at 810/844 and called it the
-    /// indicator's inset. The SE 3 has no indicator and is scaled by the same
-    /// amount as the 13 mini, which has one, and the two share a width and not
-    /// a height. The same SE 3 on iOS 17.5 is not scaled at all.
+    /// **It is the OS, not the home indicator.** An earlier reading of one
+    /// phone put the scale at 810/844 and called it the indicator's inset. The
+    /// SE 3 has no indicator and is scaled by the same amount as the 13 mini,
+    /// which has one. The same SE 3 on iOS 17.5 is not scaled at all.
+    ///
+    /// **The ratio is not a function of width, and the iPhone 16 is what showed
+    /// that.** A ratio rising with width was the reading from two widths. A
+    /// third, 393pt, comes back at 0.9584, which is below the 390pt phone rather
+    /// than above it, so width alone does not order these.
+    ///
+    /// An inset of about 8pt a side accounts for the two wider phones:
+    /// `(W - 16) / W` is 0.9593 and 0.9590 against 0.9584 and 0.9599 measured,
+    /// and the card on the 390pt phone was separately seen to span 8.0 to 381.7
+    /// of 390. It does not account for 375, where it predicts 0.9573 against
+    /// 0.9542 measured, a third of a point on the cell. So the mechanism is
+    /// close to a fixed inset and is not exactly one, and no model here is
+    /// trusted to extrapolate.
     ///
     /// 0.9542 is the smallest of the measured scales, from both 375pt phones.
     /// Taking the smallest is the safe direction: it can only refuse the card
     /// to a phone that would have survived it, never hand it to one that will
     /// not. It also gives one answer on every OS, so a phone that is not scaled
-    /// today is judged as though it were.
+    /// today is judged as though it were. It is a floor, not a curve, and the
+    /// third width did not move it.
     static let cardScale: CGFloat = 0.9542
 
     /// Whether the fitted card leaves a day cell big enough to tap.
