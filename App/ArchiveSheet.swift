@@ -110,6 +110,33 @@ struct ArchiveSheet: View {
 
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
+    /// The chevron glyph, scaled with the month name it sits beside.
+    ///
+    /// **A fixed 15pt mark next to a title several times its size is the one
+    /// thing on the sheet a low vision reader is hunting for and the one thing
+    /// that did not grow.** The 44pt target was always there and was never the
+    /// problem: the target is what the finger needs and the glyph is what the
+    /// eye needs, and they are different measurements. Relative to `.caption`,
+    /// which is the month name's own style, so the two keep their proportions
+    /// at every size.
+    @ScaledMetric(relativeTo: .caption) private var chevron: CGFloat = 15
+
+    /// 44pt of glass, after the sheet's card transform.
+    ///
+    /// **A sheet at a custom detent is presented as a floating card, and on a
+    /// phone with a home indicator that card is scaled down.** Measured at
+    /// 0.9597 on a 390pt phone, which is 810/844, exactly the screen less the
+    /// indicator's inset, and 1.0 on an SE 3, which has no indicator. So a 44pt
+    /// target laid out in here reaches the glass at 42.2pt on one phone and
+    /// 44.0pt on the other, and the minimum is about the finger, which touches
+    /// glass. 46pt survives on both: 44.1 and 46.0.
+    ///
+    /// It is the whole sheet that shrinks, not this button. The day cells come
+    /// out at 44.43pt against the 46.29pt they are laid out at, and the way out
+    /// lands at 42.2pt. Recorded in
+    /// `2026-09-11 The Month Page Layout.md`.
+    private let chevronTarget: CGFloat = 46
+
     init(width: CGFloat, days: [ArchiveDay], canPlay: Bool,
          onPick: @escaping (Int) -> Void, onClose: @escaping () -> Void) {
         self.width = width
@@ -540,10 +567,13 @@ struct ArchiveSheet: View {
     private func stepButton(_ delta: Int) -> some View {
         let target = safeIndex + delta
         let reachable = months.indices.contains(target)
+        // The greater of the target and the glyph with room around it, so it
+        // never drops below the minimum and never crops the mark either.
+        let tap = max(chevronTarget, chevron + 12)
         return Button { step(delta) } label: {
             Image(systemName: delta < 0 ? "chevron.left" : "chevron.right")
-                .font(.system(size: 15, weight: .bold))
-                .frame(width: Cute.minTapTarget, height: Cute.minTapTarget)
+                .font(.system(size: chevron, weight: .bold))
+                .frame(width: tap, height: tap)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
