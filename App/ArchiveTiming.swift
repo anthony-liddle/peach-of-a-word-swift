@@ -14,30 +14,24 @@ import os
 /// DEBUG only, and the whole file is inside the flag rather than each member, so
 /// a Release build carries no timer, no display link and no log category.
 ///
-/// Three instants, because which segment the cost sits in is itself the
-/// question:
+/// Two instants:
 ///
 /// - `requested` is the moment something asks for the sheet, before SwiftUI has
 ///   built any of it.
 /// - `appeared` is the sheet's body reaching the screen.
-/// - `settled` is today's cell stopping. "Stopped" means its frame has not
-///   changed for `quiet`, and the reported figure **excludes** that quiet
-///   period: it ends at the last movement, not at the moment we noticed.
 ///
-/// Today's own frame is the signal rather than the scroll view's geometry,
-/// because "today's cell reaching its final position" is the question, and a
-/// scroll that settles while the content is still growing is not the same event.
+/// **There used to be a third, and it has been removed rather than repaired.**
+/// `settled` claimed to be today's cell coming to rest, reported from a hook
+/// watching that cell's frame. On an eager layout the hook sees the first
+/// position and nothing after it: a probe that delayed the opening scroll by
+/// 2.5s moved today's ring 40.3pt after it appeared and the run still logged
+/// `moves=1` and `appearToSettle=0ms`. A probe that reads the same whether it
+/// is working or not is worse than no probe, because its zero reads as an
+/// answer. `requestToAppear` was never affected and is what is left.
 ///
-/// **`settled` is only as good as the reporting hook, and on an eager layout
-/// the hook sees the first position and nothing after it.** A probe that
-/// delayed the archive's opening scroll by 2.5s moved today's ring 40.3pt after
-/// it appeared, and the run still logged `moves=1` and `appearToSettle=0ms`.
-/// So on the month page `requestToSettle` is in practice `requestToAppear`, and
-/// `appearToSettle=0ms` means nothing was observed after the appearance rather
-/// than nothing happened. The hook is in `ArchiveSheet`, where the reason is
-/// written down. Comparing these figures with the lazy and eager runs from
-/// `What Eager Layout Really Costs.md` compares a number with no settle against
-/// numbers that had one.
+/// Whether today moves after the first paint is now answered by recording the
+/// open and stepping through the frames, which needs no instrument in the app.
+/// See `2026-09-11 The Month Page Layout.md`.
 @MainActor
 final class ArchiveTiming {
     static let shared = ArchiveTiming()
@@ -47,16 +41,16 @@ final class ArchiveTiming {
     private let signposter = OSSignposter(subsystem: "com.anthonyliddle.peachofaword",
                                           category: "timing")
 
-    /// How still today has to be before it counts as landed.
-    private let quiet: CFTimeInterval = 0.4
-    /// How long to wait for today to appear at all before giving up and saying so.
+    /// How long to keep watching for dropped frames after the sheet appears.
+    ///
+    /// The appearance is the measurement, but the frames dropped drawing it
+    /// land just after it, so the report waits this long before closing.
+    private let watch: CFTimeInterval = 0.4
+    /// How long to wait for the sheet to appear at all before saying it did not.
     private let patience: CFTimeInterval = 40
 
     private var requestedAt: CFTimeInterval?
     private var appearedAt: CFTimeInterval?
-    private var lastMoveAt: CFTimeInterval?
-    private var lastFrame: CGRect?
-    private var moves = 0
     private var reported = false
     private var signpostID: OSSignpostID?
     private var interval: OSSignpostIntervalState?
@@ -111,35 +105,25 @@ final class ArchiveTiming {
         // That put a 150ms floor under every reading, larger than the whole
         // window it was supposed to sit inside.
         lastTick = now()
-        // Nothing may ever move, on a day where today is not drawn. Say that
-        // rather than logging silence, which reads identically to a crash.
+        // The sheet may never appear, on a day where there is nothing to show.
+        // Say that rather than logging silence, which reads like a crash.
         let deadline = patience
         Task { @MainActor in
             try? await Task.sleep(nanoseconds: UInt64(deadline * 1_000_000_000))
-            if !self.reported { self.finish(settled: false) }
+            if !self.reported { self.finish(appeared: false) }
         }
     }
 
     func appeared() {
         guard appearedAt == nil else { return }
         appearedAt = now()
-    }
-
-    func todayMoved(to frame: CGRect) {
-        guard requestedAt != nil, !reported else { return }
-        if let previous = lastFrame, previous == frame { return }
-        lastFrame = frame
-        lastMoveAt = now()
-        moves += 1
-        let mark = moves
         Task { @MainActor in
-            try? await Task.sleep(nanoseconds: UInt64(self.quiet * 1_000_000_000))
-            // Only the last movement gets to finish the measurement.
-            if mark == self.moves, !self.reported { self.finish(settled: true) }
+            try? await Task.sleep(nanoseconds: UInt64(self.watch * 1_000_000_000))
+            if !self.reported { self.finish(appeared: true) }
         }
     }
 
-    private func finish(settled: Bool) {
+    private func finish(appeared: Bool) {
         guard !reported, let requestedAt else { return }
         reported = true
         stopLink()
@@ -148,22 +132,15 @@ final class ArchiveTiming {
             _ = signpostID
         }
         let appear = (appearedAt ?? requestedAt) - requestedAt
-        let last = lastMoveAt ?? appearedAt ?? requestedAt
-        let toSettle = last - (appearedAt ?? requestedAt)
-        let total = last - requestedAt
         log.notice("""
-            ARCHIVE-TIMING result settled=\(settled ? "yes" : "no", privacy: .public) \
+            ARCHIVE-TIMING result appeared=\(appeared ? "yes" : "no", privacy: .public) \
             requestToAppear=\(Int(appear * 1000), privacy: .public)ms \
-            appearToSettle=\(Int(toSettle * 1000), privacy: .public)ms \
-            requestToSettle=\(Int(total * 1000), privacy: .public)ms \
-            moves=\(self.moves, privacy: .public) \
             longestFrameGap=\(Int(self.longestGap * 1000), privacy: .public)ms
             """)
     }
 
     private func reset() {
-        requestedAt = nil; appearedAt = nil; lastMoveAt = nil; lastFrame = nil
-        moves = 0; reported = false
+        requestedAt = nil; appearedAt = nil; reported = false
     }
 
     private func startLink() {

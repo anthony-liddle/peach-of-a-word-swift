@@ -868,41 +868,6 @@ private struct ArchiveCell: View {
                     RoundedRectangle(cornerRadius: size * 0.3 + ArchiveCellFace.ringOutset)
                         .strokeBorder(Cute.ink, lineWidth: 1.5)
                         .padding(-ArchiveCellFace.ringOutset)
-                    #if DEBUG
-                    // Today reporting its own position, for `ArchiveTiming`.
-                    //
-                    // An overlay of `Color.clear` inside the existing overlay, so
-                    // it adds no layout height and cannot move the thing it is
-                    // measuring. The frame is taken in global coordinates because
-                    // the question is where today sits on the screen, not where
-                    // it sits in the content.
-                    //
-                    // **It reports the position today first appears at, and not
-                    // the ones after it, so read `moves` and `appearToSettle`
-                    // as what was observed rather than as what happened.**
-                    // Delaying the opening scroll by 2.5s put today's ring at
-                    // 608.3..660.0 before the scroll and 568.0..620.0 after it,
-                    // a 40.3pt move that a screenshot caught and this hook did
-                    // not: the same run still logged `moves=1` and
-                    // `appearToSettle=0ms`. `onChange` needs the body
-                    // re-evaluated with a new value, and scrolling an eager
-                    // month does not re-evaluate a cell that never left the
-                    // tree. The old lazy grid built its cells as it
-                    // materialised them, which is the likeliest reason the same
-                    // hook logged `moves=2` and `moves=3` there. Seeing a
-                    // position actually stop moving would need a preference
-                    // key, since `onGeometryChange` is iOS 18 and this target
-                    // is 17.
-                    GeometryReader { proxy in
-                        Color.clear
-                            .onAppear {
-                                ArchiveTiming.shared.todayMoved(to: proxy.frame(in: .global))
-                            }
-                            .onChange(of: proxy.frame(in: .global)) { _, new in
-                                ArchiveTiming.shared.todayMoved(to: new)
-                            }
-                    }
-                    #endif
                 }
             }
             .contentShape(Rectangle())
