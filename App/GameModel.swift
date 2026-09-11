@@ -945,10 +945,11 @@ final class GameModel {
 
         if standing.index >= streakTierIndex && !streakRecordedThisSession {
             streakRecordedThisSession = true
-            // Both indices, because they are no longer the same number. The
-            // engine refuses anything older than yesterday, so finishing a July
-            // board cannot restart a live streak at 1.
-            storage.recordDailyCleared(dayIndex: day, todayIndex: today)
+            // Three facts, because the two indices are not enough. Yesterday
+            // crossed at midnight and yesterday tapped in the calendar are the
+            // same pair of numbers, and only this side knows which happened.
+            // The engine decides what to do with that; see `recordDailyCleared`.
+            storage.recordDailyCleared(dayIndex: day, todayIndex: today, fromArchive: isArchiveBoard)
             streak = storage.currentStreak(todayIndex: today)
         }
         writeDebugState()

@@ -60,7 +60,7 @@ struct OutcomeTests {
     /// property would be gone and this test is what says so.
     @Test("recording an outcome does not touch the blob that holds the streak")
     func outcomeWriteLeavesTheMainBlobAlone() {
-        storage.recordDailyCleared(dayIndex: 220, todayIndex: 220)
+        storage.recordDailyCleared(dayIndex: 220, todayIndex: 220, fromArchive: false)
         storage.saveDayProgress(dayIndex: 220, sourceWord: "motorway", found: ["tram"])
         let before = store.data(forKey: GameStorage.storageKey)
 
@@ -76,7 +76,7 @@ struct OutcomeTests {
 
     @Test("a corrupt outcomes blob costs the outcomes and not the streak")
     func corruptOutcomesKeepsTheStreak() {
-        storage.recordDailyCleared(dayIndex: 220, todayIndex: 220)
+        storage.recordDailyCleared(dayIndex: 220, todayIndex: 220, fromArchive: false)
         plant(GameStorage.outcomesKey, "{not json at all")
 
         #expect(storage.outcome(dayIndex: 200) == nil)
@@ -118,7 +118,7 @@ struct OutcomeTests {
         // reads the newer blob, discards it, and takes the streak with it.
         #expect(PersistedState.currentVersion == 1)
 
-        storage.recordDailyCleared(dayIndex: 220, todayIndex: 220)
+        storage.recordDailyCleared(dayIndex: 220, todayIndex: 220, fromArchive: false)
         storage.recordOutcome(
             dayIndex: 100,
             DayOutcome(reached: DayOutcome.cleared, on: 251, fromStreak: true)

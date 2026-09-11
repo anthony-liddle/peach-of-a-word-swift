@@ -192,8 +192,8 @@ struct StreakGuardTests {
 
     @Test("clearing today extends the streak as it always did")
     func todayStillCounts() {
-        storage.recordDailyCleared(dayIndex: 250, todayIndex: 250)
-        storage.recordDailyCleared(dayIndex: 251, todayIndex: 251)
+        storage.recordDailyCleared(dayIndex: 250, todayIndex: 250, fromArchive: false)
+        storage.recordDailyCleared(dayIndex: 251, todayIndex: 251, fromArchive: false)
         #expect(storage.currentStreak(todayIndex: 251) == 2)
     }
 
@@ -202,8 +202,11 @@ struct StreakGuardTests {
     /// equality guard would silently break it.
     @Test("a board finished just after midnight still counts for the day it belongs to")
     func yesterdayStillCounts() {
-        storage.recordDailyCleared(dayIndex: 250, todayIndex: 250)
-        storage.recordDailyCleared(dayIndex: 251, todayIndex: 252)
+        storage.recordDailyCleared(dayIndex: 250, todayIndex: 250, fromArchive: false)
+        // `false` carries the whole test. This is the only call in the suite
+        // where the flag changes the answer: yesterday's index arriving from a
+        // board that was opened as today's.
+        storage.recordDailyCleared(dayIndex: 251, todayIndex: 252, fromArchive: false)
         #expect(storage.currentStreak(todayIndex: 252) == 2,
                 "a clear that landed just after midnight was refused")
     }
@@ -213,7 +216,7 @@ struct StreakGuardTests {
     @Test("clearing a board from weeks ago does not touch the streak")
     func archiveClearIsRefused() {
         storage.adoptStreak(count: 70, lastClearedDayIndex: 251, todayIndex: 251)
-        storage.recordDailyCleared(dayIndex: 200, todayIndex: 251)
+        storage.recordDailyCleared(dayIndex: 200, todayIndex: 251, fromArchive: false)
         #expect(storage.currentStreak(todayIndex: 251) == 70,
                 "an archive board reset a live streak")
     }
@@ -225,15 +228,82 @@ struct StreakGuardTests {
     /// which still reads as 1 today. The defect only shows up the next day.
     @Test("a day that has not happened yet cannot be cleared")
     func futureClearIsRefused() {
-        storage.recordDailyCleared(dayIndex: 251, todayIndex: 251)
-        storage.recordDailyCleared(dayIndex: 300, todayIndex: 251)
+        storage.recordDailyCleared(dayIndex: 251, todayIndex: 251, fromArchive: false)
+        storage.recordDailyCleared(dayIndex: 300, todayIndex: 251, fromArchive: false)
 
         // Tomorrow must still extend. If the future index was accepted,
         // `lastCleared` is 300, tomorrow reads as a gap, and the streak restarts
         // at 1: the freeze the guard exists to prevent.
-        storage.recordDailyCleared(dayIndex: 252, todayIndex: 252)
+        storage.recordDailyCleared(dayIndex: 252, todayIndex: 252, fromArchive: false)
         #expect(storage.currentStreak(todayIndex: 252) == 2,
                 "a future index was accepted, which froze the streak")
+    }
+
+    /// The two numbers as they sit on disk. `currentStreak` folds them into one
+    /// answer, and "untouched" is a claim about both, so these guards read the
+    /// pair rather than its reading.
+    private func storedStreak() -> (count: Int, last: Int?) {
+        guard let data = store.data(forKey: GameStorage.storageKey),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let streak = json["streak"] as? [String: Any]
+        else { return (0, nil) }
+        return (streak["count"] as? Int ?? 0, streak["lastClearedDayIndex"] as? Int)
+    }
+
+    /// The reported defect, at the size it was found: 72 became 1 on one
+    /// accepted find. Yesterday's index reaching the engine from the calendar
+    /// is indistinguishable from the midnight crossing unless the caller says
+    /// which it is.
+    @Test("yesterday from the archive does not restart a live streak")
+    func yesterdayFromTheArchiveIsRefused() {
+        storage.adoptStreak(count: 72, lastClearedDayIndex: 252, todayIndex: 252)
+        storage.recordDailyCleared(dayIndex: 251, todayIndex: 252, fromArchive: true)
+
+        let streak = storedStreak()
+        #expect(streak.count == 72, "an archive board reset a live streak to \(streak.count)")
+        #expect(streak.last == 252, "an archive board moved the last cleared day backwards")
+    }
+
+    /// The same day from the same place, with today still unplayed. Catching up
+    /// is not graded, so a day filled in later must not revive a run that has
+    /// already lapsed. Before the fix this wrote 71 and handed back a streak
+    /// that had been broken for a day.
+    @Test("yesterday from the archive does not revive a lapsed streak")
+    func yesterdayFromTheArchiveDoesNotRepair() {
+        storage.adoptStreak(count: 70, lastClearedDayIndex: 250, todayIndex: 250)
+        storage.recordDailyCleared(dayIndex: 251, todayIndex: 252, fromArchive: true)
+
+        let streak = storedStreak()
+        #expect(streak.count == 70, "catching up repaired a broken streak, to \(streak.count)")
+        #expect(streak.last == 250, "catching up moved the last cleared day")
+        #expect(storage.currentStreak(todayIndex: 252) == 0, "a lapsed streak came back")
+    }
+
+    /// The mirror of the defect, and the thing a blunter fix would cost. Today
+    /// reached from the calendar is still today, so it must record. Verified
+    /// against the running app before this guard was written: tapping today in
+    /// the calendar arrives with `fromArchive` false, because `openArchiveDay`
+    /// sets the flag from `storageDay != today`. This guard holds the engine to
+    /// the rule anyway, since the call site is not where the rule lives.
+    @Test("today from the archive still extends the streak")
+    func todayFromTheArchiveStillCounts() {
+        storage.adoptStreak(count: 72, lastClearedDayIndex: 251, todayIndex: 251)
+        storage.recordDailyCleared(dayIndex: 252, todayIndex: 252, fromArchive: true)
+        #expect(storage.currentStreak(todayIndex: 252) == 73,
+                "today was refused because of how it was opened")
+    }
+
+    /// The existing guard, restated with the flag set. A day from weeks ago
+    /// reaches the engine only from the archive, and it must still touch
+    /// nothing.
+    @Test("a day from weeks ago from the archive still touches nothing")
+    func weeksAgoFromTheArchiveIsRefused() {
+        storage.adoptStreak(count: 70, lastClearedDayIndex: 251, todayIndex: 251)
+        storage.recordDailyCleared(dayIndex: 200, todayIndex: 251, fromArchive: true)
+
+        let streak = storedStreak()
+        #expect(streak.count == 70, "an archive board reset a live streak")
+        #expect(streak.last == 251, "an archive board moved the last cleared day")
     }
 }
 

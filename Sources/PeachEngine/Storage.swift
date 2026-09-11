@@ -189,27 +189,52 @@ public final class GameStorage {
     /// Record that a daily reached the streak rank. Consecutive days extend the
     /// streak, a gap restarts it, and recording the same day twice is a no-op.
     ///
-    /// **The streak must not move backwards, and `todayIndex` is what stops it.**
-    /// This function assumed the index it was handed was today, which was true
-    /// of every caller until a board could be opened from the archive. Handed a
-    /// July index it compares against `lastClearedDayIndex`, sees a gap, and
-    /// restarts a live seventy-day streak at 1. That is the worst single outcome
-    /// this feature can produce, so the rule is enforced here, in the engine,
-    /// where it runs under `swift test` rather than only where it is called.
+    /// **The streak must not move backwards, and the two cases below are what
+    /// stop it.** Handed a July index and nothing else, this compares against
+    /// `lastClearedDayIndex`, sees a gap, and restarts a live seventy-day
+    /// streak at 1. That is the worst single outcome this feature can produce,
+    /// so the rule is enforced here, in the engine, where it runs under `swift
+    /// test` rather than only where it is called.
     ///
-    /// **`>= todayIndex - 1` rather than `== todayIndex`, deliberately.** A board
-    /// opened at 23:58 and cleared at 00:01 records under the day it was built
-    /// for, because `storageDayIndex` is captured once when the board is adopted
-    /// and never recomputed while it is in play. By then that day is yesterday.
-    /// It works today, nobody would think to test it, and a strict equality
-    /// guard would silently drop the clear and cost her the day.
+    /// Two cases record. Nothing else does.
     ///
-    /// The upper bound is the other half. A day that has not happened cannot
-    /// have been cleared, and accepting a future index would additionally freeze
-    /// the streak, since every real day after it then reads as a gap. That is
-    /// the same reasoning `adoptStreak` records for the same reason.
-    public func recordDailyCleared(dayIndex: Int, todayIndex: Int) {
-        guard dayIndex >= todayIndex - 1, dayIndex <= todayIndex else { return }
+    /// **Today, whichever way the board was opened.** Tapping today's cell in
+    /// the calendar reaches the board through the archive route, and it is
+    /// still today. Refusing every board that came from the archive would cost
+    /// her the day she is actually playing, which is the mirror of the defect
+    /// this guard exists for and no better than it.
+    ///
+    /// **Yesterday, but only from a board that was not opened from the
+    /// archive.** A board opened at 23:58 and cleared at 00:01 records under
+    /// the day it was built for, because `storageDayIndex` is captured once
+    /// when the board is adopted and never recomputed while it is in play. By
+    /// then that day is yesterday. It works today, nobody would think to test
+    /// it, and refusing it would silently drop the clear and cost her the day.
+    /// Yesterday reached from the calendar is the same two numbers and a
+    /// different event, and it must not record: the run it would restart is
+    /// live, and the run it would revive has already lapsed. Only the caller
+    /// knows which event this is, so the caller says.
+    ///
+    /// **`fromArchive` has no default, deliberately.** The guard used to read
+    /// the pair of indices and infer the rest, which was right for as long as
+    /// the only way to arrive with yesterday's index was the midnight crossing.
+    /// The calendar made yesterday openable hours later and the inference did
+    /// not change with it. A default would let the next call site reopen that
+    /// by saying nothing.
+    ///
+    /// The old form was one range, `>= todayIndex - 1` and `<= todayIndex`,
+    /// which admits exactly these two days and no others. Nothing was narrowed
+    /// by writing it out as cases. It is written as cases because the two days
+    /// no longer follow the same rule.
+    ///
+    /// The upper bound survives as an equality. A day that has not happened
+    /// cannot have been cleared, and accepting a future index would freeze the
+    /// streak, since every real day after it then reads as a gap. That is the
+    /// same reasoning `adoptStreak` records for the same reason.
+    public func recordDailyCleared(dayIndex: Int, todayIndex: Int, fromArchive: Bool) {
+        let isToday = dayIndex == todayIndex
+        let isMidnightCrossing = dayIndex == todayIndex - 1 && !fromArchive
+        guard isToday || isMidnightCrossing else { return }
         var state = read()
         let last = state.streak.lastClearedDayIndex
         if last == dayIndex { return }
