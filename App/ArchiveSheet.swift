@@ -284,14 +284,51 @@ struct ArchiveSheet: View {
     ///
     /// It draws the same faces the grid draws, so the two cannot drift into
     /// meaning different things.
+    @ViewBuilder
     private func key(cell: CGFloat) -> some View {
         let size = min(cell, 26)
-        return HStack(alignment: .top, spacing: 10) {
-            keyItem(.noRecord, Vocabulary.markNoRecord, size)
-            keyItem(.incomplete, Vocabulary.markIncomplete, size)
-            keyItem(.cleared(onTheDay: true, web: false), Vocabulary.markCleared, size)
-            keyItem(.basket(onTheDay: true), Vocabulary.markBasket, size)
+        if dynamicTypeSize.isAccessibilitySize {
+            // **One row per state, because four columns is what broke the
+            // words.** Each item took a quarter of the width, about 97pt on a
+            // 390pt phone, and at AX5 "Started" does not fit in 97pt. A `Text`
+            // only breaks inside a word when the word cannot fit the line at
+            // all, so "Star / ted", "Finis / hed" and "Bask / et / full" were
+            // the column width being reported, not a wrapping setting. Given
+            // the row, the same `Text` wraps between words on its own.
+            VStack(alignment: .leading, spacing: 14) {
+                keyRow(.noRecord, Vocabulary.markNoRecord, size)
+                keyRow(.incomplete, Vocabulary.markIncomplete, size)
+                keyRow(.cleared(onTheDay: true, web: false), Vocabulary.markCleared, size)
+                keyRow(.basket(onTheDay: true), Vocabulary.markBasket, size)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        } else {
+            HStack(alignment: .top, spacing: 10) {
+                keyItem(.noRecord, Vocabulary.markNoRecord, size)
+                keyItem(.incomplete, Vocabulary.markIncomplete, size)
+                keyItem(.cleared(onTheDay: true, web: false), Vocabulary.markCleared, size)
+                keyItem(.basket(onTheDay: true), Vocabulary.markBasket, size)
+            }
         }
+    }
+
+    /// One state of the key on its own line, swatch first.
+    ///
+    /// The label takes the rest of the row, so its wrapping is decided by the
+    /// sheet's width rather than by a quarter of it.
+    private func keyRow(_ mark: DayMark, _ label: String, _ size: CGFloat) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
+            ArchiveCellFace(mark: mark, day: nil, size: size)
+            Text(label)
+                .font(CuteFont.body(10, relativeTo: .caption2))
+                .foregroundStyle(Cute.inkFaint)
+                .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(label)
+        .accessibilityIdentifier("ArchiveKeyItem")
     }
 
     private func keyItem(_ mark: DayMark, _ label: String, _ size: CGFloat) -> some View {
