@@ -71,6 +71,20 @@ struct ContentView: View {
     /// Whether the calendar of past days is on screen.
     @State private var showingArchive = false
 
+    /// The width the sheet will be laid out in, which on iPhone is the screen's.
+    @State private var archiveWidth: CGFloat = 0
+
+    /// The height the archive sheet asks for, or nil for the large detent.
+    ///
+    /// **Computed before the sheet is presented, which is the whole point.**
+    /// Measuring from inside the sheet would mean presenting it at one height
+    /// and correcting to another, and a sheet that resizes in front of the
+    /// reader on every open is a worse fault than the empty space it fixes.
+    /// Nothing in the number depends on which month shows, so it can be taken
+    /// as soon as the width is known and kept until the width or the text size
+    /// changes.
+    @State private var archiveSheetHeight: CGFloat?
+
     /// Whether the app has been away since launch.
     ///
     /// Only the debug clock needs this; the rollover itself is safe on any
@@ -82,6 +96,28 @@ struct ContentView: View {
     init(debugSeed: String? = nil, storage: GameStorage = .appDefault) {
         self.debugSeed = debugSeed
         _model = State(initialValue: GameModel(storage: storage))
+    }
+
+    /// One month's worth of sheet, or the large detent when a month cannot fit.
+    private var archiveDetents: Set<PresentationDetent> {
+        guard !dynamicTypeSize.isAccessibilitySize,
+              let height = archiveSheetHeight else { return [.large] }
+        return [.height(height)]
+    }
+
+    /// Takes the archive sheet's height for the width and text size it will be
+    /// opened at, so the number is ready before anything asks for it.
+    private func measureArchiveSheet(width: CGFloat) {
+        archiveWidth = width
+        guard !dynamicTypeSize.isAccessibilitySize else {
+            archiveSheetHeight = nil
+            return
+        }
+        archiveSheetHeight = ArchiveSheet.fittedHeight(
+            width: width,
+            days: model.archiveDays(),
+            canPlay: model.canPlayArchive,
+            dynamicTypeSize: dynamicTypeSize)
     }
 
     var body: some View {
@@ -190,17 +226,41 @@ struct ContentView: View {
         // stack to push onto: the play surface has no chrome and the layout
         // budget has no room to grow any. See `ArchiveSheet`.
         .sheet(isPresented: $showingArchive) {
-            ArchiveSheet(
-                days: model.archiveDays(),
-                canPlay: model.canPlayArchive,
-                onPick: { day in
-                    showingArchive = false
-                    Task { await model.openArchiveDay(storageDay: day) }
-                },
-                onClose: { showingArchive = false }
-            )
-            .presentationDetents([.large])
+            GeometryReader { sheet in
+                ArchiveSheet(
+                    width: sheet.size.width,
+                    days: model.archiveDays(),
+                    canPlay: model.canPlayArchive,
+                    onPick: { day in
+                        showingArchive = false
+                        Task { await model.openArchiveDay(storageDay: day) }
+                    },
+                    onClose: { showingArchive = false }
+                )
+                // Top aligned and painted to the edges. The sheet is sized to
+                // the content, so there is normally nothing left over, but a
+                // point or two of slack must read as sheet rather than as a
+                // band of a different colour under the way out.
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                .background(Cute.paper.ignoresSafeArea())
+            }
+            // Sized to one month below the accessibility sizes, and large above
+            // them, where a month does not fit whatever the sheet is given.
+            .presentationDetents(archiveDetents)
             .presentationDragIndicator(.visible)
+        }
+        // The width the archive will get, read from the screen it will cover.
+        .background {
+            GeometryReader { screen in
+                Color.clear
+                    .onAppear { measureArchiveSheet(width: screen.size.width) }
+                    .onChange(of: screen.size.width) { _, width in
+                        measureArchiveSheet(width: width)
+                    }
+            }
+        }
+        .onChange(of: dynamicTypeSize) { _, _ in
+            measureArchiveSheet(width: archiveWidth)
         }
         // The one-time streak transfer from the web build. Disposable: when the
         // handoff is done, this modifier, `StreakTransfer`, `adoptStreak`, and

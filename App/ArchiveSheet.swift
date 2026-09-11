@@ -62,6 +62,16 @@ import PeachEngine
 /// is built eagerly and costs the same on the day the archive holds three years
 /// as on the day it holds seventy-nine.
 struct ArchiveSheet: View {
+    /// The width the sheet is laid out in, passed in rather than read from a
+    /// `GeometryReader` around the whole body.
+    ///
+    /// **A `GeometryReader` root has no ideal height: it takes whatever it is
+    /// offered.** That is invisible while the sheet is `.large` and fatal when
+    /// the sheet has to be sized to its content, because measuring the view
+    /// then just hands back the number that was proposed. With the width given,
+    /// the body is a plain `VStack` whose height is its content's.
+    let width: CGFloat
+
     let days: [ArchiveDay]
     let canPlay: Bool
     let onPick: (Int) -> Void
@@ -100,8 +110,9 @@ struct ArchiveSheet: View {
 
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
-    init(days: [ArchiveDay], canPlay: Bool,
+    init(width: CGFloat, days: [ArchiveDay], canPlay: Bool,
          onPick: @escaping (Int) -> Void, onClose: @escaping () -> Void) {
+        self.width = width
         self.days = days
         self.canPlay = canPlay
         self.onPick = onPick
@@ -128,69 +139,67 @@ struct ArchiveSheet: View {
     #endif
 
     var body: some View {
-        GeometryReader { geo in
-            let cell = cellSize(in: geo.size.width)
-            VStack(spacing: 0) {
-                header
-                #if DEBUG
-                // `-headerPad 50.4` grows the header, and it is a permanent
-                // fixture because it is the only reproducer issue #65 ever had.
-                //
-                // #65 bisected to the commit that renamed the empty state, which
-                // took the key from two wrapped lines to four and cost the scroll
-                // view 50.4pt off its top edge. Every other lever moved the whole
-                // sheet; this one shrinks the scroll view's container while the
-                // content stays the length it was, which is the shape of the bug.
-                // Growing the header by the same amount reproduces the shortfall
-                // on phones where nothing else did.
-                //
-                // It grows before the first layout rather than after it, so what
-                // it reproduces is a header that is taller, not one that changes
-                // height late. Those are different failures and only the first is
-                // #65.
-                //
-                // What it holds now is no longer #65 itself. The landing that
-                // #65 described is gone: a month page has nowhere to scroll to
-                // and nothing to get wrong. What the grown header still buys is
-                // the squeezed container, and on an SE 3 at AX5 it squeezes the
-                // grid to 41.5pt, which is shorter than one 44pt cell and
-                // shorter than the 50pt ring. Nothing can draw a whole ring in
-                // that space, so the guard stops asking for one there and asks
-                // for today to be centred instead. Read the fixture as the
-                // smallest viewport the sheet is known to survive, not as a bug
-                // still in the tree.
-                Color.clear.frame(height: CGFloat(headerPad))
-                #endif
-
-                monthPage(cell: cell)
-
-                // The key reads after the grid it explains, which is the whole
-                // reason it moved: a legend arriving before the thing it
-                // explains is one nobody has a use for yet. At accessibility
-                // sizes it is inside the grid's scroll instead, so the grid
-                // keeps the viewport. See `key(cell:)`.
-                if !dynamicTypeSize.isAccessibilitySize {
-                    key(cell: cell)
-                        .padding(.horizontal, gutter)
-                        .padding(.top, 14)
-                }
-
-                Button(action: onClose) {
-                    Text(Vocabulary.revealClose)
-                        .font(CuteFont.display(16, relativeTo: .headline))
-                        .frame(maxWidth: .infinity, minHeight: Cute.minTapTarget)
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(Cute.accentDeep)
-                .padding(.horizontal, gutter)
-                .padding(.bottom, 8)
-            }
+        let cell = cellSize(in: width)
+        return VStack(spacing: 0) {
+            header
             #if DEBUG
-            // The sheet reaching the screen, for `ArchiveTiming`. On the
-            // container rather than inside it, so it fires once per presentation.
-            .onAppear { ArchiveTiming.shared.appeared() }
+            // `-headerPad 50.4` grows the header, and it is a permanent
+            // fixture because it is the only reproducer issue #65 ever had.
+            //
+            // #65 bisected to the commit that renamed the empty state, which
+            // took the key from two wrapped lines to four and cost the scroll
+            // view 50.4pt off its top edge. Every other lever moved the whole
+            // sheet; this one shrinks the scroll view's container while the
+            // content stays the length it was, which is the shape of the bug.
+            // Growing the header by the same amount reproduces the shortfall
+            // on phones where nothing else did.
+            //
+            // It grows before the first layout rather than after it, so what
+            // it reproduces is a header that is taller, not one that changes
+            // height late. Those are different failures and only the first is
+            // #65.
+            //
+            // What it holds now is no longer #65 itself. The landing that
+            // #65 described is gone: a month page has nowhere to scroll to
+            // and nothing to get wrong. What the grown header still buys is
+            // the squeezed container, and on an SE 3 at AX5 it squeezes the
+            // grid to 41.5pt, which is shorter than one 44pt cell and
+            // shorter than the 50pt ring. Nothing can draw a whole ring in
+            // that space, so the guard stops asking for one there and asks
+            // for today to be centred instead. Read the fixture as the
+            // smallest viewport the sheet is known to survive, not as a bug
+            // still in the tree.
+            Color.clear.frame(height: CGFloat(headerPad))
             #endif
+
+            monthPage(cell: cell)
+
+            // The key reads after the grid it explains, which is the whole
+            // reason it moved: a legend arriving before the thing it
+            // explains is one nobody has a use for yet. At accessibility
+            // sizes it is inside the grid's scroll instead, so the grid
+            // keeps the viewport. See `key(cell:)`.
+            if !dynamicTypeSize.isAccessibilitySize {
+                key(cell: cell)
+                    .padding(.horizontal, gutter)
+                    .padding(.top, 14)
+            }
+
+            Button(action: onClose) {
+                Text(Vocabulary.revealClose)
+                    .font(CuteFont.display(16, relativeTo: .headline))
+                    .frame(maxWidth: .infinity, minHeight: Cute.minTapTarget)
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(Cute.accentDeep)
+            .padding(.horizontal, gutter)
+            .padding(.bottom, 8)
         }
+        #if DEBUG
+        // The sheet reaching the screen, for `ArchiveTiming`. On the
+        // container rather than inside it, so it fires once per presentation.
+        .onAppear { ArchiveTiming.shared.appeared() }
+        #endif
         // Flat paper rather than the play screen's gradient. The sheet is a
         // different surface from the board and is allowed to say so. It began as
         // a requirement of the pinned month headings, which needed an opaque
@@ -444,6 +453,30 @@ struct ArchiveSheet: View {
                 // No scrolling at all when the month fits, which is every case
                 // below the accessibility sizes.
                 .scrollBounceBehavior(.basedOnSize)
+                // **Six rows of grid, on every month, below the accessibility
+                // sizes.** June 2026 draws two rows and August six. Without the
+                // reservation a fitted sheet would be a different height on
+                // each, and a sheet that resizes as you page through it is
+                // worse than one with a little room to spare on a short month.
+                //
+                // It also makes the height measurable. A `ScrollView` takes the
+                // height it is offered, so an unpinned one reports back
+                // whatever a measuring pass proposed rather than what it holds.
+                // Pinned, the sheet has one finite height that does not depend
+                // on how it is asked.
+                //
+                // At accessibility sizes there is no reservation: the month does
+                // not fit whatever is reserved, so the scroll earns its keep and
+                // the sheet stays large.
+                // A ceiling rather than an exact height, and the difference
+                // matters in both directions. Measuring proposes an enormous
+                // height and a `ScrollView` takes whatever it is offered, so
+                // without the ceiling the measurement reports the proposal. A
+                // ceiling also lets the grid give a point or two back if the
+                // sheet turns out slightly shorter than it asked for, which
+                // scrolls rather than clips.
+                .frame(maxHeight: dynamicTypeSize.isAccessibilitySize
+                       ? nil : reservedGridHeight(cell: cell))
                 // **No bottom content margin for the today ring, and that is a
                 // measurement rather than an omission.** The old scroll put
                 // today's bottom edge exactly on the viewport's, so the ring,
@@ -561,7 +594,21 @@ struct ArchiveSheet: View {
         // month is at most 42 cells, and a lazy container's estimate of what it
         // has not built is the whole of issue #65.
         let blanks = leadingBlanks(before: month[0].date)
-        let slots: [ArchiveDay?] = Array(repeating: nil, count: blanks) + month.map { $0 }
+        var slots: [ArchiveDay?] = Array(repeating: nil, count: blanks) + month.map { $0 }
+        // **Six rows on every month, below the accessibility sizes.** June 2026
+        // draws two rows and August six. The sheet is sized to its content
+        // there, so without the empty rows it would be a different height on
+        // every month and would resize as you page through it.
+        //
+        // Reserved in the content rather than by a frame around the scroll: a
+        // frame that only caps the height lets a short month shrink back under
+        // it, which is the same problem with an extra step.
+        //
+        // At accessibility sizes the sheet stays large and the grid scrolls, so
+        // empty rows would only be something else to scroll past.
+        if !dynamicTypeSize.isAccessibilitySize {
+            slots += Array(repeating: nil, count: max(0, 42 - slots.count))
+        }
         let rows = stride(from: 0, to: slots.count, by: 7).map {
             Array(slots[$0..<min($0 + 7, slots.count)])
         }
@@ -583,6 +630,14 @@ struct ArchiveSheet: View {
         }
     }
 
+    /// Six rows of cells, the gaps between them, and the padding underneath.
+    ///
+    /// Six is the most rows a month can need: 31 days starting on the last day
+    /// of the week spans six.
+    private func reservedGridHeight(cell: CGFloat) -> CGFloat {
+        cell * 6 + gap * 5 + 16
+    }
+
     private func monthName(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.calendar = Foundation.Calendar.current
@@ -594,6 +649,53 @@ struct ArchiveSheet: View {
         let calendar = Foundation.Calendar.current
         let weekday = calendar.component(.weekday, from: date)
         return (weekday - calendar.firstWeekday + 7) % 7
+    }
+}
+
+extension ArchiveSheet {
+    /// The height this sheet wants, measured from the sheet itself.
+    ///
+    /// **Measured rather than derived, and measured before the sheet is
+    /// presented.** Deriving it would mean restating every padding, font
+    /// metric and line count of the header, the month bar, the key and the way
+    /// out, in a second place that has to be kept in step with the first. This
+    /// lays out the real view at the real width and asks how tall it came out.
+    ///
+    /// It is safe to call ahead of presentation because nothing in the result
+    /// depends on which month is showing: the grid is pinned to six rows, and
+    /// the month name is one line at any length. That is what lets the caller
+    /// have the number before the first frame, which is what stops the sheet
+    /// resizing in front of the reader.
+    ///
+    /// Returns nil for an empty archive, which has no month to size to.
+    @MainActor
+    static func fittedHeight(width: CGFloat, days: [ArchiveDay], canPlay: Bool,
+                             dynamicTypeSize: DynamicTypeSize) -> CGFloat? {
+        guard !days.isEmpty, width > 0 else { return nil }
+        let probe = ArchiveSheet(width: width, days: days, canPlay: canPlay,
+                                 onPick: { _ in }, onClose: {})
+            .environment(\.dynamicTypeSize, dynamicTypeSize)
+        let host = UIHostingController(rootView: probe)
+        // The measuring host is in no window, and its own safe area is not the
+        // sheet's. Left in, it added 40pt to every reading.
+        host.safeAreaRegions = []
+        let fitted = host.sizeThatFits(
+            in: CGSize(width: width, height: .greatestFiniteMagnitude))
+        // A `.height` detent measures the sheet, and a sheet's height includes
+        // the home indicator's inset. Without this the content is handed the
+        // detent minus the inset, which squeezed the scroll view by 34pt and
+        // left an unpainted band under the way out: sampled at 240,229,225
+        // against the paper's 255,244,238.
+        return fitted.height + bottomSafeArea
+    }
+
+    /// The home indicator's inset, from the window the sheet will cover.
+    private static var bottomSafeArea: CGFloat {
+        UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .flatMap(\.windows)
+            .first { $0.isKeyWindow }?
+            .safeAreaInsets.bottom ?? 0
     }
 }
 
