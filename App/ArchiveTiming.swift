@@ -61,6 +61,20 @@ final class ArchiveTiming {
 
     private func now() -> CFTimeInterval { CACurrentMediaTime() }
 
+    /// Start watching for dropped frames before the thing that drops them.
+    ///
+    /// **Without this the stall measurement misses the stall.** The display link
+    /// is started inside `requested`, and the sheet's construction blocks the
+    /// main thread in the same runloop turn, so the link never gets a first
+    /// callback to measure a gap from. It then wakes after the block with no
+    /// previous timestamp and records nothing. Priming it seconds earlier means
+    /// there is always a tick on both sides.
+    func prime() {
+        startLink()
+        longestGap = 0
+        lastTick = nil
+    }
+
     func requested(label: String) {
         reset()
         requestedAt = now()
@@ -68,7 +82,8 @@ final class ArchiveTiming {
         signpostID = id
         interval = signposter.beginInterval("archive open", id: id)
         log.notice("ARCHIVE-TIMING start \(label, privacy: .public)")
-        startLink()
+        // Only if nothing primed it, so a primed link keeps its running history.
+        if link == nil { startLink(); longestGap = 0 }
         // Nothing may ever move, on a day where today is not drawn. Say that
         // rather than logging silence, which reads identically to a crash.
         let deadline = patience
@@ -121,7 +136,7 @@ final class ArchiveTiming {
 
     private func reset() {
         requestedAt = nil; appearedAt = nil; lastMoveAt = nil; lastFrame = nil
-        moves = 0; reported = false; longestGap = 0; lastTick = nil
+        moves = 0; reported = false
     }
 
     private func startLink() {

@@ -157,10 +157,20 @@ targets:
     # which. A hash in the bundle makes every picture and every log line
     # traceable to one commit.
     #
+    # **It writes its own file rather than a key in Info.plist, and that is the
+    # whole point of the second attempt.** The first version added the key to
+    # the processed Info.plist and worked on every clean build. On an
+    # incremental build it silently did not: this phase declares no inputs, so
+    # the build system is free to schedule it before `ProcessInfoPlistFile`,
+    # which then regenerates the plist from source and drops the key. An
+    # unstamped bundle that reads as stamped is worse than no stamp, and it was
+    # found only because a measurement run printed an empty hash. Nothing else
+    # produces this file, so nothing else can overwrite it.
+    #
     # Simulator Debug only, on both counts deliberately. It re-signs ad hoc
-    # after editing the plist, which is right for a simulator bundle and wrong
-    # for a device or a Release build, so those exit before reaching it. Nothing
-    # here can change what ships.
+    # after writing, which is right for a simulator bundle and wrong for a
+    # device or a Release build, so those exit before reaching it. Nothing here
+    # can change what ships.
     postBuildScripts:
       - name: Stamp the build with its commit
         # Runs every build rather than when inputs change: HEAD moving is not a
@@ -169,15 +179,14 @@ targets:
         script: |
           [ "$CONFIGURATION" = "Debug" ] || exit 0
           [ "$EFFECTIVE_PLATFORM_NAME" = "-iphonesimulator" ] || exit 0
-          PLIST="$TARGET_BUILD_DIR/$INFOPLIST_PATH"
-          [ -f "$PLIST" ] || exit 0
+          BUNDLE="$TARGET_BUILD_DIR/$WRAPPER_NAME"
+          mkdir -p "$BUNDLE"
           STAMP=$(git -C "$SRCROOT" rev-parse --short HEAD 2>/dev/null || echo unknown)
           if [ -n "$(git -C "$SRCROOT" status --porcelain 2>/dev/null)" ]; then
             STAMP="$STAMP-dirty"
           fi
-          /usr/libexec/PlistBuddy -c "Set :PeachBuildStamp $STAMP" "$PLIST" 2>/dev/null \
-            || /usr/libexec/PlistBuddy -c "Add :PeachBuildStamp string $STAMP" "$PLIST"
-          codesign --force --sign - "$TARGET_BUILD_DIR/$WRAPPER_NAME" >/dev/null 2>&1 || true
+          printf '%s' "$STAMP" > "$BUNDLE/BuildStamp.txt"
+          codesign --force --sign - "$BUNDLE" >/dev/null 2>&1 || true
     # Attach the package's test bundle to this target's scheme.
     #
     # Without this, `xcodebuild test -scheme PeachOfAWord` has nothing to run

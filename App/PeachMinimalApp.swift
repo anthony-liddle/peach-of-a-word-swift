@@ -18,7 +18,10 @@ struct PeachMinimalApp: App {
     /// built bundle by a script phase, so a Release build carries no such key
     /// and this code is not compiled into one anyway.
     init() {
-        let stamp = Bundle.main.infoDictionary?["PeachBuildStamp"] as? String
+        // Its own file, not an Info.plist key: the plist is regenerated late in
+        // an incremental build and silently loses anything a script phase added.
+        let stamp = Bundle.main.url(forResource: "BuildStamp", withExtension: "txt")
+            .flatMap { try? String(contentsOf: $0, encoding: .utf8) }
         print("PEACH BUILD \(stamp ?? "unstamped")")
     }
     #endif

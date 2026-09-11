@@ -260,6 +260,11 @@ struct ContentView: View {
                 // timing measures is the sheet and not the start up.
                 let delay = UserDefaults.standard.integer(forKey: "openArchiveDelay")
                 if delay > 0 {
+                    // Watch for dropped frames from now, not from the request:
+                    // the sheet blocks the main thread in the same turn it is
+                    // asked for, and a link started then has nothing to measure
+                    // the first gap from.
+                    ArchiveTiming.shared.prime()
                     Task { @MainActor in
                         try? await Task.sleep(nanoseconds: UInt64(delay) * 1_000_000)
                         ArchiveTiming.shared.requested(label: "delayed")
