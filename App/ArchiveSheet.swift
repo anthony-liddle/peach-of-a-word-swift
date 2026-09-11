@@ -342,6 +342,15 @@ struct ArchiveSheet: View {
                 // No scrolling at all when the month fits, which is every case
                 // below the accessibility sizes.
                 .scrollBounceBehavior(.basedOnSize)
+                // **No bottom content margin for the today ring, and that is a
+                // measurement rather than an omission.** The old scroll put
+                // today's bottom edge exactly on the viewport's, so the ring,
+                // drawn 3pt outside the cell, was clipped on every open and a
+                // margin was the fix. Centring today inside its own month never
+                // puts the ring against an edge: measured -72.67 and -48.33 on a
+                // 390pt phone at AX5, and -21.00 both ways on an SE 3. The one
+                // case that clips has 41.5pt of viewport for a 50pt ring, which
+                // no margin can help.
                 .task {
                     // The current month opens with today in view. Every other
                     // month opens at the top, which is its first week.

@@ -80,25 +80,18 @@ final class ArchiveGridMetrics: XCTestCase {
     }
 }
 
-/// The today ring, and whether the scroll view eats it on open.
+/// The today ring, and whether the grid eats it on open.
 ///
-/// **Every number here is an instrumented landing, and that is not the same as
-/// what a plain launch does.** On a 390pt phone at AX5 this guard reads +46.33,
-/// stable to the decimal over three repeats and unmoving for twelve seconds of
-/// polling, while the same build launched through `simctl` with the same
-/// arguments lands correctly in ten screenshots out of ten, at two seconds and
-/// at sixteen. The likeliest reason is that driving the accessibility tree
-/// materialises rows the lazy stack would not have built, which moves the
-/// content-height estimate the landing was resolved against. That makes this
-/// guard a fair model of a device with an assistive technology attached and a
-/// poor model of one without, so read a failure here as "wrong under
-/// VoiceOver", not as "wrong for everyone".
+/// The sheet shows one month and the grid scrolls only when the month does not
+/// fit, which is the accessibility sizes. So this asks a smaller question than
+/// it used to: not whether a landing resolved, but whether today is whole inside
+/// the viewport it has.
 ///
-/// The ring is drawn 3pt outside the cell through an overlay with negative
-/// padding, which does not change the cell's frame. The sheet then opens by
-/// scrolling today's bottom edge onto the scroll view's bottom edge, so the
-/// ring's bottom stroke lands outside the visible region and is clipped, every
-/// time the sheet is opened.
+/// **These are still instrumented readings.** A plain `simctl` launch and an
+/// XCUITest run disagreed in both directions under the old design, on one
+/// stamped bundle, and the reason was never found. The pixel locator in
+/// `2026-09-10 Which Build Took Which Picture.md` is the other half of this
+/// check and the two now agree.
 extension ArchiveGridMetrics {
     /// How far the ring is drawn outside the cell. Mirrors
     /// `ArchiveCellFace.ringOutset`, deliberately duplicated here: a test that
@@ -114,25 +107,12 @@ extension ArchiveGridMetrics {
         // AX5, on the reasoning that the SE was the device it was specified for.
         // It was not: the cell-size guard names a device, this one asks for
         // default and AX5 and names none. Narrowing a guard to where it passes
-        // stops it reporting the thing it found, and what it found is on the
-        // standard iPhone width.
+        // stops it reporting the thing it found.
         //
-        // So the failure is expected rather than hidden. Issue #65 has the
-        // measurements and the mechanism: the way out wraps to two lines at this
-        // size on a 390pt phone and to one on the SE, and holding it to one line
-        // fixes the landing. `XCTExpectFailure` is strict, so this test goes red
-        // the day that stops being true, which a skip would never do.
-        //
-        // Scoped to the ungrown header as well, and that scope was earned: with
-        // the header grown this case lands at +0.00, and a strict expectation
-        // over both of them went red for the wrong reason, reporting a landing
-        // that works as a failure.
-        let width = app.windows.firstMatch.frame.width
-        if width > 380, headerPad == 0,
-           size == "UICTContentSizeCategoryAccessibilityXXXL" {
-            XCTExpectFailure(
-                "issue #65: today lands under the way out at AX5 on a 390pt phone")
-        }
+        // The 390pt AX5 case then carried a strict `XCTExpectFailure` for #65.
+        // It is gone, and it earned its own removal: on the month page it went
+        // red with "expected failure but none recorded", which is a strict
+        // expectation reporting that the thing it expected to fail now passes.
         let today = app.buttons["ArchiveTodayCell"].firstMatch
         XCTAssertTrue(today.waitForExistence(timeout: 10), "today is not in the tree at all",
                       file: file, line: line)
@@ -177,6 +157,22 @@ extension ArchiveGridMetrics {
             size, ring.minY, ring.maxY, visible.minY, visible.maxY, visible.height,
             wayOut.exists ? wayOut.frame.height : -1,
             overshootBottom, overshootTop))
+
+        // **A viewport smaller than the ring cannot show the whole ring, and
+        // asking it to is not a test.** With `-headerPad 50.4` on an SE 3 at
+        // AX5 the grid is left 41.5pt, shorter than one 44pt cell, so every
+        // scroll position clips. What can still be demanded there is that the
+        // layout does the best available thing and centres today, rather than
+        // parking it against an edge with all the loss at one end.
+        guard visible.height >= ring.height else {
+            let imbalance = abs(overshootTop - overshootBottom)
+            XCTAssertLessThanOrEqual(
+                imbalance, 1.5,
+                "the viewport is \(visible.height)pt against a \(ring.height)pt ring, "
+                + "so today cannot be whole, and it is off centre by \(imbalance)pt",
+                file: file, line: line)
+            return
+        }
 
         XCTAssertLessThanOrEqual(
             overshootBottom, 0,
