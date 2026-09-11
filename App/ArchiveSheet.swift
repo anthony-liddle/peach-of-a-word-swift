@@ -137,6 +137,17 @@ struct ArchiveSheet: View {
                 // it reproduces is a header that is taller, not one that changes
                 // height late. Those are different failures and only the first is
                 // #65.
+                //
+                // What it holds now is no longer #65 itself. The landing that
+                // #65 described is gone: a month page has nowhere to scroll to
+                // and nothing to get wrong. What the grown header still buys is
+                // the squeezed container, and on an SE 3 at AX5 it squeezes the
+                // grid to 41.5pt, which is shorter than one 44pt cell and
+                // shorter than the 50pt ring. Nothing can draw a whole ring in
+                // that space, so the guard stops asking for one there and asks
+                // for today to be centred instead. Read the fixture as the
+                // smallest viewport the sheet is known to survive, not as a bug
+                // still in the tree.
                 Color.clear.frame(height: CGFloat(headerPad))
                 #endif
 
@@ -642,6 +653,23 @@ private struct ArchiveCell: View {
                     // measuring. The frame is taken in global coordinates because
                     // the question is where today sits on the screen, not where
                     // it sits in the content.
+                    //
+                    // **It reports the position today first appears at, and not
+                    // the ones after it, so read `moves` and `appearToSettle`
+                    // as what was observed rather than as what happened.**
+                    // Delaying the opening scroll by 2.5s put today's ring at
+                    // 608.3..660.0 before the scroll and 568.0..620.0 after it,
+                    // a 40.3pt move that a screenshot caught and this hook did
+                    // not: the same run still logged `moves=1` and
+                    // `appearToSettle=0ms`. `onChange` needs the body
+                    // re-evaluated with a new value, and scrolling an eager
+                    // month does not re-evaluate a cell that never left the
+                    // tree. The old lazy grid built its cells as it
+                    // materialised them, which is the likeliest reason the same
+                    // hook logged `moves=2` and `moves=3` there. Seeing a
+                    // position actually stop moving would need a preference
+                    // key, since `onGeometryChange` is iOS 18 and this target
+                    // is 17.
                     GeometryReader { proxy in
                         Color.clear
                             .onAppear {

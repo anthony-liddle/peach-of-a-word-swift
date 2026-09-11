@@ -27,6 +27,17 @@ import os
 /// Today's own frame is the signal rather than the scroll view's geometry,
 /// because "today's cell reaching its final position" is the question, and a
 /// scroll that settles while the content is still growing is not the same event.
+///
+/// **`settled` is only as good as the reporting hook, and on an eager layout
+/// the hook sees the first position and nothing after it.** A probe that
+/// delayed the archive's opening scroll by 2.5s moved today's ring 40.3pt after
+/// it appeared, and the run still logged `moves=1` and `appearToSettle=0ms`.
+/// So on the month page `requestToSettle` is in practice `requestToAppear`, and
+/// `appearToSettle=0ms` means nothing was observed after the appearance rather
+/// than nothing happened. The hook is in `ArchiveSheet`, where the reason is
+/// written down. Comparing these figures with the lazy and eager runs from
+/// `What Eager Layout Really Costs.md` compares a number with no settle against
+/// numbers that had one.
 @MainActor
 final class ArchiveTiming {
     static let shared = ArchiveTiming()

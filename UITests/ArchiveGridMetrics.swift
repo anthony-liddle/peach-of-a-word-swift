@@ -192,7 +192,12 @@ extension ArchiveGridMetrics {
         assertRingIsWhole("UICTContentSizeCategoryAccessibilityXXXL")
     }
 
-    /// The case that reproduced issue #65 on every phone.
+    /// The smallest viewport the sheet is known to survive.
+    ///
+    /// This is the case that reproduced issue #65, and on the month page it can
+    /// no longer do so. What it still does is squeeze the grid to 41.5pt, under
+    /// one 44pt cell, which is where the assertion above stops asking for a
+    /// whole ring and asks for a centred one.
     func testTodayRingIsWholeWithTheHeaderGrown() {
         headerPad = 50.4
         assertRingIsWhole("UICTContentSizeCategoryAccessibilityXXXL")
