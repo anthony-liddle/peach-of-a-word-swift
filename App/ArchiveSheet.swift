@@ -779,6 +779,20 @@ extension ArchiveSheet {
         cellSize(in: width) * cardScale >= Cute.minTapTarget
     }
 
+    /// The width of the window the sheet will cover.
+    ///
+    /// A fallback for the moment before any geometry has been read. The archive
+    /// can be asked for in the same turn the app appears, and a width of zero
+    /// makes `cardKeepsTheTapTarget` compute an 18pt cell and refuse the card
+    /// on every phone.
+    static var windowWidth: CGFloat {
+        UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .flatMap(\.windows)
+            .first { $0.isKeyWindow }?
+            .bounds.width ?? 0
+    }
+
     /// The home indicator's inset, from the window the sheet will cover.
     private static var bottomSafeArea: CGFloat {
         UIApplication.shared.connectedScenes

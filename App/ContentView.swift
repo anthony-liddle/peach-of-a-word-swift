@@ -69,21 +69,26 @@ struct ContentView: View {
     @Environment(\.scenePhase) private var scenePhase
 
     /// Whether the calendar of past days is on screen.
-    @State private var showingArchive = false
+    /// The archive, and the height it was measured at, as one value.
+    ///
+    /// **Not a flag and a separate height, because the two have to arrive
+    /// together.** Measuring when the sheet is asked for means the height
+    /// changes in the same turn the sheet appears, and a detent set that only
+    /// becomes right as the sheet presents does not take: the sheet came up
+    /// large on a phone the rule had just said could keep the card, with 576.0
+    /// sitting in state and one height detent reaching the modifier. Carrying
+    /// the height in the presented value hands it to the sheet as it is built
+    /// rather than asking the view to have caught up.
+    private struct ArchivePresentation: Identifiable {
+        let id = UUID()
+        /// nil means the large detent, which is the sheet unscaled.
+        let height: CGFloat?
+    }
+
+    @State private var archivePresentation: ArchivePresentation?
 
     /// The width the sheet will be laid out in, which on iPhone is the screen's.
     @State private var archiveWidth: CGFloat = 0
-
-    /// The height the archive sheet asks for, or nil for the large detent.
-    ///
-    /// **Computed before the sheet is presented, which is the whole point.**
-    /// Measuring from inside the sheet would mean presenting it at one height
-    /// and correcting to another, and a sheet that resizes in front of the
-    /// reader on every open is a worse fault than the empty space it fixes.
-    /// Nothing in the number depends on which month shows, so it can be taken
-    /// as soon as the width is known and kept until the width or the text size
-    /// changes.
-    @State private var archiveSheetHeight: CGFloat?
 
     /// Whether the app has been away since launch.
     ///
@@ -99,16 +104,29 @@ struct ContentView: View {
     }
 
     /// One month's worth of sheet, or the large detent when a month cannot fit.
-    private var archiveDetents: Set<PresentationDetent> {
-        guard !dynamicTypeSize.isAccessibilitySize,
-              let height = archiveSheetHeight else { return [.large] }
+    private func archiveDetents(_ height: CGFloat?) -> Set<PresentationDetent> {
+        guard let height else { return [.large] }
         return [.height(height)]
     }
 
-    /// Takes the archive sheet's height for the width and text size it will be
-    /// opened at, so the number is ready before anything asks for it.
-    private func measureArchiveSheet(width: CGFloat) {
-        archiveWidth = width
+    /// Opens the archive, taking its height first.
+    ///
+    /// **The measurement belongs here and not at launch.** It walks the whole
+    /// archive and lays the sheet out in a hosting controller, and doing that
+    /// when the width first became known put both on the launch path of a
+    /// session that may never open the calendar. Taken here it still lands
+    /// before the sheet's first frame, because this runs in the same update
+    /// that presents it.
+    private func openArchive() {
+        // The width can still be unread here: the archive is reachable in the
+        // same turn the app appears, and a zero width makes the rule compute an
+        // 18pt cell and refuse the card on every phone.
+        let width = archiveWidth > 0 ? archiveWidth : ArchiveSheet.windowWidth
+        archivePresentation = ArchivePresentation(height: archiveHeight(width: width))
+    }
+
+    /// The height this opening wants, or nil for the large detent.
+    private func archiveHeight(width: CGFloat) -> CGFloat? {
         // No height means the large detent, which is the sheet unscaled.
         //
         // Two reasons to refuse the fitted card. At accessibility sizes a month
@@ -117,11 +135,8 @@ struct ContentView: View {
         // laid out reaches the glass at 42.12pt on both 375pt phones. The empty
         // space the card was for is worth less than a grid you can hit.
         guard !dynamicTypeSize.isAccessibilitySize,
-              ArchiveSheet.cardKeepsTheTapTarget(width: width) else {
-            archiveSheetHeight = nil
-            return
-        }
-        archiveSheetHeight = ArchiveSheet.fittedHeight(
+              ArchiveSheet.cardKeepsTheTapTarget(width: width) else { return nil }
+        return ArchiveSheet.fittedHeight(
             width: width,
             days: model.archiveDays(),
             canPlay: model.canPlayArchive,
@@ -233,17 +248,17 @@ struct ContentView: View {
         // A sheet rather than a pushed screen, because there is no navigation
         // stack to push onto: the play surface has no chrome and the layout
         // budget has no room to grow any. See `ArchiveSheet`.
-        .sheet(isPresented: $showingArchive) {
+        .sheet(item: $archivePresentation) { presentation in
             GeometryReader { sheet in
                 ArchiveSheet(
                     width: sheet.size.width,
                     days: model.archiveDays(),
                     canPlay: model.canPlayArchive,
                     onPick: { day in
-                        showingArchive = false
+                        archivePresentation = nil
                         Task { await model.openArchiveDay(storageDay: day) }
                     },
-                    onClose: { showingArchive = false }
+                    onClose: { archivePresentation = nil }
                 )
                 // Top aligned and painted to the edges. The sheet is sized to
                 // the content, so there is normally nothing left over, but a
@@ -254,21 +269,18 @@ struct ContentView: View {
             }
             // Sized to one month below the accessibility sizes, and large above
             // them, where a month does not fit whatever the sheet is given.
-            .presentationDetents(archiveDetents)
+            .presentationDetents(archiveDetents(presentation.height))
             .presentationDragIndicator(.visible)
         }
         // The width the archive will get, read from the screen it will cover.
         .background {
             GeometryReader { screen in
                 Color.clear
-                    .onAppear { measureArchiveSheet(width: screen.size.width) }
+                    .onAppear { archiveWidth = screen.size.width }
                     .onChange(of: screen.size.width) { _, width in
-                        measureArchiveSheet(width: width)
+                        archiveWidth = width
                     }
             }
-        }
-        .onChange(of: dynamicTypeSize) { _, _ in
-            measureArchiveSheet(width: archiveWidth)
         }
         // The one-time streak transfer from the web build. Disposable: when the
         // handoff is done, this modifier, `StreakTransfer`, `adoptStreak`, and
@@ -336,12 +348,18 @@ struct ContentView: View {
                     Task { @MainActor in
                         try? await Task.sleep(nanoseconds: UInt64(delay) * 1_000_000)
                         ArchiveTiming.shared.requested(label: "delayed")
-                        showingArchive = true
+                        openArchive()
                     }
                 } else {
                     ArchiveTiming.shared.requested(label: "launch")
-                    showingArchive = true
+                    openArchive()
                 }
+            }
+            // What the launch path cost the archive, said out loud once the
+            // launch is over. Zero on a session that never opens the calendar.
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 6_000_000_000)
+                GameModel.reportArchiveDaysCalls()
             }
             #endif
             #if TAP_RECORDER
@@ -557,7 +575,7 @@ struct ContentView: View {
                         #if DEBUG
                         ArchiveTiming.shared.requested(label: "tap")
                         #endif
-                        showingArchive = true
+                        openArchive()
                     },
                     onReturnToToday: { Task { await model.returnToToday() } }
                 )

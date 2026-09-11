@@ -1,6 +1,9 @@
 import Foundation
 import Observation
 import PeachEngine
+#if DEBUG
+import os
+#endif
 
 /// All the state the minimal app has.
 ///
@@ -1025,6 +1028,14 @@ final class GameModel {
     /// is the kind of thing that is free at seventy-nine days and is not at four
     /// hundred.
     func archiveDays() -> [ArchiveDay] {
+        #if DEBUG
+        // **A walk of the whole archive, counted so it can be kept off the
+        // launch path.** It decodes every stored outcome and computes a mark
+        // for every day in history to draw one month, so where it is called
+        // from is worth knowing. A launch that never opens the archive must
+        // report zero. See `ArchiveDaysCount`.
+        Self.archiveDaysCalls += 1
+        #endif
         let outcomes = storage.allOutcomes()
         let today = Self.todayStorageIndex
         var indices = archiveDayIndices(
@@ -1059,6 +1070,18 @@ final class GameModel {
             )
         }
     }
+
+    #if DEBUG
+    /// How many times `archiveDays()` has been called this launch.
+    static private(set) var archiveDaysCalls = 0
+
+    /// Says how many times the archive was walked, so a launch that never
+    /// opened it can be seen to have walked it not at all.
+    static func reportArchiveDaysCalls() {
+        Logger(subsystem: "com.anthonyliddle.peachofaword", category: "timing")
+            .notice("ARCHIVE-DAYS calls=\(archiveDaysCalls, privacy: .public)")
+    }
+    #endif
 
     /// Open a past board.
     ///
