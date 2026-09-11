@@ -121,21 +121,20 @@ struct ArchiveSheet: View {
     /// at every size.
     @ScaledMetric(relativeTo: .caption) private var chevron: CGFloat = 15
 
-    /// 44pt of glass, after the sheet's card transform.
+    /// A target that is still 44pt of glass after the card scales it.
     ///
-    /// **A sheet at a custom detent is presented as a floating card, and on a
-    /// phone with a home indicator that card is scaled down.** Measured at
-    /// 0.9597 on a 390pt phone, which is 810/844, exactly the screen less the
-    /// indicator's inset, and 1.0 on an SE 3, which has no indicator. So a 44pt
-    /// target laid out in here reaches the glass at 42.2pt on one phone and
-    /// 44.0pt on the other, and the minimum is about the finger, which touches
-    /// glass. 46pt survives on both: 44.1 and 46.0.
+    /// **The minimum is about the finger, and the finger touches glass, not
+    /// layout.** The card scales what is laid out inside it, so a control given
+    /// exactly `Cute.minTapTarget` arrives smaller: 42.2pt on a 390pt phone.
+    /// Dividing by the scale puts it back, and dividing rather than rounding to
+    /// a number that happened to work means it stays right if the measured
+    /// scale is ever revised. See `cardScale` for the measurements.
     ///
-    /// It is the whole sheet that shrinks, not this button. The day cells come
-    /// out at 44.43pt against the 46.29pt they are laid out at, and the way out
-    /// lands at 42.2pt. Recorded in
-    /// `2026-09-11 The Month Page Layout.md`.
-    private let chevronTarget: CGFloat = 46
+    /// The grid does not use this. Cells are sized by dividing the width seven
+    /// ways, and where that leaves them too small after the card the answer is
+    /// to drop the card, which is `cardKeepsTheTapTarget`. This is for the two
+    /// controls that are not cells: the month chevrons and the way out.
+    static var cardSafeTapTarget: CGFloat { Cute.minTapTarget / cardScale }
 
     init(width: CGFloat, days: [ArchiveDay], canPlay: Bool,
          onPick: @escaping (Int) -> Void, onClose: @escaping () -> Void) {
@@ -215,7 +214,14 @@ struct ArchiveSheet: View {
             Button(action: onClose) {
                 Text(Vocabulary.revealClose)
                     .font(CuteFont.display(16, relativeTo: .headline))
-                    .frame(maxWidth: .infinity, minHeight: Cute.minTapTarget)
+                    // Sized to survive the card, like the chevrons.
+                    .frame(maxWidth: .infinity, minHeight: Self.cardSafeTapTarget)
+                    // **The shape is the target, and without it the target was
+                    // the lettering.** A plain button reports and hits what its
+                    // label drew, and the label here is one line of text: 18.86pt
+                    // tall on a 390pt phone, inside a band asking for 46.11. The
+                    // chevrons already do this, which is why they measured.
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .foregroundStyle(Cute.accentDeep)
@@ -569,7 +575,7 @@ struct ArchiveSheet: View {
         let reachable = months.indices.contains(target)
         // The greater of the target and the glyph with room around it, so it
         // never drops below the minimum and never crops the mark either.
-        let tap = max(chevronTarget, chevron + 12)
+        let tap = max(Self.cardSafeTapTarget, chevron + 12)
         return Button { step(delta) } label: {
             Image(systemName: delta < 0 ? "chevron.left" : "chevron.right")
                 .font(.system(size: chevron, weight: .bold))
