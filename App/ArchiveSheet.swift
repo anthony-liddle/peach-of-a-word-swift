@@ -416,7 +416,6 @@ struct ArchiveSheet: View {
     /// The month the sheet opens on: the current one, which is the last, because
     /// the range now runs to the end of today's month.
     private static func openingIndex(in months: [[ArchiveDay]]) -> Int {
-        guard !months.isEmpty else { return 0 }
         #if DEBUG
         // `-archiveMonth 2026-07` opens on that month instead.
         //
@@ -429,7 +428,7 @@ struct ArchiveSheet: View {
             return found
         }
         #endif
-        return months.count - 1
+        return months.indices.last ?? 0
     }
 
     /// A month's stable name, for `-archiveMonth` and for view identity.
@@ -451,9 +450,15 @@ struct ArchiveSheet: View {
     ///
     /// A page has no scroll position to resolve, so there is nothing to land on
     /// and nothing to get wrong.
+    @ViewBuilder
     private func monthPage(cell: CGFloat) -> some View {
-        let month = months[safeIndex]
-        return VStack(alignment: .leading, spacing: 10) {
+        if let index = safeIndex {
+            monthPage(months[index], cell: cell)
+        }
+    }
+
+    private func monthPage(_ month: [ArchiveDay], cell: CGFloat) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
             monthBar(month)
             weekdayRow(cell: cell)
             ScrollViewReader { scroller in
@@ -571,7 +576,7 @@ struct ArchiveSheet: View {
     }
 
     private func stepButton(_ delta: Int) -> some View {
-        let target = safeIndex + delta
+        let target = (safeIndex ?? 0) + delta
         let reachable = months.indices.contains(target)
         // The greater of the target and the glyph with room around it, so it
         // never drops below the minimum and never crops the mark either.
@@ -600,7 +605,7 @@ struct ArchiveSheet: View {
     }
 
     private func step(_ delta: Int) {
-        let target = safeIndex + delta
+        let target = (safeIndex ?? 0) + delta
         guard months.indices.contains(target) else { return }
         advancing = delta > 0
         if reduceMotion {
@@ -620,9 +625,19 @@ struct ArchiveSheet: View {
         )
     }
 
-    /// Clamped, because `days` can change under a sheet that is already open.
-    private var safeIndex: Int {
-        min(max(monthIndex, 0), max(months.count - 1, 0))
+    /// The month on screen, or nil when there is no archive to show.
+    ///
+    /// **The one place emptiness is decided.** It used to clamp to 0 and call
+    /// itself safe, which is still out of range when there are no months, so
+    /// `monthPage` trapped on exactly the case `openingIndex` was separately
+    /// guarding. An optional makes the two agree by making the question
+    /// unavoidable: nothing can index without asking it first.
+    ///
+    /// Clamped as well, because `days` can change under a sheet that is
+    /// already open.
+    private var safeIndex: Int? {
+        guard let last = months.indices.last else { return nil }
+        return min(max(monthIndex, 0), last)
     }
 
     private func monthGrid(_ month: [ArchiveDay], cell: CGFloat) -> some View {
