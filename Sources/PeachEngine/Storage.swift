@@ -463,6 +463,15 @@ extension GameStorage {
     /// The marker survives because it records something about the streak
     /// expansion rather than about any day, and re-arming it here would make a
     /// dead run expand a second time over the map that just replaced it.
+    #if DEBUG
+    /// Replace the whole outcome map.
+    ///
+    /// **Debug only, because it is the one write the storage design refuses.**
+    /// Everything else here adds a day or raises one; this can lower or erase
+    /// any of them, which is exactly what the separate, never-pruned key exists
+    /// to prevent. Its only callers are the seeds that plant a calendar to look
+    /// at, and the tests. A Release build cannot reach it, and the Release build
+    /// failing to compile is how that is checked.
     public func replaceOutcomes(_ outcomes: [Int: DayOutcome]) {
         var state = readOutcomes()
         state.days = Dictionary(
@@ -470,6 +479,7 @@ extension GameStorage {
         )
         writeOutcomes(state)
     }
+    #endif
 
     /// Every outcome, keyed by day index, for drawing the grid.
     ///

@@ -332,34 +332,19 @@ struct ContentView: View {
             // thing that makes it screenshottable, and it is the only way the
             // grid reaches a pull request.
             if UserDefaults.standard.bool(forKey: "openArchive") {
-                // `-openArchiveDelay <ms>` waits before opening instead.
+                // Opened once the model says it is ready, not on appear.
                 //
-                // Opening in `onAppear` puts the sheet's cost and the app's
-                // launch in one interval, and the launch includes the 54MB
-                // lexicon. A delay lets the app go quiet first, so what the
-                // timing measures is the sheet and not the start up.
-                let delay = UserDefaults.standard.integer(forKey: "openArchiveDelay")
-                if delay > 0 {
-                    // Watch for dropped frames from now, not from the request:
-                    // the sheet blocks the main thread in the same turn it is
-                    // asked for, and a link started then has nothing to measure
-                    // the first gap from.
-                    ArchiveTiming.shared.prime()
-                    Task { @MainActor in
-                        try? await Task.sleep(nanoseconds: UInt64(delay) * 1_000_000)
-                        ArchiveTiming.shared.requested(label: "delayed")
-                        openArchive()
+                // `-openArchiveDelay` used to hold this back by a fixed number
+                // of milliseconds, which was a guess standing in for an
+                // ordering rule. A seeded run has a real one: the seed writes
+                // the archive's input and the sheet measures itself against the
+                // result, so opening first measures an empty calendar.
+                Task { @MainActor in
+                    while case .loading = model.phase {
+                        try? await Task.sleep(nanoseconds: 20_000_000)
                     }
-                } else {
-                    ArchiveTiming.shared.requested(label: "launch")
                     openArchive()
                 }
-            }
-            // What the launch path cost the archive, said out loud once the
-            // launch is over. Zero on a session that never opens the calendar.
-            Task { @MainActor in
-                try? await Task.sleep(nanoseconds: 6_000_000_000)
-                GameModel.reportArchiveDaysCalls()
             }
             #endif
             #if TAP_RECORDER
@@ -573,7 +558,6 @@ struct ContentView: View {
                     archiveDate: model.isArchiveBoard ? model.boardDate : nil,
                     onOpenArchive: {
                         #if DEBUG
-                        ArchiveTiming.shared.requested(label: "tap")
                         #endif
                         openArchive()
                     },

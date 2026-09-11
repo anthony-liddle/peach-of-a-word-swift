@@ -228,11 +228,6 @@ struct ArchiveSheet: View {
             .padding(.horizontal, Self.gutter)
             .padding(.bottom, 8)
         }
-        #if DEBUG
-        // The sheet reaching the screen, for `ArchiveTiming`. On the
-        // container rather than inside it, so it fires once per presentation.
-        .onAppear { ArchiveTiming.shared.appeared() }
-        #endif
         // Flat paper rather than the play screen's gradient. The sheet is a
         // different surface from the board and is allowed to say so. It began as
         // a requirement of the pinned month headings, which needed an opaque
