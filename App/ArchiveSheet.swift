@@ -155,9 +155,9 @@ struct ArchiveSheet: View {
     /// column count is fixed at seven, so every point the gap grows is a point
     /// taken off the cells. At AX5 on an iPhone SE 3 it took them to 36.5, under
     /// the 44pt tap target, which is the opposite of what scaling it was for.
-    private let gap: CGFloat = 5
+    private static let gap: CGFloat = 5
 
-    private let gutter: CGFloat = 18
+    private static let gutter: CGFloat = 18
 
     #if DEBUG
     /// Extra header height, in points, from `-headerPad`. Zero in every run
@@ -166,7 +166,7 @@ struct ArchiveSheet: View {
     #endif
 
     var body: some View {
-        let cell = cellSize(in: width)
+        let cell = Self.cellSize(in: width)
         return VStack(spacing: 0) {
             header
             #if DEBUG
@@ -208,7 +208,7 @@ struct ArchiveSheet: View {
             // keeps the viewport. See `key(cell:)`.
             if !dynamicTypeSize.isAccessibilitySize {
                 key(cell: cell)
-                    .padding(.horizontal, gutter)
+                    .padding(.horizontal, Self.gutter)
                     .padding(.top, 14)
             }
 
@@ -219,7 +219,7 @@ struct ArchiveSheet: View {
             }
             .buttonStyle(.plain)
             .foregroundStyle(Cute.accentDeep)
-            .padding(.horizontal, gutter)
+            .padding(.horizontal, Self.gutter)
             .padding(.bottom, 8)
         }
         #if DEBUG
@@ -257,7 +257,7 @@ struct ArchiveSheet: View {
     /// with a number that does not scale past it, which is a capped grid by
     /// another name. That remains a decision rather than an omission: a real
     /// treatment is a second layout for a case nobody has reported.
-    private func cellSize(in width: CGFloat) -> CGFloat {
+    static func cellSize(in width: CGFloat) -> CGFloat {
         let available = width - gutter * 2 - gap * 6
         return max(18, available / 7)
     }
@@ -275,7 +275,7 @@ struct ArchiveSheet: View {
             .font(CuteFont.display(22, relativeTo: .title3))
             .foregroundStyle(Cute.ink)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, gutter)
+            .padding(.horizontal, Self.gutter)
             // The grabber sits above this. Without the top padding the title is
             // pressed against it.
             .padding(.top, 26)
@@ -290,7 +290,7 @@ struct ArchiveSheet: View {
     /// and outside the page transition so it does not slide sideways with the
     /// month either.
     private func weekdayRow(cell: CGFloat) -> some View {
-        HStack(spacing: gap) {
+        HStack(spacing: Self.gap) {
             ForEach(Array(weekdaySymbols.enumerated()), id: \.offset) { _, symbol in
                 Text(symbol)
                     .font(CuteFont.body(10, weight: "Bold", relativeTo: .caption2))
@@ -299,7 +299,7 @@ struct ArchiveSheet: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, gutter)
+        .padding(.horizontal, Self.gutter)
         .accessibilityHidden(true)
     }
 
@@ -454,7 +454,7 @@ struct ArchiveSheet: View {
                 ScrollView(.vertical) {
                     VStack(alignment: .leading, spacing: 0) {
                         monthGrid(month, cell: cell)
-                            .padding(.horizontal, gutter)
+                            .padding(.horizontal, Self.gutter)
                             .frame(maxWidth: .infinity, alignment: .leading)
 
                         // At accessibility sizes the key is the largest thing
@@ -464,7 +464,7 @@ struct ArchiveSheet: View {
                         // the viewport and the key is one scroll away.
                         if dynamicTypeSize.isAccessibilitySize {
                             key(cell: cell)
-                                .padding(.horizontal, gutter)
+                                .padding(.horizontal, Self.gutter)
                                 .padding(.top, 24)
                         }
                     }
@@ -561,7 +561,7 @@ struct ArchiveSheet: View {
                 .accessibilityIdentifier("ArchiveMonthTitle")
             stepButton(1)
         }
-        .padding(.horizontal, gutter - 10)
+        .padding(.horizontal, Self.gutter - 10)
     }
 
     private func stepButton(_ delta: Int) -> some View {
@@ -642,9 +642,9 @@ struct ArchiveSheet: View {
         let rows = stride(from: 0, to: slots.count, by: 7).map {
             Array(slots[$0..<min($0 + 7, slots.count)])
         }
-        return VStack(alignment: .leading, spacing: gap) {
+        return VStack(alignment: .leading, spacing: Self.gap) {
             ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
-                HStack(spacing: gap) {
+                HStack(spacing: Self.gap) {
                     ForEach(Array(row.enumerated()), id: \.offset) { _, slot in
                         if let day = slot {
                             ArchiveCell(day: day, size: cell, canPlay: canPlay) { onPick(day.day) }
@@ -665,7 +665,7 @@ struct ArchiveSheet: View {
     /// Six is the most rows a month can need: 31 days starting on the last day
     /// of the week spans six.
     private func reservedGridHeight(cell: CGFloat) -> CGFloat {
-        cell * 6 + gap * 5 + 16
+        cell * 6 + Self.gap * 5 + 16
     }
 
     private func monthName(_ date: Date) -> String {
@@ -717,6 +717,44 @@ extension ArchiveSheet {
         // left an unpainted band under the way out: sampled at 240,229,225
         // against the paper's 255,244,238.
         return fitted.height + bottomSafeArea
+    }
+
+    /// **What the system scales a fitted card down by, measured.**
+    ///
+    /// A sheet at a custom detent is not drawn at the size it is laid out.
+    /// From iOS 26 it is presented as a floating card and scaled, so a 44pt tap
+    /// target laid out inside it does not arrive as 44pt of glass. Measured at
+    /// default size, reading a day cell out of the running app:
+    ///
+    /// | Device | Screen | iOS | Cell laid out | On the glass |
+    /// |---|---|---|---|---|
+    /// | iPhone 13 | 390x844 | 26.4 | 46.29 | 44.43 |
+    /// | iPhone 13 mini | 375x812 | 26.4 | 44.14 | 42.12 |
+    /// | iPhone SE 3 | 375x667 | 26.4 | 44.14 | 42.12 |
+    /// | iPhone 13 mini | 375x812 | 17.5 | 44.14 | 44.00 |
+    /// | iPhone SE 3 | 375x667 | 17.5 | 44.14 | 44.00 |
+    ///
+    /// **It is the OS, not the home indicator, and it tracks width.** An
+    /// earlier reading of one phone put the scale at 810/844 and called it the
+    /// indicator's inset. The SE 3 has no indicator and is scaled by the same
+    /// amount as the 13 mini, which has one, and the two share a width and not
+    /// a height. The same SE 3 on iOS 17.5 is not scaled at all.
+    ///
+    /// 0.9542 is the smallest of the measured scales, from both 375pt phones.
+    /// Taking the smallest is the safe direction: it can only refuse the card
+    /// to a phone that would have survived it, never hand it to one that will
+    /// not. It also gives one answer on every OS, so a phone that is not scaled
+    /// today is judged as though it were.
+    static let cardScale: CGFloat = 0.9542
+
+    /// Whether the fitted card leaves a day cell big enough to tap.
+    ///
+    /// The card is worth having only where it does not cost the grid its tap
+    /// target. Where it would, the sheet is presented at `.large`, which is not
+    /// scaled. Decided from the cell and the scale rather than from a list of
+    /// phones, so a screen nobody has tried is judged by the same arithmetic.
+    static func cardKeepsTheTapTarget(width: CGFloat) -> Bool {
+        cellSize(in: width) * cardScale >= Cute.minTapTarget
     }
 
     /// The home indicator's inset, from the window the sheet will cover.

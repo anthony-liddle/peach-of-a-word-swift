@@ -109,7 +109,15 @@ struct ContentView: View {
     /// opened at, so the number is ready before anything asks for it.
     private func measureArchiveSheet(width: CGFloat) {
         archiveWidth = width
-        guard !dynamicTypeSize.isAccessibilitySize else {
+        // No height means the large detent, which is the sheet unscaled.
+        //
+        // Two reasons to refuse the fitted card. At accessibility sizes a month
+        // does not fit whatever the sheet is given. And on a narrow screen the
+        // card's own scaling takes the day cells under the tap target: 44.14pt
+        // laid out reaches the glass at 42.12pt on both 375pt phones. The empty
+        // space the card was for is worth less than a grid you can hit.
+        guard !dynamicTypeSize.isAccessibilitySize,
+              ArchiveSheet.cardKeepsTheTapTarget(width: width) else {
             archiveSheetHeight = nil
             return
         }

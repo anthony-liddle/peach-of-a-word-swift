@@ -60,13 +60,30 @@ final class ArchiveGridMetrics: XCTestCase {
         XCTAssertTrue(cell.waitForExistence(timeout: 10), "no playable day cell",
                       file: file, line: line)
         let frame = cell.frame
-        print("CELL \(size) \(String(format: "%.2f x %.2f", frame.width, frame.height))")
+        // The presentation alongside the cell, because the two are one
+        // decision. A fitted card starts well down the screen; the large
+        // detent starts at the top. **What is measured here is glass, not
+        // layout**: from iOS 26 a sheet at a custom detent is scaled, so a
+        // 44pt cell laid out inside it can arrive smaller, and the tap target
+        // is about the finger.
+        let title = app.staticTexts["Past days"].firstMatch
+        let sheetTop = title.exists ? title.frame.minY : -1
+        print(String(format: "CELL %@ %.2f x %.2f sheetTop %.2f",
+                     size, frame.width, frame.height, sheetTop))
+        // **A hair of tolerance, for the boundary and not for the rule.** A
+        // 375pt phone divides into seven 44.14pt columns and reports them as
+        // 44.0, which is the minimum exactly. Two of the five phones measured
+        // come back as 43.999999999999986, one part in 10^15 under, and the
+        // other as 44.0 on the nose. That difference is arithmetic, not a
+        // smaller target. Anything that actually shrinks a cell moves it by
+        // points: the card scaling took the same cell to 42.12.
+        let floor = 44 - 0.001
         XCTAssertGreaterThanOrEqual(
-            frame.width, 44,
+            frame.width, floor,
             "a day cell is \(frame.width)pt wide, under the 44pt tap target",
             file: file, line: line)
         XCTAssertGreaterThanOrEqual(
-            frame.height, 44,
+            frame.height, floor,
             "a day cell is \(frame.height)pt tall, under the 44pt tap target",
             file: file, line: line)
     }
