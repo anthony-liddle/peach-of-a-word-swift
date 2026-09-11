@@ -79,9 +79,18 @@ struct ArchiveSheet: View {
     /// **Held here, and set before the first layout, deliberately.** Four
     /// attempts at landing a continuous scroll on today failed because the
     /// position was the framework's to decide and the answer depended on when it
-    /// decided it. A page index is ours, it is correct before anything is drawn,
-    /// and there is nothing to resolve. `2026-09-10 What Eager Layout Really
-    /// Costs.md` has what the alternatives cost.
+    /// decided it. A page index is ours and it is correct before anything is
+    /// drawn.
+    ///
+    /// The scroll inside the month is still the framework's, and at
+    /// accessibility sizes it still runs: a month is about 300pt against
+    /// viewports of 173.3, 92.0 and 41.5pt, and a probe that delayed it
+    /// measured today moving 40.3pt after the cell appeared. What changed is
+    /// that it now aims at a fixed row in a month whose height is known from
+    /// the start, rather than at a lazy stack's estimate that settled 873pt
+    /// wrong while it was being aimed at. The target stopped moving, which is
+    /// not the same as there being no target. `2026-09-10 What Eager Layout
+    /// Really Costs.md` has what the alternatives cost.
     @State private var monthIndex: Int
 
     /// Which way the last step went, so the slide goes that way too.
