@@ -251,7 +251,25 @@ struct ContentView: View {
             // sheet that can only ever be reasoned about. This is the smallest
             // thing that makes it screenshottable, and it is the only way the
             // grid reaches a pull request.
-            if UserDefaults.standard.bool(forKey: "openArchive") { showingArchive = true }
+            if UserDefaults.standard.bool(forKey: "openArchive") {
+                // `-openArchiveDelay <ms>` waits before opening instead.
+                //
+                // Opening in `onAppear` puts the sheet's cost and the app's
+                // launch in one interval, and the launch includes the 54MB
+                // lexicon. A delay lets the app go quiet first, so what the
+                // timing measures is the sheet and not the start up.
+                let delay = UserDefaults.standard.integer(forKey: "openArchiveDelay")
+                if delay > 0 {
+                    Task { @MainActor in
+                        try? await Task.sleep(nanoseconds: UInt64(delay) * 1_000_000)
+                        ArchiveTiming.shared.requested(label: "delayed")
+                        showingArchive = true
+                    }
+                } else {
+                    ArchiveTiming.shared.requested(label: "launch")
+                    showingArchive = true
+                }
+            }
             #endif
             #if TAP_RECORDER
             // A session marker written immediately, so the log exists before any
@@ -462,7 +480,12 @@ struct ContentView: View {
                     streak: model.streak,
                     // Nil for the live daily, so the caption keeps the streak.
                     archiveDate: model.isArchiveBoard ? model.boardDate : nil,
-                    onOpenArchive: { showingArchive = true },
+                    onOpenArchive: {
+                        #if DEBUG
+                        ArchiveTiming.shared.requested(label: "tap")
+                        #endif
+                        showingArchive = true
+                    },
                     onReturnToToday: { Task { await model.returnToToday() } }
                 )
             }

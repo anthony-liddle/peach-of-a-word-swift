@@ -210,6 +210,11 @@ struct ArchiveSheet: View {
                 .padding(.horizontal, gutter)
                 .padding(.bottom, 8)
             }
+            #if DEBUG
+            // The sheet reaching the screen, for `ArchiveTiming`. On the
+            // container rather than inside it, so it fires once per presentation.
+            .onAppear { ArchiveTiming.shared.appeared() }
+            #endif
         }
         // Flat paper rather than the play screen's gradient, and the reason is
         // the pinned headers: a month heading has to sit on an opaque band or
@@ -517,6 +522,24 @@ private struct ArchiveCell: View {
                     RoundedRectangle(cornerRadius: size * 0.3 + ArchiveCellFace.ringOutset)
                         .strokeBorder(Cute.ink, lineWidth: 1.5)
                         .padding(-ArchiveCellFace.ringOutset)
+                    #if DEBUG
+                    // Today reporting its own position, for `ArchiveTiming`.
+                    //
+                    // An overlay of `Color.clear` inside the existing overlay, so
+                    // it adds no layout height and cannot move the thing it is
+                    // measuring. The frame is taken in global coordinates because
+                    // the question is where today sits on the screen, not where
+                    // it sits in the content.
+                    GeometryReader { proxy in
+                        Color.clear
+                            .onAppear {
+                                ArchiveTiming.shared.todayMoved(to: proxy.frame(in: .global))
+                            }
+                            .onChange(of: proxy.frame(in: .global)) { _, new in
+                                ArchiveTiming.shared.todayMoved(to: new)
+                            }
+                    }
+                    #endif
                 }
             }
             .contentShape(Rectangle())
