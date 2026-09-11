@@ -103,6 +103,12 @@ public final class GameStorage {
     /// `UserDefaultsStore`).
     static let maxDaysKept = 14
 
+    /// `maxDaysKept`, readable from outside the module.
+    ///
+    /// Exposed so a caller sizing work to the retained window says the same
+    /// number as the prune rather than repeating it.
+    public static var retainedDayCount: Int { maxDaysKept }
+
     private let store: KeyValueStore
 
     public init(store: KeyValueStore) {
@@ -464,6 +470,21 @@ extension GameStorage {
     /// expansion rather than about any day, and re-arming it here would make a
     /// dead run expand a second time over the map that just replaced it.
     #if DEBUG
+    /// Put the archive back to never expanded: no days, and the flag down.
+    ///
+    /// **For a seed that wants to watch the expansion happen rather than plant
+    /// its result.** `adoptStreak` re-arms the flag too, but only when it
+    /// actually takes, and it refuses a count that does not beat the live one.
+    /// A seed run twice would then clear the days without re-arming and leave an
+    /// empty calendar, which looks exactly like the expansion having produced
+    /// nothing.
+    public func rearmBackFill() {
+        var outcomes = readOutcomes()
+        outcomes.days = [:]
+        outcomes.backFilled = false
+        writeOutcomes(outcomes)
+    }
+
     /// Replace the whole outcome map.
     ///
     /// **Debug only, because it is the one write the storage design refuses.**

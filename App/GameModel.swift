@@ -413,6 +413,14 @@ final class GameModel {
             adopt(p, storageDay: Self.todayStorageIndex, isArchive: false)
             // Once, and only until it has run. See `backFillArchive`.
             await backFillArchive()
+            #if DEBUG
+            // Awaited here rather than in `runLaunchArguments`, which runs after
+            // the app says it is ready. This seed writes the archive's input and
+            // then expands it, and the sheet sizes itself to the result.
+            if UserDefaults.standard.string(forKey: "seedArchive") == "bea" {
+                await seedBea()
+            }
+            #endif
             phase = .ready
             writeDebugState()
             runLaunchArguments()
@@ -564,6 +572,8 @@ final class GameModel {
         // nine completed racks to produce a picture. The outcome map IS the
         // archive's whole state, so writing it is not a shortcut around the
         // feature, it is the feature's input.
+        // `-seedArchive bea` is handled in the load path instead, because it
+        // has to finish before the app reports itself ready.
         if let spec = UserDefaults.standard.string(forKey: "seedArchive") {
             seedArchive(spec)
         }
@@ -1200,6 +1210,83 @@ final class GameModel {
         // today itself, so "no record" and the today ring are both on screen.
     }
 
+    /// Bea's phone as it will be on merge day, before its first open.
+    ///
+    /// **The showcase seed plants the answer; this one plants the question.** It
+    /// writes the inputs the back-fill reads, a live streak pair and the found
+    /// words the prune is still holding, then runs the back-fill exactly as the
+    /// first launch after a merge will. What appears on the calendar is the
+    /// feature's own output rather than a picture of what it is supposed to
+    /// produce, which is the only way to see the one write that is never
+    /// revised before it happens on her phone.
+    ///
+    /// The run is anchored on the snapshot: 70 days ending at storage day 251,
+    /// which is 2026-09-09, extended to yesterday because the run is still
+    /// alive. Nothing here is hard-coded to today's date.
+    func seedBea() async {
+        guard let lexicon else { return }
+        let first = Self.firstPlayableStorageIndex
+        let today = Self.todayStorageIndex
+        // Alive through yesterday, which is what keeps the pair live without
+        // claiming today's board has been cleared.
+        let last = today - 1
+        guard last >= Self.snapshotLastCleared else { return }
+        let count = 70 + (last - Self.snapshotLastCleared)
+        guard last - count + 1 >= first else { return }
+
+        // No outcomes, and the expansion not yet run. Armed explicitly rather
+        // than through `adoptStreak`, which re-arms only when it takes: run
+        // twice, it refuses a count that does not beat the live one, and the
+        // seed would clear the days without arming anything.
+        storage.rearmBackFill()
+        _ = storage.adoptStreak(count: count, lastClearedDayIndex: last, todayIndex: today)
+
+        // The days the prune would still be holding words for. Fourteen is the
+        // cap; today is left alone because the live board owns it.
+        for back in 1...(GameStorage.retainedDayCount - 1) {
+            let day = today - back
+            guard day >= first else { continue }
+            guard let puzzle = await Self.buildPuzzle(
+                dailyIndex: day - first, lexicon: lexicon
+            ) else { continue }
+
+            // The basket days are every set word the rack can spell, taken from
+            // the puzzle rather than invented, because a plausible looking list
+            // that is one word short reconstructs as `cleared` and the heart
+            // never appears.
+            let setWords = puzzle.commonWords.sorted()
+            let found: [String]
+            switch back {
+            case 1, 4, 9: found = setWords
+            case 13: found = Array(setWords.prefix(1))
+            default: found = Self.wordsReachingTheRank(in: puzzle, from: setWords)
+            }
+            storage.saveDayProgress(
+                dayIndex: day, sourceWord: puzzle.sourceWord, found: found
+            )
+        }
+
+        await backFillArchive()
+    }
+
+    /// The storage day index of 2026-09-09, the day the streak snapshot was
+    /// taken, when the stored pair read `count: 70, lastClearedDayIndex: 251`.
+    static let snapshotLastCleared = 251
+
+    /// The shortest prefix of the set words that reaches the streak rank.
+    ///
+    /// Built by asking the real rule rather than by guessing a count: the rank
+    /// is a fraction of par, so how many words it takes differs per board.
+    static func wordsReachingTheRank(in puzzle: Puzzle, from words: [String]) -> [String] {
+        var found: [String] = []
+        for word in words {
+            found.append(word)
+            if rungReached(computeTier(found: Set(found), puzzle: puzzle)) >= DayOutcome.cleared {
+                return found
+            }
+        }
+        return found
+    }
     #endif
 
     /// A small JSON dump beside load_ms.txt, so relaunch and rollover checks can
