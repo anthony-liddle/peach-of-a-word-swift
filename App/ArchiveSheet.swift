@@ -98,6 +98,8 @@ struct ArchiveSheet: View {
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
     init(days: [ArchiveDay], canPlay: Bool,
          onPick: @escaping (Int) -> Void, onClose: @escaping () -> Void) {
         self.days = days
@@ -129,7 +131,7 @@ struct ArchiveSheet: View {
         GeometryReader { geo in
             let cell = cellSize(in: geo.size.width)
             VStack(spacing: 0) {
-                header(cell: cell)
+                header
                 #if DEBUG
                 // `-headerPad 50.4` grows the header, and it is a permanent
                 // fixture because it is the only reproducer issue #65 ever had.
@@ -161,6 +163,17 @@ struct ArchiveSheet: View {
                 #endif
 
                 monthPage(cell: cell)
+
+                // The key reads after the grid it explains, which is the whole
+                // reason it moved: a legend arriving before the thing it
+                // explains is one nobody has a use for yet. At accessibility
+                // sizes it is inside the grid's scroll instead, so the grid
+                // keeps the viewport. See `key(cell:)`.
+                if !dynamicTypeSize.isAccessibilitySize {
+                    key(cell: cell)
+                        .padding(.horizontal, gutter)
+                        .padding(.top, 14)
+                }
 
                 Button(action: onClose) {
                     Text(Vocabulary.revealClose)
@@ -215,42 +228,59 @@ struct ArchiveSheet: View {
 
     // MARK: The top
 
-    private func header(cell: CGFloat) -> some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text(Vocabulary.archiveTitle)
-                .font(CuteFont.display(22, relativeTo: .title3))
-                .foregroundStyle(Cute.ink)
+    /// The sheet's own title, and nothing else.
+    ///
+    /// The key and the weekday row both used to live here, above the scroll of
+    /// every month. Neither belongs to the sheet now that the sheet shows one
+    /// month: the weekday letters head one month's columns and travel with the
+    /// page, and a legend reads after the thing it explains.
+    private var header: some View {
+        Text(Vocabulary.archiveTitle)
+            .font(CuteFont.display(22, relativeTo: .title3))
+            .foregroundStyle(Cute.ink)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, gutter)
+            // The grabber sits above this. Without the top padding the title is
+            // pressed against it.
+            .padding(.top, 26)
+            .padding(.bottom, 12)
+    }
 
-            key(cell: cell)
-
-            // Weekday columns, once, above the scroll rather than repeated in
-            // every month: the columns never change, and a column header that
-            // scrolls away is one you have to remember.
-            HStack(spacing: gap) {
-                ForEach(Array(weekdaySymbols.enumerated()), id: \.offset) { _, symbol in
-                    Text(symbol)
-                        .font(CuteFont.body(10, weight: "Bold", relativeTo: .caption2))
-                        .foregroundStyle(Cute.inkFaint)
-                        .frame(width: cell)
-                }
+    /// Weekday letters on their own columns, directly above the grid.
+    ///
+    /// **The same `gap`, the same `cell` and the same `gutter` as a grid row,
+    /// because the letters are only useful sitting on their columns.** The row
+    /// is outside the scroll so it does not slide away from the grid it heads,
+    /// and outside the page transition so it does not slide sideways with the
+    /// month either.
+    private func weekdayRow(cell: CGFloat) -> some View {
+        HStack(spacing: gap) {
+            ForEach(Array(weekdaySymbols.enumerated()), id: \.offset) { _, symbol in
+                Text(symbol)
+                    .font(CuteFont.body(10, weight: "Bold", relativeTo: .caption2))
+                    .foregroundStyle(Cute.inkFaint)
+                    .frame(width: cell)
             }
-            .accessibilityHidden(true)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, gutter)
-        // The grabber sits above this. Without the top padding the title is
-        // pressed against it.
-        .padding(.top, 26)
-        .padding(.bottom, 12)
+        .accessibilityHidden(true)
     }
 
     /// The key, as a ramp rather than as a list of annotated examples.
     ///
-    /// Four cells left to right with their labels underneath, above the grid
-    /// rather than below it. What this replaces was a sentence under the
-    /// calendar explaining nine cells, which is the tell that the cells were not
-    /// carrying their own meaning: a scale reads at a glance, and a legend that
-    /// arrives after the thing it explains has already failed.
+    /// Four cells left to right with their labels underneath. What this
+    /// replaces was a sentence under the calendar explaining nine cells, which
+    /// is the tell that the cells were not carrying their own meaning: a scale
+    /// reads at a glance.
+    ///
+    /// **It sits below the grid now, which reverses the reason first given for
+    /// putting it above.** That reason was that a legend arriving after the
+    /// thing it explains has already failed. What was actually failing was a
+    /// paragraph of prose, not its position, and above the grid the key pushed
+    /// the calendar down the sheet and took the top of it at accessibility
+    /// sizes. Every calendar puts its legend under the month. Decided
+    /// 2026-09-11 with the page reorder.
     ///
     /// It draws the same faces the grid draws, so the two cannot drift into
     /// meaning different things.
@@ -276,6 +306,7 @@ struct ArchiveSheet: View {
         .frame(maxWidth: .infinity)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(label)
+        .accessibilityIdentifier("ArchiveKeyItem")
     }
 
     /// Weekday initials in the reader's own order, since the week does not start
@@ -345,12 +376,26 @@ struct ArchiveSheet: View {
         let month = months[safeIndex]
         return VStack(alignment: .leading, spacing: 10) {
             monthBar(month)
+            weekdayRow(cell: cell)
             ScrollViewReader { scroller in
                 ScrollView(.vertical) {
-                    monthGrid(month, cell: cell)
-                        .padding(.horizontal, gutter)
-                        .padding(.bottom, 16)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                    VStack(alignment: .leading, spacing: 0) {
+                        monthGrid(month, cell: cell)
+                            .padding(.horizontal, gutter)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+
+                        // At accessibility sizes the key is the largest thing
+                        // on the sheet, and above the grid it left 173.3pt of
+                        // viewport on a 390pt phone and 92.0pt on an SE. Below
+                        // the grid and inside the same scroll, the grid gets
+                        // the viewport and the key is one scroll away.
+                        if dynamicTypeSize.isAccessibilitySize {
+                            key(cell: cell)
+                                .padding(.horizontal, gutter)
+                                .padding(.top, 24)
+                        }
+                    }
+                    .padding(.bottom, 16)
                 }
                 // The grid alone scrolls, and the month's name does not go with
                 // it. At AX5 on a 390pt phone the space under the fixed header
