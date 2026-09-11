@@ -17,19 +17,23 @@ import Testing
 /// to survive `swift test` rather than a worktree someone remembered to build.
 @Suite("the daily sequence is pinned")
 struct DailySequencePinTests {
-    /// The real calendar, read from the repo rather than from a fixture: a
-    /// fixture would pin the function against itself and say nothing about the
-    /// words actually shipped.
-    static let words: [String] = {
+    /// The real calendar, not a fixture: a fixture would pin the function
+    /// against itself and say nothing about the words actually shipped.
+    ///
+    /// **Through `dataDirectory`, and throwing rather than `try!`.** Two things
+    /// the first version of this got wrong, both caught by CI rather than
+    /// locally. It walked up from `#filePath` to the repository, which passed
+    /// everywhere except `checkout-less-tests`, the job that exists to catch
+    /// exactly that: it moves `Data` aside and runs the suite against the
+    /// bundle alone. And it read the file in a `static let` with `try!`, so the
+    /// miss was a fatal error that took the whole test process down instead of
+    /// one named failure. `dataDirectory` resolves to the source tree when
+    /// there is one and to a loaded bundle's `Data` when there is not.
+    static func calendarWords() throws -> [String] {
         struct File: Decodable { let words: [String] }
-        let root = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()  // PeachEngineTests
-            .deletingLastPathComponent()  // Tests
-            .deletingLastPathComponent()  // repo root
-        let url = root.appendingPathComponent("Data/daily-calendar.json")
-        let data = try! Data(contentsOf: url)
-        return try! JSONDecoder().decode(File.self, from: data).words
-    }()
+        let url = dataDirectory.appendingPathComponent("daily-calendar.json")
+        return try JSONDecoder().decode(File.self, from: Data(contentsOf: url)).words
+    }
 
     private let utc = TimeZone(identifier: "UTC")!
 
@@ -40,7 +44,7 @@ struct DailySequencePinTests {
         let date = cal.date(from: DateComponents(
             year: parts[0], month: parts[1], day: parts[2], hour: 12
         ))!
-        return try dailySourceWord(calendar: Self.words, date: date, timeZone: utc)
+        return try dailySourceWord(calendar: Self.calendarWords(), date: date, timeZone: utc)
     }
 
     /// Two of these are Bea's: 2026-07-02 is the first day of her seventy-day
@@ -67,6 +71,6 @@ struct DailySequencePinTests {
         "2026-06-22", "2026-01-01", "2025-01-01",
     ])
     func flooredBeforeTheEpoch(date: String) throws {
-        #expect(try word(date) == Self.words[0])
+        #expect(try word(date) == (try Self.calendarWords())[0])
     }
 }
