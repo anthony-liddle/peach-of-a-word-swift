@@ -93,6 +93,13 @@ final class ArchiveTiming {
         // a 120ms window: a number larger than the thing it was inside.
         if link == nil { startLink() }
         longestGap = 0
+        // Seed the previous tick with this instant rather than the last real
+        // callback. The simulator stops serving the display link while the app
+        // sits idle, so the last callback can be long past, and the first tick
+        // after the request would otherwise report that idle stretch as a gap.
+        // That put a 150ms floor under every reading, larger than the whole
+        // window it was supposed to sit inside.
+        lastTick = now()
         // Nothing may ever move, on a day where today is not drawn. Say that
         // rather than logging silence, which reads identically to a crash.
         let deadline = patience
