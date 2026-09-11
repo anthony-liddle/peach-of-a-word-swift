@@ -717,12 +717,28 @@ extension ArchiveSheet {
         host.safeAreaRegions = []
         let fitted = host.sizeThatFits(
             in: CGSize(width: width, height: .greatestFiniteMagnitude))
-        // A `.height` detent measures the sheet, and a sheet's height includes
-        // the home indicator's inset. Without this the content is handed the
-        // detent minus the inset, which squeezed the scroll view by 34pt and
-        // left an unpainted band under the way out: sampled at 240,229,225
-        // against the paper's 255,244,238.
-        return fitted.height + bottomSafeArea
+        // **The indicator's inset is added only where the sheet sits on the
+        // indicator.** A `.height` detent measures the sheet, and a sheet that
+        // reaches the screen's bottom edge is handed the detent minus that
+        // inset: without the addition its content is squeezed by 34pt and an
+        // unpainted band appears under the way out, sampled at 240,229,225
+        // against the paper's 255,244,238. A floating card does not reach the
+        // bottom edge, so adding it there only buys empty paper inside the
+        // card: measured on a 390pt phone, 89.3pt under the way out against
+        // 30.3pt above the title, and 56.7pt once this stopped being added.
+        return floatsAsACard ? fitted.height : fitted.height + bottomSafeArea
+    }
+
+    /// Whether a sheet at a custom detent floats clear of the screen's edges.
+    ///
+    /// **Measured, not assumed.** From iOS 26 such a sheet is a card inset from
+    /// every edge: on a 390pt phone it spans 8.0..381.7pt of a 390pt screen and
+    /// stops 8.0pt above the bottom. On iOS 17.5 there is no card and no
+    /// scaling, on the same phones. That is the same split `cardScale` records,
+    /// seen from the other side.
+    static var floatsAsACard: Bool {
+        if #available(iOS 26, *) { return true }
+        return false
     }
 
     /// **What the system scales a fitted card down by, measured.**

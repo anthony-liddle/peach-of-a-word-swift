@@ -29,8 +29,9 @@ final class ArchiveWayOut: XCTestCase {
         let button = app.buttons["Back to the basket"].firstMatch
         XCTAssertTrue(button.waitForExistence(timeout: 30),
                       "the archive sheet never opened")
-        print(String(format: "WAYOUT %@ %.2f x %.2f", size,
-                     button.frame.width, button.frame.height))
+        print(String(format: "WAYOUT %@ %.2f x %.2f  y %.2f..%.2f", size,
+                     button.frame.width, button.frame.height,
+                     button.frame.minY, button.frame.maxY))
         return button.frame
     }
 
