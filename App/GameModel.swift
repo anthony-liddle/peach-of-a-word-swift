@@ -1045,14 +1045,30 @@ final class GameModel {
             return BackFillCounts(fromPlay: 0, fromStreak: 0)
         }
 
+        // Four at a time. `createPuzzle` is 93.5ms in Release and 887ms in
+        // Debug on this Mac, measured by `peach-bench`, so a fortnight of them
+        // in a row is about 1.3 seconds added to the one launch that does this.
+        // Built concurrently it is a quarter of that, and the expansion still
+        // finishes before anything can see a half filled calendar.
+        let days = storage.daysWithProgress()
         var puzzles: [Int: Puzzle] = [:]
-        for day in storage.daysWithProgress() {
-            let daily = day - Self.firstPlayableStorageIndex
-            guard daily >= 0 else { continue }
-            guard let puzzle = await Self.buildPuzzle(dailyIndex: daily, lexicon: lexicon) else {
-                continue
+        await withTaskGroup(of: (Int, Puzzle?).self) { group in
+            var next = 0
+            func submit() {
+                guard next < days.count else { return }
+                let day = days[next]
+                next += 1
+                let daily = day - Self.firstPlayableStorageIndex
+                guard daily >= 0 else { return submit() }
+                group.addTask {
+                    (day, await Self.buildPuzzle(dailyIndex: daily, lexicon: lexicon))
+                }
             }
-            puzzles[day] = puzzle
+            for _ in 0..<min(4, days.count) { submit() }
+            while let (day, puzzle) = await group.next() {
+                if let puzzle { puzzles[day] = puzzle }
+                submit()
+            }
         }
 
         return storage.backFillOutcomes(
