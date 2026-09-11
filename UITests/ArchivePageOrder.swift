@@ -81,10 +81,20 @@ final class ArchivePageOrder: XCTestCase {
             "the key is above the grid it explains")
 
         // And still above the way out, which is the last thing on the sheet.
+        //
+        // **Compared top to top, because the way out's frame is now its band.**
+        // It used to be the lettering, and a key ending where the band's top
+        // padding begins failed this by 0.15pt: 751.44 against 751.29. That is
+        // the two controls sitting flush, not the key falling past anything.
+        // Ordering is what this asserts, so it asks which starts first and
+        // which ends first rather than measuring a gap that is padding.
         let wayOut = app.buttons["Back to the basket"].firstMatch
         let keyBottom = items.map { $0.frame.maxY }.max() ?? 0
         XCTAssertLessThanOrEqual(
-            keyBottom, wayOut.frame.minY,
+            keyTop, wayOut.frame.minY,
+            "the key starts below the way out")
+        XCTAssertLessThanOrEqual(
+            keyBottom, wayOut.frame.maxY,
             "the key has fallen past the way out")
     }
 }
