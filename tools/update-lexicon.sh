@@ -49,7 +49,7 @@ REPO="anthony-liddle/orchard"
 # somebody look at the numbers rather than inherit them. Expect those tests to
 # fail on a bump; read the diff before editing them, and never loosen one to
 # make a bump quiet.
-VERSION="v1.5.0"
+VERSION="v1.6.0"
 
 # ---------------------------------------------------------------------------
 # THE ARCHIVES THIS REPOSITORY TAKES FROM A RELEASE.
@@ -100,11 +100,19 @@ VERSION="v1.5.0"
 # across packings and the words did not change. That is the expected shape of a
 # release that only repacked. If a file hash ever needs editing on such a
 # release, something is wrong; do not edit it to make a check pass.
+#
+# v1.6.0 is the mixed shape, and worth reading as the worked example. All three
+# archive hashes moved, because all three were repacked. Of the seven file
+# hashes, four moved and three did not: `common-pool.txt` is byte-identical
+# because none of the eleven denied words was in the common pool, which is the
+# assertion that release was making; `etymology.tsv` is byte-identical because
+# nothing in that batch touched the etymology corpus. Editing either of those
+# two would have been the sign described above.
 # ---------------------------------------------------------------------------
 ARCHIVES=(
-  "lexicon.tar.gz|e386779b6dd533298ec64c56bb52fcef6200c2566cd51a38012ab186655816f6|lexicon|enable.txt:3be67be18b42d1903911f16f008c2cf7754cef4dfce2bcff448e8d7f94854a6b,scowl95-additions.txt:a636a359b0d0fd8de1db338c24893f87d09978eaaa3eff81c4eb7e370426f173,common-pool.txt:10fa33188c8de4fc0d047f0993165365e12d6e739e1072a1275ee94c1fab928f,beyond-size-70.txt:556c91aa84c6aaad7ab80d6b942fc1349acd6304624089acb1e575991f83c171,beyond-size-95.txt:3bf2bd8af9952e76bb1621b93c75710e47e61fd707444637e391138f45f1eef9"
-  "etymology.tar.gz|14e00abbffc358bfd3ab1e763551c840d330f30eaa0e7401ccdd31ffb27c5fb6|etymology|etymology.tsv:d51a4dc38a1cf73d50549b2d176da74db91852b711a4a93348ecd6e02bd44ea0"
-  "definitions.tar.gz|6578f0e91534b31b44c6b177b2a3df79dece03433d2e16ffde626f2b03ec3ef4|definitions|definitions.tsv:4297d44de6fb478b8fb94a1b66b04692889e4af3f6008ca25cb2fca8f3c9728a"
+  "lexicon.tar.gz|dedcea1169203618ed381c87423a936b658aa88decb8c0c7fb2af01117b45553|lexicon|enable.txt:875dbaaa3ea6f147d16bb1ac34b010f47d67586c1a015b2505107bf608551775,scowl95-additions.txt:f38d58a159517fd213df5899a099bca8ce0d26dcdc78a1ecbd8d3be347e2d657,common-pool.txt:10fa33188c8de4fc0d047f0993165365e12d6e739e1072a1275ee94c1fab928f,beyond-size-70.txt:eb7329d39fe1e22d003053da23d66484cf55e38a2cf1d95f4003e1076a96099b,beyond-size-95.txt:e9a0eabad9dbea44cffb7ce995df516c68938a33ca15ed2e451f18aaa027b8cd"
+  "etymology.tar.gz|c624cf4e0d67bc85049c118f68d8ac3be196c42d24330c764b6f4827aa1c7be8|etymology|etymology.tsv:d51a4dc38a1cf73d50549b2d176da74db91852b711a4a93348ecd6e02bd44ea0"
+  "definitions.tar.gz|e9c80afc16ac555c017665d469f2e87ee0a8202580ec2ff9f074aff57425b36d|definitions|definitions.tsv:4c4077d4fad3a81b8c4825a60fa6bd46cd3690157806a682c17e15e0f463b5e9"
 )
 
 # Split one ARCHIVES row into the four globals the loops below read.
@@ -218,14 +226,22 @@ done
 # 626 the calendar can deal. definitionsCovered counts the definition corpus,
 # which as of this change ships here too.
 #
-# **definitionsCovered says 24833 and the file it counts has 24,892 rows.** It is
-# carried through anyway, and not because the discrepancy is acceptable on its
-# own terms. meta.json has to stay byte-identical with the web's serialiseMeta
-# output, so correcting it here would be a one-repo edit to a two-repo file and
-# the next --check would be comparing this repo against a number only this repo
-# believes. The stale figure is the web's to move. Recorded rather than fixed,
-# and recorded rather than left for someone to trip over: the count in this file
-# is not a number to reason from, and the corpus itself is the thing to count.
+# **definitionsCovered was 24833 against a corpus of 24,892 rows, and it is now
+# 24,596.** The old note here said the stale figure was "the web's to move".
+# The web moved it, at orchard v1.4.0, when 392 denials shrank the per-rack
+# bundles, and this copy was never told, so the two files disagreed for three
+# releases with nothing asserting they should not. Resynced at v1.6.0.
+#
+# Read the number for what it is. definitionsCovered counts distinct words
+# carrying a gloss in some shipped WEB BUNDLE, not rows in this repository's
+# definitions.tsv, which has 24,895. It is boundary-filtered and rack-filtered
+# and this app ships neither filter, so the gap is not drift: 24,596 is the
+# right answer to a question about the other consumer. The count in this file
+# is not a number to reason from about this app, and the corpus itself is the
+# thing to count.
+#
+# peach-of-a-word now carries src/data/metaParity.test.ts, which fails when the
+# two copies diverge on any byte. That is what was missing, not care.
 #
 # No key is added for that coverage, deliberately. meta.json has to stay
 # byte-identical with the web's serialiseMeta output, so a new key here is a
