@@ -184,15 +184,17 @@ public final class GameStorage {
     ///
     /// A mismatch means the calendar moved under this date, so the stored words
     /// belong to a different puzzle and are discarded rather than restored.
-    /// **The daily blob first, then the archive.** A day is written to exactly
-    /// one of them, so the order is a tiebreak that cannot normally fire: the
-    /// writer removes a day from the other store as it lands.
+    /// **The daily blob first, then the archive.** A day settles in exactly one
+    /// of them, so the order is a tiebreak, and every case where both hold the
+    /// day has the daily blob holding words at least as new as the archive's.
     ///
-    /// It fires in one case, and the daily blob is the right answer there. If
-    /// the device clock goes backwards, a day already retired can become the
-    /// board in play again, and the copy being played now is the one in the
-    /// daily blob. When the clock catches up, `retirePastDays` moves that copy
-    /// over the archived one and the two agree again.
+    /// Two cases put a day in both. A process killed partway through a move
+    /// leaves it in both, and the writers order themselves so the daily copy is
+    /// never the older one: see `saveDayProgress`. And if the device clock goes
+    /// backwards, a day already retired can become the board in play again, and
+    /// the copy being played now is the one in the daily blob. When the clock
+    /// catches up, `retirePastDays` moves that copy over the archived one and
+    /// the two agree again.
     ///
     /// A mismatched source word means the calendar moved under this date, so the
     /// stored words belong to a different puzzle and are discarded rather than
@@ -268,18 +270,35 @@ public final class GameStorage {
             write(state)
             return
         }
-        // **The archive is written before the daily blob is cleaned up, and the
-        // order is load bearing.** Between the two writes the day exists in
-        // both stores, which costs nothing: the read prefers the daily blob and
-        // both copies are the same words. Reversed, a process killed between
-        // them would have removed the day from the daily blob without it
-        // reaching the archive, and the words would be gone.
+        // **Three writes when the day is still in the daily blob, and the third
+        // is not the interesting one.** There is no transaction across two keys,
+        // so every gap between writes has to be safe on its own.
+        //
+        // Writing the archive first and then removing the live copy is not
+        // enough, which a guard found rather than a reading of it: the live copy
+        // left behind is the OLD word list, the read prefers the daily blob, and
+        // a kill in that gap hands back the stale list and then overwrites the
+        // newer archived one at the next rollover. The word is lost, quietly,
+        // which is the defect this whole change exists to close.
+        //
+        // So the live copy is brought up to date first. After that every gap is
+        // safe: a kill leaves the new words in the daily blob, or in both, or in
+        // the archive alone, and the read finds them in all three.
+        var state = read()
+        let wasLive = state.days[key] != nil
+        if wasLive {
+            state.days[key] = progress
+            write(state)
+        }
+
         var archive = readArchive()
         archive.days[key] = progress
         writeArchive(archive)
 
-        var state = read()
-        if state.days.removeValue(forKey: key) != nil { write(state) }
+        if wasLive {
+            state.days.removeValue(forKey: key)
+            write(state)
+        }
     }
 
     /// Move every day that is no longer the board in play into the archive key.

@@ -85,6 +85,57 @@ struct PastDayWordsTests {
                 "the archive key does not hold yesterday")
     }
 
+    /// A store that stops accepting writes, standing in for the process being
+    /// killed partway through a move.
+    ///
+    /// Both movers write two keys. There is no transaction across them, so one
+    /// of the two orders is safe and the other loses words, and which one is
+    /// safe was only ever stated in a comment.
+    private final class DiesAfterAWrite: KeyValueStore {
+        private var contents: [String: Data] = [:]
+        private var writesLeft: Int
+        init(_ writesLeft: Int) { self.writesLeft = writesLeft }
+        func data(forKey key: String) -> Data? { contents[key] }
+        func set(_ data: Data?, forKey key: String) {
+            guard writesLeft > 0 else { return }
+            writesLeft -= 1
+            if let data { contents[key] = data } else { contents.removeValue(forKey: key) }
+        }
+    }
+
+    @Test("a kill partway through the rollover leaves the words readable")
+    func aKillDuringTheRolloverKeepsTheWords() {
+        // One write to plant the day, then one more before the store dies,
+        // which lands in the middle of the move.
+        let store = DiesAfterAWrite(2)
+        let storage = GameStorage(store: store)
+        storage.saveDayProgress(dayIndex: Self.yesterday, sourceWord: "yesterda",
+                                found: ["yes", "day"], fromArchive: false)
+
+        storage.retirePastDays(todayIndex: Self.today)
+
+        let back = storage.loadDayProgress(dayIndex: Self.yesterday, sourceWord: "yesterda")
+        #expect(back.count == 2,
+                "a kill mid rollover left \(back.count) of 2 words readable")
+    }
+
+    /// The same test for the other mover: a day still in the daily blob, opened
+    /// from the calendar, written to the archive, killed before the cleanup.
+    @Test("a kill partway through an archive write leaves the words readable")
+    func aKillDuringAnArchiveWriteKeepsTheWords() {
+        let store = DiesAfterAWrite(2)
+        let storage = GameStorage(store: store)
+        storage.saveDayProgress(dayIndex: Self.yesterday, sourceWord: "yesterda",
+                                found: ["yes"], fromArchive: false)
+
+        storage.saveDayProgress(dayIndex: Self.yesterday, sourceWord: "yesterda",
+                                found: ["yes", "day"], fromArchive: true)
+
+        let back = storage.loadDayProgress(dayIndex: Self.yesterday, sourceWord: "yesterda")
+        #expect(back.count == 2,
+                "a kill mid archive write left \(back.count) of 2 words readable")
+    }
+
     /// The same defect by a second door, and the one a rollover-shaped guard
     /// cannot see. Between midnight and the next foregrounding the app has not
     /// rolled over, so yesterday is still in the daily blob. Opening it from the
