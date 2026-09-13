@@ -410,6 +410,10 @@ final class GameModel {
                 phase = .failed("the daily calendar is empty")
                 return
             }
+            // Before the board is adopted, so a day left in the daily blob by
+            // a session that ended yesterday is already where it belongs when
+            // the back-fill goes looking for it.
+            storage.retirePastDays(todayIndex: Self.todayStorageIndex)
             adopt(p, storageDay: Self.todayStorageIndex, isArchive: false)
             // Once, and only until it has run. See `backFillArchive`.
             await backFillArchive()
@@ -514,7 +518,9 @@ final class GameModel {
     ///
     /// Yesterday's words need no saving here: progress is written on every
     /// find, under the day index the board was built for, so they were on disk
-    /// long before this ran.
+    /// long before this ran. They do need moving, out of the blob that holds the
+    /// board in play and into the one that keeps every past day, and that is
+    /// `retirePastDays` below.
     func rollOverIfNewDay() async {
         guard let board = storageDayIndex, let lexicon else { return }  // nothing loaded yet
         let today = Self.todayStorageIndex
@@ -538,6 +544,9 @@ final class GameModel {
             // showing a board she can still play.
             return
         }
+        // The board she was playing is about to leave the screen. Its words go
+        // with it, into the key that keeps them.
+        storage.retirePastDays(todayIndex: today)
         adopt(p, storageDay: today, isArchive: false)
         // The new day has not recorded a streak yet, and this flag is what
         // stops one session recording twice. Left set, the first clear of the
@@ -927,7 +936,11 @@ final class GameModel {
     private func foundDidChange() {
         guard let puzzle, let day = storageDayIndex else { return }
         saveCount += 1
-        storage.saveDayProgress(dayIndex: day, sourceWord: puzzle.sourceWord, found: found)
+        // The same fact `recordDailyCleared` needs, and for a related reason:
+        // it decides which store the words belong in, not only whether the
+        // streak may move. See `saveDayProgress`.
+        storage.saveDayProgress(dayIndex: day, sourceWord: puzzle.sourceWord,
+                                found: found, fromArchive: isArchiveBoard)
 
         let standing = computeTier(found: Set(found), puzzle: puzzle)
         let today = Self.todayStorageIndex
@@ -1260,7 +1273,7 @@ final class GameModel {
 
         // The days the prune would still be holding words for. Fourteen is the
         // cap; today is left alone because the live board owns it.
-        for back in 1...(GameStorage.retainedDayCount - 1) {
+        for back in 1...(Self.seededDayCount) {
             let day = today - back
             guard day >= first else { continue }
             guard let puzzle = await Self.buildPuzzle(
@@ -1279,12 +1292,20 @@ final class GameModel {
             default: found = Self.wordsReachingTheRank(in: puzzle, from: setWords)
             }
             storage.saveDayProgress(
-                dayIndex: day, sourceWord: puzzle.sourceWord, found: found
+                dayIndex: day, sourceWord: puzzle.sourceWord, found: found,
+                fromArchive: true
             )
         }
 
         await backFillArchive()
     }
+
+    /// Days of found words the seed writes behind today.
+    ///
+    /// Its own number rather than the back-fill's cap, which it used to borrow.
+    /// The two were the same while the prune bounded both; they answer different
+    /// questions and only coincidentally agreed.
+    static let seededDayCount = 13
 
     /// The storage day index of 2026-09-09, the day the streak snapshot was
     /// taken, when the stored pair read `count: 70, lastClearedDayIndex: 251`.

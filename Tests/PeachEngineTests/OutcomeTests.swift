@@ -34,22 +34,31 @@ struct OutcomeTests {
         #expect(storage.outcome(dayIndex: 200) == nil)
     }
 
-    /// The whole point of the second key. Day progress is pruned to fourteen
-    /// because it is written on every find and is heavy; an outcome is about
-    /// thirty bytes and is written at most twice a day, so it is kept forever.
-    @Test("outcomes are never pruned, unlike day progress")
+    /// Why the keys are separate, restated now that neither is pruned.
+    ///
+    /// This used to read "day progress is pruned to fourteen because it is
+    /// written on every find and is heavy". The first half stopped being true on
+    /// 2026-09-13 and the rest of the sentence is still the reason. An outcome
+    /// is about thirty bytes and is written at most twice a day, so it can sit
+    /// in one map forever. Words are heavy and are written on every accepted
+    /// word, which is why the blob that carries the live board holds only the
+    /// live board, and every past day's words live under a third key that the
+    /// find path on today's board never reads.
+    @Test("neither outcomes nor past words are pruned")
     func neverPruned() {
-        let span = GameStorage.maxDaysKept + 20
+        let span = 34
         for day in 1...span {
             storage.recordOutcome(
                 dayIndex: day,
                 DayOutcome(reached: DayOutcome.cleared, on: day, fromStreak: false)
             )
-            storage.saveDayProgress(dayIndex: day, sourceWord: "w\(day)", found: ["a"])
+            storage.saveDayProgress(dayIndex: day, sourceWord: "w\(day)", found: ["a"],
+                                    fromArchive: false)
+            storage.retirePastDays(todayIndex: day + 1)
         }
-        // Day progress for the oldest day is gone, as it always was.
-        #expect(storage.loadDayProgress(dayIndex: 1, sourceWord: "w1") == [])
-        // Its outcome is not.
+        // The oldest day's words, which the prune used to take.
+        #expect(storage.loadDayProgress(dayIndex: 1, sourceWord: "w1") == ["a"])
+        // And its outcome, which it never did.
         #expect(storage.outcome(dayIndex: 1)?.reached == DayOutcome.cleared)
         #expect(storage.allOutcomes().count == span)
     }
@@ -61,7 +70,7 @@ struct OutcomeTests {
     @Test("recording an outcome does not touch the blob that holds the streak")
     func outcomeWriteLeavesTheMainBlobAlone() {
         storage.recordDailyCleared(dayIndex: 220, todayIndex: 220, fromArchive: false)
-        storage.saveDayProgress(dayIndex: 220, sourceWord: "motorway", found: ["tram"])
+        storage.saveDayProgress(dayIndex: 220, sourceWord: "motorway", found: ["tram"], fromArchive: false)
         let before = store.data(forKey: GameStorage.storageKey)
 
         storage.recordOutcome(

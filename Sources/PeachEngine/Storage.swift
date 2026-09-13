@@ -43,6 +43,26 @@ public final class InMemoryStore: KeyValueStore {
 struct DayProgress: Codable {
     var sourceWord: String
     var found: [String]
+
+    init(sourceWord: String, found: [String]) {
+        self.sourceWord = sourceWord
+        self.found = found
+    }
+
+    /// **Field by field, like `PersistedState` and `DayOutcome`.** The
+    /// synthesised decode this used to have throws on a blob missing any field,
+    /// and `GameStorage.read` turns a throw into `.empty`, so one added field in
+    /// a later build would cost the streak of anyone who rolled back. Measured
+    /// in `2026-09-13 Archive Day Progress.md`: a required field threw, an
+    /// optional one did not, and the whole blob went with it either way.
+    ///
+    /// A day that decodes to an empty source word matches no puzzle, so a
+    /// half-written entry reads as no progress rather than as someone else's.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        sourceWord = c.lenient(.sourceWord, "")
+        found = c.lenient(.found, [])
+    }
 }
 
 struct StreakState: Codable {
@@ -97,17 +117,25 @@ public final class GameStorage {
     /// key and leave this one untouched rather than overwriting it.
     static let storageKey = "peach-of-a-word/v1"
 
-    /// Days retained. Fourteen is what the web keeps. At roughly 50 found words
-    /// of 8 characters, a day is well under 1 KB and fourteen days is a few KB,
-    /// which is why `UserDefaults` is the right home for this (see the app's
-    /// `UserDefaultsStore`).
-    static let maxDaysKept = 14
-
-    /// `maxDaysKept`, readable from outside the module.
+    /// How many days the one time back-fill rebuilds from their own words.
     ///
-    /// Exposed so a caller sizing work to the retained window says the same
-    /// number as the prune rather than repeating it.
-    public static var retainedDayCount: Int { maxDaysKept }
+    /// **This was the prune's bound and is now a cap on work.** It used to mean
+    /// "days retained", fourteen because that is what the web keeps, and the
+    /// prune enforced it by dropping the lowest day index on every write. That
+    /// bound is gone: every past day keeps its words under `archiveKey`.
+    ///
+    /// The number survives because the back-fill still has a reason to stop.
+    /// Rebuilding a day's outcome from its found words costs a puzzle build, so
+    /// the walk is held to the most recent days and the streak accounts for the
+    /// rest, which is what it was always going to do for days beyond the words.
+    /// Fourteen keeps that launch at the cost it was measured at.
+    static let backFillWalkLimit = 14
+
+    /// `backFillWalkLimit`, readable from outside the module.
+    ///
+    /// Exposed so a caller sizing work to the walk says the same number as the
+    /// walk rather than repeating it.
+    public static var backFillWalkDayCount: Int { backFillWalkLimit }
 
     private let store: KeyValueStore
 
@@ -131,16 +159,21 @@ public final class GameStorage {
         }
     }
 
+    /// **Nothing is trimmed here any more, and nothing needs to be.** This used
+    /// to keep the fourteen highest day indices, which bounded the blob by
+    /// dropping the lowest. That was a sound bound for a product where the only
+    /// day ever written was today, and it became a defect the moment a past day
+    /// could be opened: a day played from the calendar is a low index by
+    /// definition, so the prune discarded the words in the same call that saved
+    /// them. See `archiveKey`.
+    ///
+    /// The blob is bounded by what goes into it instead. `saveDayProgress` puts
+    /// only the board in play here, and `retirePastDays` moves a day out as soon
+    /// as it stops being that board, so `days` holds one entry, or two while a
+    /// board is in flight across midnight.
     private func write(_ state: PersistedState) {
         var state = state
         state.version = PersistedState.currentVersion
-        // Keep only the most recent days so storage never grows without bound.
-        let ordered = state.days.keys
-            .compactMap(Int.init)
-            .sorted(by: >)
-        for key in ordered.dropFirst(Self.maxDaysKept) {
-            state.days.removeValue(forKey: String(key))
-        }
         guard let data = try? JSONEncoder().encode(state) else { return }
         store.set(data, forKey: Self.storageKey)
     }
@@ -151,11 +184,28 @@ public final class GameStorage {
     ///
     /// A mismatch means the calendar moved under this date, so the stored words
     /// belong to a different puzzle and are discarded rather than restored.
+    /// **The daily blob first, then the archive.** A day is written to exactly
+    /// one of them, so the order is a tiebreak that cannot normally fire: the
+    /// writer removes a day from the other store as it lands.
+    ///
+    /// It fires in one case, and the daily blob is the right answer there. If
+    /// the device clock goes backwards, a day already retired can become the
+    /// board in play again, and the copy being played now is the one in the
+    /// daily blob. When the clock catches up, `retirePastDays` moves that copy
+    /// over the archived one and the two agree again.
+    ///
+    /// A mismatched source word means the calendar moved under this date, so the
+    /// stored words belong to a different puzzle and are discarded rather than
+    /// restored. Checked in both stores, not only the first.
     public func loadDayProgress(dayIndex: Int, sourceWord: String) -> [String] {
-        guard let day = read().days[String(dayIndex)], day.sourceWord == sourceWord else {
-            return []
+        let key = String(dayIndex)
+        if let day = read().days[key], day.sourceWord == sourceWord {
+            return day.found
         }
-        return day.found
+        if let day = readArchive().days[key], day.sourceWord == sourceWord {
+            return day.found
+        }
+        return []
     }
 
     /// Whether the one-time archive expansion has already happened.
@@ -169,18 +219,89 @@ public final class GameStorage {
         readOutcomes().backFilled
     }
 
-    /// The days still holding found words, newest first.
+    /// Every day holding found words, across both stores, newest first.
     ///
-    /// At most `maxDaysKept`, because `write` prunes to that on every write. The
-    /// archive back-fill walks this rather than the streak's run, which has no
-    /// bound: fourteen puzzles to rebuild instead of seventy.
+    /// **Unbounded now, where it used to be held to fourteen by the prune.** The
+    /// back-fill walks this to rebuild outcomes from play, and each day it walks
+    /// costs a puzzle build, so the caller caps it. See `backFillWalkLimit`.
     public func daysWithProgress() -> [Int] {
-        read().days.keys.compactMap(Int.init).sorted(by: >)
+        Set(read().days.keys).union(readArchive().days.keys)
+            .compactMap(Int.init)
+            .sorted(by: >)
     }
 
-    public func saveDayProgress(dayIndex: Int, sourceWord: String, found: [String]) {
+    /// Every day's words, both stores merged, with the live board winning.
+    ///
+    /// The same precedence as `loadDayProgress`, and for the same reason.
+    func allDayProgress() -> [String: DayProgress] {
+        readArchive().days.merging(read().days) { _, live in live }
+    }
+
+    /// Save a day's found words, in the store that day belongs to.
+    ///
+    /// **`fromArchive` decides which store, and it has no default.** It is the
+    /// same fact `recordDailyCleared` needs and it is required here for the same
+    /// reason: only the caller knows whether the board on screen is the live one
+    /// or one opened from the calendar, and a call site added later must not be
+    /// able to guess wrong by saying nothing.
+    ///
+    /// The live board writes the daily blob, which stays small and is therefore
+    /// cheap on the path that runs on every accepted word. An archive board
+    /// writes the archive key, which is never pruned and can be large.
+    ///
+    /// **A day lands in one store and is removed from the other**, which is what
+    /// makes the read order above a tiebreak rather than a decision. Only the
+    /// archive path has to clean up: a day can sit in the daily blob and then be
+    /// opened from the calendar before the rollover has moved it, but nothing
+    /// can put an already retired day back on the live board except a clock that
+    /// went backwards, which `retirePastDays` resolves. So the live path pays no
+    /// archive read, and stays at a quarter of a millisecond however long the
+    /// history gets.
+    public func saveDayProgress(
+        dayIndex: Int, sourceWord: String, found: [String], fromArchive: Bool
+    ) {
+        let key = String(dayIndex)
+        let progress = DayProgress(sourceWord: sourceWord, found: found)
+        guard fromArchive else {
+            var state = read()
+            state.days[key] = progress
+            write(state)
+            return
+        }
+        var archive = readArchive()
+        archive.days[key] = progress
+        writeArchive(archive)
+
         var state = read()
-        state.days[String(dayIndex)] = DayProgress(sourceWord: sourceWord, found: found)
+        if state.days.removeValue(forKey: key) != nil { write(state) }
+    }
+
+    /// Move every day that is no longer the board in play into the archive key.
+    ///
+    /// Called when the app learns what day it is: at launch, and at the
+    /// rollover. **Not when a board is merely opened from the calendar**, because
+    /// `saveDayProgress` already removes a day from the daily blob when it
+    /// writes it to the archive, and a day nobody has played needs no moving.
+    ///
+    /// **A day in flight across midnight is moved by this, deliberately.** It
+    /// stays in the daily blob only for as long as the app has not noticed the
+    /// date change, which is exactly the window in which she is still playing
+    /// that board. The rollover that takes the board off her screen is the same
+    /// rollover that moves its words, so the two never disagree.
+    ///
+    /// Costs one small read when there is nothing to move, which is every launch
+    /// after the first of a day.
+    public func retirePastDays(todayIndex: Int) {
+        var state = read()
+        let past = state.days.keys.compactMap(Int.init).filter { $0 < todayIndex }
+        guard !past.isEmpty else { return }
+
+        var archive = readArchive()
+        for day in past {
+            guard let progress = state.days.removeValue(forKey: String(day)) else { continue }
+            archive.days[String(day)] = progress
+        }
+        writeArchive(archive)
         write(state)
     }
 
@@ -436,7 +557,68 @@ struct OutcomeState: Codable {
     }
 }
 
+/// Found words for every day that is no longer the board in play.
+///
+/// Same lenient decode as `OutcomeState`, for the same reason: this is written
+/// once per day at the rollover and read on every archive board, and a strict
+/// decode would turn one unreadable field into a whole history discarded.
+struct ArchiveProgressState: Codable {
+    static let currentVersion = 1
+
+    var version: Int
+    var days: [String: DayProgress]
+
+    static let empty = ArchiveProgressState(version: currentVersion, days: [:])
+
+    init(version: Int, days: [String: DayProgress]) {
+        self.version = version
+        self.days = days
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        version = c.lenient(.version, Self.currentVersion)
+        days = c.lenient(.days, [:])
+    }
+}
+
 extension GameStorage {
+    /// A third key, and like `outcomesKey` the reason belongs beside it.
+    ///
+    /// **Never pruned.** Every day the player has ever played keeps its words
+    /// here, which is the whole point: a day the calendar draws as finished must
+    /// open with the words that finished it, whether that was yesterday or in
+    /// June. The bound this replaces held fourteen days and reached 83% of the
+    /// calendar the day it shipped, growing to 97% within a year, measured in
+    /// `2026-09-13 Archive Day Progress.md`.
+    ///
+    /// **The daily blob stays small because this exists.** `storageKey` now
+    /// holds only the board in play, plus a day still in flight across midnight,
+    /// and it is the one rewritten on every accepted word. Keeping the history
+    /// out of it is what keeps that write at a quarter of a millisecond instead
+    /// of growing with the calendar: at three years of words the merged blob
+    /// would cost 21 ms per find, which is longer than a frame.
+    ///
+    /// **Invisible to an older build**, which has never heard of this key and
+    /// therefore cannot rewrite it. A TestFlight rollback loses nothing here, and
+    /// `PersistedState.currentVersion` stays at 1 because a new key is not a
+    /// change to the old one's format.
+    static let archiveKey = "peach-of-a-word/archive/v1"
+
+    func readArchive() -> ArchiveProgressState {
+        guard let data = store.data(forKey: Self.archiveKey) else { return .empty }
+        // Corrupt or truncated costs the archived words and nothing else. The
+        // board in play and the streak live under a different key.
+        return (try? JSONDecoder().decode(ArchiveProgressState.self, from: data)) ?? .empty
+    }
+
+    func writeArchive(_ state: ArchiveProgressState) {
+        var state = state
+        state.version = ArchiveProgressState.currentVersion
+        guard let data = try? JSONEncoder().encode(state) else { return }
+        store.set(data, forKey: Self.archiveKey)
+    }
+
     /// A second key, and the reason is worth stating where it is used.
     ///
     /// The outcomes map is never pruned and is written at most twice a day,
@@ -586,11 +768,13 @@ extension GameStorage {
     ///
     /// **The run is the weakest true statement about a day, and some days can do
     /// better.** A run establishes only that the day reached the streak rank. A
-    /// day whose found words are still in the main blob was played here and can
-    /// be classified exactly as live play classifies it, which is the difference
-    /// between a recent basket day keeping its heart and losing it for good: the
-    /// found lists are pruned to `maxDaysKept` and this write is never revised,
-    /// so no later pass can recover what is not taken now.
+    /// day whose found words are still stored was played here and can be
+    /// classified exactly as live play classifies it, which is the difference
+    /// between a recent basket day keeping its heart and losing it for good:
+    /// this write is never revised, so no later pass can recover what is not
+    /// taken now. The words themselves are no longer pruned, but the walk that
+    /// reaches them is capped at `backFillWalkLimit`, so the same one chance
+    /// applies to any day beyond it.
     ///
     /// **The play record may only ever raise a day inside the run, never lower
     /// it.** `classify` recomputes a rung from stored words, and that
@@ -622,6 +806,9 @@ extension GameStorage {
 
         let state = read()
         let streak = state.streak
+        // Both stores. The play record used to live entirely in the daily blob;
+        // now everything older than the board in play is under `archiveKey`.
+        let dayProgress = allDayProgress()
         var run: ClosedRange<Int>?
         if streak.count > 0, let last = streak.lastClearedDayIndex {
             let firstOfRun = max(firstPlayableDayIndex, last - streak.count + 1)
@@ -631,9 +818,9 @@ extension GameStorage {
         var counts = BackFillCounts(fromPlay: 0, fromStreak: 0)
 
         // The play record first. Enumerated from the days that have progress,
-        // which the prune holds to `maxDaysKept`, rather than from the run,
-        // which can be any length.
-        for (key, progress) in state.days {
+        // which the caller caps, rather than from the run, which can be any
+        // length. A day that reaches neither is covered by the run below.
+        for (key, progress) in dayProgress {
             guard let day = Int(key), outcomes.days[key] == nil else { continue }
             // An empty board must not claim to have been played. Same rule, and
             // the same reason, as the guard in the caller that records live play.
