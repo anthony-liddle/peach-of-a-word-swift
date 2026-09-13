@@ -59,19 +59,21 @@ final class LayoutBudget: XCTestCase {
         return !app.scrollViews.allElementsBoundByIndex.contains { $0.frame.contains(tile) }
     }
 
-    private func probe(_ size: String) {
+    private func probe(_ size: String,
+                       extra: [String] = [],
+                       tag: String = "LAYOUT") {
         let app = XCUIApplication()
         app.launchArguments = [
             "-resetProgress", "1", "-seedBoard", "almost",
             "-UIPreferredContentSizeCategoryName", size,
-        ]
+        ] + extra
         app.launch()
         // Waiting on the element rather than sleeping a fixed 2.5s and hoping.
         // A sleep that is too short reports "indeterminate", which reads as a
         // layout finding rather than as a test that gave up too early.
         let summary = app.staticTexts["FoundSummaryCount"]
         guard summary.waitForExistence(timeout: 15), rackTile(app).exists else {
-            print("LAYOUT \(size) = indeterminate"); return
+            print("\(tag) \(size) = indeterminate"); return
         }
         let fixed = rackIsFixed(app)
         let win = app.windows.firstMatch.frame
@@ -87,7 +89,7 @@ final class LayoutBudget: XCTestCase {
         let list = fixed
             ? String(format: "%.2f", app.scrollViews.firstMatch.frame.height)
             : "n/a"
-        print("LAYOUT \(size) window=\(Int(win.height)) "
+        print("\(tag) \(size) window=\(Int(win.height)) "
               + "mode=\(fixed ? "FIXED" : "fallback") list=\(list)")
     }
 
@@ -122,6 +124,25 @@ final class LayoutBudget: XCTestCase {
             "the rack is inside a scroll view, so this fell back to the "
             + "scrolling layout at default size on a tall phone"
         )
+    }
+
+    /// The same sweep, on an archive board.
+    ///
+    /// **The meter grows a second row when a past day is on screen**, carrying
+    /// the date and the way back, and a row is the thing this whole file exists
+    /// to price. It appears only on an archive board, so `testSweep` never sees
+    /// it: without this the fixed layout's survival on the one screen that has
+    /// extra furniture would be a matter of opinion.
+    ///
+    /// `-archiveDay 7` opens a past board at launch, because the board cannot be
+    /// reached without a tap and a launch argument cannot perform one.
+    func testArchiveSweep() {
+        for s in ["UICTContentSizeCategoryL",
+                  "UICTContentSizeCategoryXL",
+                  "UICTContentSizeCategoryXXL",
+                  "UICTContentSizeCategoryXXXL"] {
+            probe(s, extra: ["-seedArchive", "showcase", "-archiveDay", "7"], tag: "ARCHIVE")
+        }
     }
 
     func testSweep() {

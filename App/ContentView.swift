@@ -68,6 +68,28 @@ struct ContentView: View {
     /// a diagnostic concern.
     @Environment(\.scenePhase) private var scenePhase
 
+    /// Whether the calendar of past days is on screen.
+    /// The archive, and the height it was measured at, as one value.
+    ///
+    /// **Not a flag and a separate height, because the two have to arrive
+    /// together.** Measuring when the sheet is asked for means the height
+    /// changes in the same turn the sheet appears, and a detent set that only
+    /// becomes right as the sheet presents does not take: the sheet came up
+    /// large on a phone the rule had just said could keep the card, with 576.0
+    /// sitting in state and one height detent reaching the modifier. Carrying
+    /// the height in the presented value hands it to the sheet as it is built
+    /// rather than asking the view to have caught up.
+    private struct ArchivePresentation: Identifiable {
+        let id = UUID()
+        /// nil means the large detent, which is the sheet unscaled.
+        let height: CGFloat?
+    }
+
+    @State private var archivePresentation: ArchivePresentation?
+
+    /// The width the sheet will be laid out in, which on iPhone is the screen's.
+    @State private var archiveWidth: CGFloat = 0
+
     /// Whether the app has been away since launch.
     ///
     /// Only the debug clock needs this; the rollover itself is safe on any
@@ -79,6 +101,46 @@ struct ContentView: View {
     init(debugSeed: String? = nil, storage: GameStorage = .appDefault) {
         self.debugSeed = debugSeed
         _model = State(initialValue: GameModel(storage: storage))
+    }
+
+    /// One month's worth of sheet, or the large detent when a month cannot fit.
+    private func archiveDetents(_ height: CGFloat?) -> Set<PresentationDetent> {
+        guard let height else { return [.large] }
+        return [.height(height)]
+    }
+
+    /// Opens the archive, taking its height first.
+    ///
+    /// **The measurement belongs here and not at launch.** It walks the whole
+    /// archive and lays the sheet out in a hosting controller, and doing that
+    /// when the width first became known put both on the launch path of a
+    /// session that may never open the calendar. Taken here it still lands
+    /// before the sheet's first frame, because this runs in the same update
+    /// that presents it.
+    private func openArchive() {
+        // The width can still be unread here: the archive is reachable in the
+        // same turn the app appears, and a zero width makes the rule compute an
+        // 18pt cell and refuse the card on every phone.
+        let width = archiveWidth > 0 ? archiveWidth : ArchiveSheet.windowWidth
+        archivePresentation = ArchivePresentation(height: archiveHeight(width: width))
+    }
+
+    /// The height this opening wants, or nil for the large detent.
+    private func archiveHeight(width: CGFloat) -> CGFloat? {
+        // No height means the large detent, which is the sheet unscaled.
+        //
+        // Two reasons to refuse the fitted card. At accessibility sizes a month
+        // does not fit whatever the sheet is given. And on a narrow screen the
+        // card's own scaling takes the day cells under the tap target: 44.14pt
+        // laid out reaches the glass at 42.12pt on both 375pt phones. The empty
+        // space the card was for is worth less than a grid you can hit.
+        guard !dynamicTypeSize.isAccessibilitySize,
+              ArchiveSheet.cardKeepsTheTapTarget(width: width) else { return nil }
+        return ArchiveSheet.fittedHeight(
+            width: width,
+            days: model.archiveDays(),
+            canPlay: model.canPlayArchive,
+            dynamicTypeSize: dynamicTypeSize)
     }
 
     var body: some View {
@@ -181,6 +243,45 @@ struct ContentView: View {
             guard let message = model.feedback.message else { return }
             AccessibilityNotification.Announcement(message).post()
         }
+        // The calendar of past days.
+        //
+        // A sheet rather than a pushed screen, because there is no navigation
+        // stack to push onto: the play surface has no chrome and the layout
+        // budget has no room to grow any. See `ArchiveSheet`.
+        .sheet(item: $archivePresentation) { presentation in
+            GeometryReader { sheet in
+                ArchiveSheet(
+                    width: sheet.size.width,
+                    days: model.archiveDays(),
+                    canPlay: model.canPlayArchive,
+                    onPick: { day in
+                        archivePresentation = nil
+                        Task { await model.openArchiveDay(storageDay: day) }
+                    },
+                    onClose: { archivePresentation = nil }
+                )
+                // Top aligned and painted to the edges. The sheet is sized to
+                // the content, so there is normally nothing left over, but a
+                // point or two of slack must read as sheet rather than as a
+                // band of a different colour under the way out.
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                .background(Cute.paper.ignoresSafeArea())
+            }
+            // Sized to one month below the accessibility sizes, and large above
+            // them, where a month does not fit whatever the sheet is given.
+            .presentationDetents(archiveDetents(presentation.height))
+            .presentationDragIndicator(.visible)
+        }
+        // The width the archive will get, read from the screen it will cover.
+        .background {
+            GeometryReader { screen in
+                Color.clear
+                    .onAppear { archiveWidth = screen.size.width }
+                    .onChange(of: screen.size.width) { _, width in
+                        archiveWidth = width
+                    }
+            }
+        }
         // The one-time streak transfer from the web build. Disposable: when the
         // handoff is done, this modifier, `StreakTransfer`, `adoptStreak`, and
         // the CFBundleURLTypes entry in project.yml all go together.
@@ -222,6 +323,30 @@ struct ContentView: View {
             Task { await model.rollOverIfNewDay() }
         }
         .task {
+            #if DEBUG
+            // `-openArchive 1` opens the calendar at launch.
+            //
+            // The same argument as `-revealCard` and `-holdLoading`: `simctl`
+            // has no way to tap, so a sheet that only a finger can open is a
+            // sheet that can only ever be reasoned about. This is the smallest
+            // thing that makes it screenshottable, and it is the only way the
+            // grid reaches a pull request.
+            if UserDefaults.standard.bool(forKey: "openArchive") {
+                // Opened once the model says it is ready, not on appear.
+                //
+                // `-openArchiveDelay` used to hold this back by a fixed number
+                // of milliseconds, which was a guess standing in for an
+                // ordering rule. A seeded run has a real one: the seed writes
+                // the archive's input and the sheet measures itself against the
+                // result, so opening first measures an empty calendar.
+                Task { @MainActor in
+                    while case .loading = model.phase {
+                        try? await Task.sleep(nanoseconds: 20_000_000)
+                    }
+                    openArchive()
+                }
+            }
+            #endif
             #if TAP_RECORDER
             // A session marker written immediately, so the log exists before any
             // taps do. That is what makes "is the recorder actually live" a
@@ -426,7 +551,18 @@ struct ContentView: View {
     private var header: some View {
         Group {
             if let standing = model.standing {
-                TierMeterView(standing: standing, streak: model.streak)
+                TierMeterView(
+                    standing: standing,
+                    streak: model.streak,
+                    // Nil for the live daily, so the caption keeps the streak.
+                    archiveDate: model.isArchiveBoard ? model.boardDate : nil,
+                    onOpenArchive: {
+                        #if DEBUG
+                        #endif
+                        openArchive()
+                    },
+                    onReturnToToday: { Task { await model.returnToToday() } }
+                )
             }
         }
     }

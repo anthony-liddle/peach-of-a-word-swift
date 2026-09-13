@@ -1,6 +1,9 @@
 import Foundation
 import Observation
 import PeachEngine
+#if DEBUG
+import os
+#endif
 
 /// All the state the minimal app has.
 ///
@@ -195,6 +198,37 @@ final class GameModel {
     /// is still yesterday's, and a share of it must say yesterday's date.
     private(set) var boardDate = Date()
 
+    /// Whether the board on screen came from the archive rather than being
+    /// today's daily.
+    ///
+    /// Read by the rollover, which must leave a past board alone, and by the
+    /// screen, which says which day is being played.
+    private(set) var isArchiveBoard = false
+
+    /// The word lists, held for the life of the app. See `Lexicon`.
+    private var lexicon: Lexicon?
+
+    /// Whether past boards can be opened.
+    ///
+    /// **The seam, and the only thing a paywall would have to replace.** Every
+    /// entry point goes through `openArchiveDay`, which asks this once, so
+    /// gating the archive later is one implementation swapped in at `init`
+    /// rather than an audit of every call site. Today's board is never gated:
+    /// this governs the past only, and the live daily is the free game.
+    private let access: ArchiveAccess
+
+    var canPlayArchive: Bool { access.canPlayArchive }
+
+    /// The first day that has a board, in storage days.
+    ///
+    /// The two epochs differ by a fixed number of days, so the offset falls out
+    /// of the two indices for today and needs no date arithmetic and no time
+    /// zone. It moves only if `dailyEpoch` is re-anchored, which is exactly when
+    /// it should.
+    nonisolated static var firstPlayableStorageIndex: Int {
+        todayStorageIndex - todayDailyIndex
+    }
+
     /// How many times progress has been written this session.
     ///
     /// Exists to prove a property rather than to implement one: taps, delete,
@@ -208,8 +242,12 @@ final class GameModel {
     /// repeatedly rewrite it.
     private var streakRecordedThisSession = false
 
-    init(storage: GameStorage = GameStorage(store: UserDefaultsStore())) {
+    init(
+        storage: GameStorage = GameStorage(store: UserDefaultsStore()),
+        access: ArchiveAccess = FreeArchive()
+    ) {
         self.storage = storage
+        self.access = access
     }
 
     /// "Now", shiftable in debug builds by `-dayOffset N`.
@@ -313,7 +351,7 @@ final class GameModel {
 
     func load() async {
         let clock = ContinuousClock()
-        var built: Result<Puzzle, Error>?
+        var loaded: Result<Lexicon, Error>?
         // The corpus read is inside the measurement deliberately: it is part of
         // what launch costs, and a load timer that excludes half the load is
         // worse than one that grows. Note that it does grow. Today the file is
@@ -321,7 +359,7 @@ final class GameModel {
         // loadMilliseconds gains the parse, and the numbers in
         // docs/MEASUREMENTS.md were taken before it existed.
         let elapsed = await clock.measure {
-            built = await Self.buildTodaysPuzzle()
+            loaded = await Self.loadLexicon()
             sourceEntries = await Self.loadSourceEntries()
             definitions = await Self.loadDefinitions()
         }
@@ -363,9 +401,26 @@ final class GameModel {
         }
         #endif
 
-        switch built {
-        case .success(let p):
-            adopt(p)
+        switch loaded {
+        case .success(let lex):
+            lexicon = lex
+            guard let p = await Self.buildPuzzle(
+                dailyIndex: Self.todayDailyIndex, lexicon: lex
+            ) else {
+                phase = .failed("the daily calendar is empty")
+                return
+            }
+            adopt(p, storageDay: Self.todayStorageIndex, isArchive: false)
+            // Once, and only until it has run. See `backFillArchive`.
+            await backFillArchive()
+            #if DEBUG
+            // Awaited here rather than in `runLaunchArguments`, which runs after
+            // the app says it is ready. This seed writes the archive's input and
+            // then expands it, and the sheet sizes itself to the result.
+            if UserDefaults.standard.string(forKey: "seedArchive") == "bea" {
+                await seedBea()
+            }
+            #endif
             phase = .ready
             writeDebugState()
             runLaunchArguments()
@@ -381,7 +436,7 @@ final class GameModel {
     /// Shared by the first load and by a rollover, so the two cannot set the
     /// board up differently. They did not, when the rollover was written as its
     /// own copy of this, and they would have the first time either changed.
-    private func adopt(_ p: Puzzle) {
+    private func adopt(_ p: Puzzle, storageDay: Int, isArchive: Bool) {
         puzzle = p
         // Tile ids are indices into the sorted rack, matching the web
         // version's `tilesFor`.
@@ -396,14 +451,40 @@ final class GameModel {
         // moves, NOT off dailyEpoch, which a calendar regeneration can
         // re-anchor. Keying on the daily epoch would renumber every stored day
         // and cost a streak. See StorageEpochTests.
-        let day = dayIndex(Self.now, epoch: storageEpoch, timeZone: .current)
-        storageDayIndex = day
-        boardDate = Self.now
-        found = storage.loadDayProgress(dayIndex: day, sourceWord: p.sourceWord)
-        streak = storage.currentStreak(todayIndex: day)
-        // A day restored already complete has had its moment. Only the
-        // transition celebrates.
-        completionSeen = isComplete(computeTier(found: Set(found), puzzle: p))
+        storageDayIndex = storageDay
+        isArchiveBoard = isArchive
+        boardDate = Self.date(forStorageDay: storageDay)
+        found = storage.loadDayProgress(dayIndex: storageDay, sourceWord: p.sourceWord)
+
+        // **Today's index, not the board's.** This read `currentStreak(todayIndex:
+        // day)`, which was correct only because `day` was always today. Handed a
+        // past board it would report the streak as of that past day, which is a
+        // display bug rather than a data one and would therefore survive review:
+        // the number is plausible, just answering a different question.
+        streak = storage.currentStreak(todayIndex: Self.todayStorageIndex)
+
+        // A day already complete has had its moment. Only the transition
+        // celebrates.
+        //
+        // **Seeded from the stored outcome, not from the restored found list**,
+        // and the substitution is the point. The found list is pruned and the
+        // outcome is not, so a board completed once and reopened after its words
+        // have aged out restores an empty list, seeds false, and fires the whole
+        // peak a second time while the calendar is already drawing that day
+        // filled. The outcome remembers what the found list is allowed to
+        // forget; see `completionAlreadySeen`.
+        completionSeen = completionAlreadySeen(outcome: storage.outcome(dayIndex: storageDay))
+    }
+
+    /// The date a storage day index falls on.
+    ///
+    /// Derived by offsetting from today rather than by counting from the epoch,
+    /// so `Calendar` handles the daylight-saving arithmetic and `-dayOffset`
+    /// keeps working. Only the share block reads it, and only to print a date.
+    nonisolated static func date(forStorageDay day: Int) -> Date {
+        Foundation.Calendar.current.date(
+            byAdding: .day, value: day - todayStorageIndex, to: now
+        ) ?? now
     }
 
     /// Bring the board to today, if today is no longer the day it was built for.
@@ -435,18 +516,29 @@ final class GameModel {
     /// find, under the day index the board was built for, so they were on disk
     /// long before this ran.
     func rollOverIfNewDay() async {
-        guard let built = storageDayIndex else { return }   // nothing loaded yet
-        let today = dayIndex(Self.now, epoch: storageEpoch, timeZone: .current)
-        guard today != built else { return }
+        guard let board = storageDayIndex, let lexicon else { return }  // nothing loaded yet
+        let today = Self.todayStorageIndex
 
-        guard case .success(let p) = await Self.buildTodaysPuzzle() else {
+        // **An archive board is exempt, and this is the single most likely bug
+        // in the archive.** The rule below is "rebuild when the board's day is
+        // not today", which is right for every board that existed before the
+        // archive and wrong for every board the archive opens: a past board
+        // differs from today by definition, so without this the first
+        // foregrounding would swap her July board for today's while she was
+        // still playing it. Nothing about that would look wrong in review.
+        guard shouldRollOver(boardDayIndex: board, todayIndex: today,
+                             isArchive: isArchiveBoard) else { return }
+
+        guard let p = await Self.buildPuzzle(
+            dailyIndex: Self.todayDailyIndex, lexicon: lexicon
+        ) else {
             // Keep yesterday's board rather than emptying the screen. A failure
             // here is a bundle that could not be read, which a relaunch will
             // report properly; showing nothing would be a worse answer than
             // showing a board she can still play.
             return
         }
-        adopt(p)
+        adopt(p, storageDay: today, isArchive: false)
         // The new day has not recorded a streak yet, and this flag is what
         // stops one session recording twice. Left set, the first clear of the
         // new day would be dropped.
@@ -468,6 +560,32 @@ final class GameModel {
     /// which is the standard trick for this.
     private func runLaunchArguments() {
         #if DEBUG
+        // `-seedArchive showcase` fills the calendar so it can be looked at.
+        //
+        // Runs before the guesses, and the order is load-bearing: the seed
+        // replaces the whole outcome map, so a find recorded before it is
+        // wiped by it. Seeding the world and then playing in it is also the
+        // only order that means anything.
+        //
+        // Seeding the outcome map directly rather than playing boards, because
+        // the alternative is seventy-nine loads of the word lists and seventy-
+        // nine completed racks to produce a picture. The outcome map IS the
+        // archive's whole state, so writing it is not a shortcut around the
+        // feature, it is the feature's input.
+        // `-seedArchive bea` is handled in the load path instead, because it
+        // has to finish before the app reports itself ready.
+        if let spec = UserDefaults.standard.string(forKey: "seedArchive") {
+            seedArchive(spec)
+        }
+        // `-archiveDay 7` opens the board from seven days ago at launch.
+        //
+        // The board itself cannot be reached without a tap, and the meter grows
+        // a row on an archive board, so without this the layout budget for that
+        // row could only be reasoned about. Same argument as `-revealCard`.
+        let back = UserDefaults.standard.integer(forKey: "archiveDay")
+        if back > 0 {
+            Task { await self.openArchiveDay(storageDay: Self.todayStorageIndex - back) }
+        }
         // `-guesses a,b,c` goes through the typed path, so arbitrary strings
         // (including ones the rack cannot spell) can still be tested.
         if let raw = UserDefaults.standard.string(forKey: "guesses") {
@@ -812,6 +930,7 @@ final class GameModel {
         storage.saveDayProgress(dayIndex: day, sourceWord: puzzle.sourceWord, found: found)
 
         let standing = computeTier(found: Set(found), puzzle: puzzle)
+        let today = Self.todayStorageIndex
 
         // The peak. Checked here rather than in `resolve` so it sees the board
         // after the find has landed, and so seeding reaches it too.
@@ -821,12 +940,46 @@ final class GameModel {
             Feel.completion()
         }
 
+        // The archive's whole substance: what this board reached, kept.
+        recordOutcome(standing: standing, day: day, today: today)
+
         if standing.index >= streakTierIndex && !streakRecordedThisSession {
             streakRecordedThisSession = true
-            storage.recordDailyCleared(dayIndex: day)
-            streak = storage.currentStreak(todayIndex: day)
+            // Three facts, because the two indices are not enough. Yesterday
+            // crossed at midnight and yesterday tapped in the calendar are the
+            // same pair of numbers, and only this side knows which happened.
+            // The engine decides what to do with that; see `recordDailyCleared`.
+            storage.recordDailyCleared(dayIndex: day, todayIndex: today, fromArchive: isArchiveBoard)
+            streak = storage.currentStreak(todayIndex: today)
         }
         writeDebugState()
+    }
+
+    /// Write how far this board got, under the archive's own key.
+    ///
+    /// **Never downgrades.** A completed day reopened after its words have been
+    /// pruned starts from an empty list and climbs back up, and the first find on
+    /// it must not overwrite the full basket it already earned with "played". The
+    /// stored rung is the high-water mark, not the current one.
+    ///
+    /// `on` is today rather than the board's day, so a board caught up later says
+    /// so and the calendar can tell "completed on the day" from "completed after
+    /// the day". For the live daily the two are the same number.
+    private func recordOutcome(standing: TierStanding, day: Int, today: Int) {
+        // `played` means "found at least one word", which is the narrowed
+        // definition of Incomplete. The `-resetProgress` hook calls
+        // `foundDidChange` with an emptied board, and an empty board must not
+        // claim to have been played: that is the difference between "no record"
+        // and "you did not finish", which the calendar draws differently and
+        // which is the whole reason the zero-find case was conceded.
+        guard !found.isEmpty else { return }
+
+        let reached = rungReached(standing)
+
+        if let existing = storage.outcome(dayIndex: day), existing.reached >= reached { return }
+        storage.recordOutcome(
+            dayIndex: day, DayOutcome(reached: reached, on: today, fromStreak: false)
+        )
     }
 
     /// Take a streak handed over by the web build, if the accept rule allows it.
@@ -856,6 +1009,302 @@ final class GameModel {
         if took { streak = storage.currentStreak(todayIndex: today) }
         return took
     }
+
+    // MARK: The archive
+
+    /// Expand a transferred streak run into per-day outcomes. Once.
+    ///
+    /// Called at every launch and does nothing after the first, because the run
+    /// it reads is destroyed by the first clear after a missed day: a streak is a
+    /// run-length encoding of cleared days, and `recordDailyCleared` sets the
+    /// count back to 1 rather than remembering what it was. Adopting a transfer
+    /// re-arms it, since the link can land after the app has already launched.
+    ///
+    /// The clamp matters more than it looks: Bea's seventy days start nine days
+    /// after the daily epoch, so today nothing is trimmed, and a longer run or a
+    /// re-anchored `dailyEpoch` would otherwise write outcomes for dates that
+    /// have no board at all.
+    /// Build the archive's history once, on the first launch that has one.
+    ///
+    /// **The days that still hold words are classified before the run fills the
+    /// rest, and that ordering is the whole point.** The streak establishes only
+    /// that a day reached the rank; a day whose words survive can say whether the
+    /// basket filled. Those words are pruned to a fortnight and this write is
+    /// never revised, so a recent basket day either keeps its heart here or
+    /// loses it permanently.
+    ///
+    /// The puzzles are built first, off the main actor, because classifying
+    /// needs one per day and the engine's hook is synchronous. At most fourteen,
+    /// bounded by the prune rather than by the length of the run.
+    @discardableResult
+    private func backFillArchive() async -> BackFillCounts {
+        guard let lexicon else { return BackFillCounts(fromPlay: 0, fromStreak: 0) }
+        // Asked before the puzzles are built, not after. The engine would refuse
+        // a second expansion anyway, but only once this has already rebuilt a
+        // fortnight of boards to hand it a classifier it will not call.
+        guard !storage.hasBackFilledOutcomes() else {
+            return BackFillCounts(fromPlay: 0, fromStreak: 0)
+        }
+
+        // Four at a time. `createPuzzle` is 93.5ms in Release and 887ms in
+        // Debug on this Mac, measured by `peach-bench`, so a fortnight of them
+        // in a row is about 1.3 seconds added to the one launch that does this.
+        // Built concurrently it is a quarter of that, and the expansion still
+        // finishes before anything can see a half filled calendar.
+        let days = storage.daysWithProgress()
+        var puzzles: [Int: Puzzle] = [:]
+        await withTaskGroup(of: (Int, Puzzle?).self) { group in
+            var next = 0
+            func submit() {
+                guard next < days.count else { return }
+                let day = days[next]
+                next += 1
+                let daily = day - Self.firstPlayableStorageIndex
+                guard daily >= 0 else { return submit() }
+                group.addTask {
+                    (day, await Self.buildPuzzle(dailyIndex: daily, lexicon: lexicon))
+                }
+            }
+            for _ in 0..<min(4, days.count) { submit() }
+            while let (day, puzzle) = await group.next() {
+                if let puzzle { puzzles[day] = puzzle }
+                submit()
+            }
+        }
+
+        return storage.backFillOutcomes(
+            firstPlayableDayIndex: Self.firstPlayableStorageIndex
+        ) { day, storedSourceWord, found in
+            // The same mismatch rule `loadDayProgress` applies: a different
+            // source word means the calendar moved and these words belong to
+            // another puzzle.
+            guard let puzzle = puzzles[day], puzzle.sourceWord == storedSourceWord else {
+                return nil
+            }
+            return rungReached(computeTier(found: Set(found), puzzle: puzzle))
+        }
+    }
+
+    /// Every day the calendar can draw, oldest first.
+    ///
+    /// Read once per sheet presentation rather than per cell: `allOutcomes`
+    /// decodes the whole map, and doing that inside a `ForEach` over ninety rows
+    /// is the kind of thing that is free at seventy-nine days and is not at four
+    /// hundred.
+    func archiveDays() -> [ArchiveDay] {
+        #if DEBUG
+        // **A walk of the whole archive, counted so it can be kept off the
+        // launch path.** It decodes every stored outcome and computes a mark
+        // for every day in history to draw one month, so where it is called
+        // from is worth knowing. A launch that never opens the archive must
+        // report zero. See `ArchiveDaysCount`.
+        #endif
+        let outcomes = storage.allOutcomes()
+        let today = Self.todayStorageIndex
+        var indices = archiveDayIndices(
+            firstPlayableDayIndex: Self.firstPlayableStorageIndex, todayIndex: today
+        )
+
+        // Draw the rest of the current month, so a month page is a whole month.
+        //
+        // **This used to stop at the end of today's week, and that cap was a
+        // landing requirement rather than a calendar one.** The sheet scrolled
+        // every month at once and had to put today's row at the end of the
+        // content, so anything drawn below today pushed it off the bottom. The
+        // sheet now shows one month at a time and has nothing to land on, so the
+        // cap bought nothing and cost the shape of a calendar: a month page that
+        // stops mid-month is not a page of a calendar.
+        //
+        // Days after today are `.notYet`, which is the state that needed
+        // somewhere to appear in the first place.
+        let calendar = Foundation.Calendar.current
+        let todayDate = Self.date(forStorageDay: today)
+        let daysLeft = calendar.range(of: .day, in: .month, for: todayDate).flatMap { month in
+            calendar.dateComponents([.day], from: todayDate).day.map { month.count - $0 }
+        } ?? 0
+        if daysLeft > 0 { indices += (1...daysLeft).map { today + $0 } }
+
+        return indices.map { day in
+            ArchiveDay(
+                day: day,
+                date: Self.date(forStorageDay: day),
+                mark: dayMark(for: day, outcome: outcomes[day], todayIndex: today),
+                isToday: day == today
+            )
+        }
+    }
+
+    /// Open a past board.
+    ///
+    /// **The one gate.** Every route to a past board comes through here, so the
+    /// StoreKit version of `ArchiveAccess` is a swap rather than an audit.
+    ///
+    /// A future day is refused outright rather than trusted to the grid: the
+    /// calendar is computable arbitrarily far ahead, and handing out tomorrow's
+    /// board is the one mistake this cannot take back.
+    @discardableResult
+    func openArchiveDay(storageDay: Int) async -> Bool {
+        guard access.canPlayArchive, let lexicon else { return false }
+        let today = Self.todayStorageIndex
+        guard storageDay >= Self.firstPlayableStorageIndex, storageDay <= today else {
+            return false
+        }
+
+        let daily = storageDay - Self.firstPlayableStorageIndex
+        guard let p = await Self.buildPuzzle(dailyIndex: daily, lexicon: lexicon) else {
+            return false
+        }
+        adopt(p, storageDay: storageDay, isArchive: storageDay != today)
+        // A past board has its own streak state to record, or rather has none:
+        // this flag guards one write per session and the session is now on a
+        // different board.
+        streakRecordedThisSession = false
+        clear()
+        moment = nil
+        feedback = .none
+        writeDebugState()
+        return true
+    }
+
+    /// Go back to the live daily.
+    func returnToToday() async {
+        await openArchiveDay(storageDay: Self.todayStorageIndex)
+    }
+
+    #if DEBUG
+    /// Fill the calendar with a history worth looking at.
+    ///
+    /// **`showcase` is shaped like Bea's, not like a swatch sheet.** Seventy
+    /// consecutive transferred days and then a short tail of days played here,
+    /// because a long stretch of one state is what her calendar actually is and
+    /// the question worth asking of it is whether that reads as achievement or
+    /// as a wall. A grid with one of each state evenly spaced would answer a
+    /// question nobody has.
+    ///
+    /// Everything is written straight into the outcome map. That is not a
+    /// shortcut past the feature: the map is the feature's entire persisted
+    /// state, and the alternative is completing seventy-nine racks to produce a
+    /// picture.
+    func seedArchive(_ spec: String) {
+        guard spec == "showcase" else { return }
+        let first = Self.firstPlayableStorageIndex
+        let today = Self.todayStorageIndex
+        guard today - first >= 9 else { return }
+
+        // Built whole and written once, so the seed is authoritative. Adding to
+        // whatever is already on the device produced a calendar with two cells
+        // that were meant to be empty showing an earlier seed's values, which is
+        // a picture that lies about the thing it exists to let you look at.
+        var seeded: [Int: DayOutcome] = [:]
+
+        // The transferred run: cleared, never a basket, because the web never
+        // recorded basket completion and the back-fill cannot invent it.
+        let runEnd = today - 9
+        for day in max(first, runEnd - 69)...runEnd {
+            seeded[day] = DayOutcome(reached: DayOutcome.cleared, on: day, fromStreak: true)
+        }
+
+        // The tail, played here. One of each remaining state, adjacent, so they
+        // are judged against each other rather than one at a time.
+        let tail: [(offset: Int, reached: Int, caughtUpLater: Bool)] = [
+            (8, DayOutcome.played, false),    // started, below the rank
+            (6, DayOutcome.cleared, false),   // finished on the day
+            (5, DayOutcome.basket, false),    // basket on the day
+            (4, DayOutcome.cleared, true),    // finished after the day
+            (3, DayOutcome.basket, true),     // basket after the day
+            (1, DayOutcome.cleared, false),   // finished on the day
+        ]
+        for entry in tail {
+            let day = today - entry.offset
+            seeded[day] = DayOutcome(
+                reached: entry.reached,
+                on: entry.caughtUpLater ? today : day,
+                fromStreak: false
+            )
+        }
+        storage.replaceOutcomes(seeded)
+        // Offsets 7, 2 and 0 are deliberately left unwritten: two gaps and
+        // today itself, so "no record" and the today ring are both on screen.
+    }
+
+    /// Bea's phone as it will be on merge day, before its first open.
+    ///
+    /// **The showcase seed plants the answer; this one plants the question.** It
+    /// writes the inputs the back-fill reads, a live streak pair and the found
+    /// words the prune is still holding, then runs the back-fill exactly as the
+    /// first launch after a merge will. What appears on the calendar is the
+    /// feature's own output rather than a picture of what it is supposed to
+    /// produce, which is the only way to see the one write that is never
+    /// revised before it happens on her phone.
+    ///
+    /// The run is anchored on the snapshot: 70 days ending at storage day 251,
+    /// which is 2026-09-09, extended to yesterday because the run is still
+    /// alive. Nothing here is hard-coded to today's date.
+    func seedBea() async {
+        guard let lexicon else { return }
+        let first = Self.firstPlayableStorageIndex
+        let today = Self.todayStorageIndex
+        // Alive through yesterday, which is what keeps the pair live without
+        // claiming today's board has been cleared.
+        let last = today - 1
+        guard last >= Self.snapshotLastCleared else { return }
+        let count = 70 + (last - Self.snapshotLastCleared)
+        guard last - count + 1 >= first else { return }
+
+        // No outcomes, and the expansion not yet run. Armed explicitly rather
+        // than through `adoptStreak`, which re-arms only when it takes: run
+        // twice, it refuses a count that does not beat the live one, and the
+        // seed would clear the days without arming anything.
+        storage.rearmBackFill()
+        _ = storage.adoptStreak(count: count, lastClearedDayIndex: last, todayIndex: today)
+
+        // The days the prune would still be holding words for. Fourteen is the
+        // cap; today is left alone because the live board owns it.
+        for back in 1...(GameStorage.retainedDayCount - 1) {
+            let day = today - back
+            guard day >= first else { continue }
+            guard let puzzle = await Self.buildPuzzle(
+                dailyIndex: day - first, lexicon: lexicon
+            ) else { continue }
+
+            // The basket days are every set word the rack can spell, taken from
+            // the puzzle rather than invented, because a plausible looking list
+            // that is one word short reconstructs as `cleared` and the heart
+            // never appears.
+            let setWords = puzzle.commonWords.sorted()
+            let found: [String]
+            switch back {
+            case 1, 4, 9: found = setWords
+            case 13: found = Array(setWords.prefix(1))
+            default: found = Self.wordsReachingTheRank(in: puzzle, from: setWords)
+            }
+            storage.saveDayProgress(
+                dayIndex: day, sourceWord: puzzle.sourceWord, found: found
+            )
+        }
+
+        await backFillArchive()
+    }
+
+    /// The storage day index of 2026-09-09, the day the streak snapshot was
+    /// taken, when the stored pair read `count: 70, lastClearedDayIndex: 251`.
+    static let snapshotLastCleared = 251
+
+    /// The shortest prefix of the set words that reaches the streak rank.
+    ///
+    /// Built by asking the real rule rather than by guessing a count: the rank
+    /// is a fraction of par, so how many words it takes differs per board.
+    static func wordsReachingTheRank(in puzzle: Puzzle, from words: [String]) -> [String] {
+        var found: [String] = []
+        for word in words {
+            found.append(word)
+            if rungReached(computeTier(found: Set(found), puzzle: puzzle)) >= DayOutcome.cleared {
+                return found
+            }
+        }
+        return found
+    }
+    #endif
 
     /// A small JSON dump beside load_ms.txt, so relaunch and rollover checks can
     /// be scripted with `simctl get_app_container` rather than read off a
@@ -931,7 +1380,35 @@ extension GameModel {
     /// It can only return a `Puzzle` across that boundary because `Puzzle` is
     /// `Sendable`, which the engine declared long before there was a UI to
     /// consume it. That is the protocol-boundary design paying off.
-    nonisolated static func buildTodaysPuzzle() async -> Result<Puzzle, Error> {
+    /// The word lists, the rarity pools and the calendar, held together.
+    ///
+    /// **Retained for the life of the app, and the cost was measured rather than
+    /// assumed.** These used to be locals inside the build: every one of them was
+    /// read, used once, and dropped, so opening any board paid the whole cold
+    /// path. That was invisible while the only board was today's, because the
+    /// cost was already inside launch. The archive makes it visible, once per
+    /// tap.
+    ///
+    /// Measured on 2026-09-09, release, `phys_footprint` because that is what
+    /// iOS jetsam measures: holding all four costs **54 MB**, and takes a board
+    /// build from the 362 ms `docs/MEASUREMENTS.md` records on an iPhone 13 to
+    /// roughly 86 ms. 54 MB on the oldest device the iOS 17 floor admits, a 3 GB
+    /// iPhone XR, is a small fraction of the budget before jetsam, and the app
+    /// already retains the definitions table and the etymology corpus.
+    ///
+    /// Verify the app's total on device with Xcode's memory gauge: that
+    /// measurement covered these structures, not the app around them.
+    struct Lexicon: Sendable {
+        let dictionary: ListDictionary
+        let common: ListWordSource
+        let beyond70: ListWordSource
+        let beyond95: ListWordSource
+        let calendar: [String]
+    }
+
+    /// Read every list once. The expensive half of what used to be
+    /// `loadLexicon`.
+    nonisolated static func loadLexicon() async -> Result<Lexicon, Error> {
         await Task.detached(priority: .userInitiated) {
             do {
                 let data = try bundledDataDirectory()
@@ -947,23 +1424,12 @@ extension GameModel {
                     .decode(CalendarFile.self, from: Data(contentsOf: calendarURL))
                     .words
 
-                // TimeZone.current is the app's call to make, and it is why the
-                // engine takes the zone as a parameter instead of reaching for
-                // Calendar.current internally. The daily rolls over at the
-                // player's local midnight.
-                let word = try dailySourceWord(
-                    calendar: calendar,
-                    date: now,
-                    epoch: dailyEpoch,
-                    timeZone: .current
-                )
-
-                return .success(createPuzzle(
-                    sourceWord: word,
+                return .success(Lexicon(
                     dictionary: ListDictionary(enable + additions),
-                    commonPool: ListWordSource(common),
-                    beyond70Pool: ListWordSource(beyond70),
-                    beyond95Pool: ListWordSource(beyond95)
+                    common: ListWordSource(common),
+                    beyond70: ListWordSource(beyond70),
+                    beyond95: ListWordSource(beyond95),
+                    calendar: calendar
                 ))
             } catch {
                 return .failure(error)
@@ -971,10 +1437,44 @@ extension GameModel {
         }.value
     }
 
+    /// Build the board for a position in the daily sequence.
+    ///
+    /// Takes an index rather than a date. The archive holds a day as a number,
+    /// and turning it into a `Date` so that `dayIndex` could turn it back would
+    /// put the time-zone question back into a path that does not have one. The
+    /// live board still resolves its index from `TimeZone.current`, which is the
+    /// app's call to make and is why the engine takes the zone as a parameter
+    /// rather than reaching for `Calendar.current`.
+    nonisolated static func buildPuzzle(dailyIndex: Int, lexicon: Lexicon) async -> Puzzle? {
+        await Task.detached(priority: .userInitiated) {
+            guard let word = sourceWord(calendar: lexicon.calendar, dailyIndex: dailyIndex) else {
+                return nil
+            }
+            return createPuzzle(
+                sourceWord: word,
+                dictionary: lexicon.dictionary,
+                commonPool: lexicon.common,
+                beyond70Pool: lexicon.beyond70,
+                beyond95Pool: lexicon.beyond95
+            )
+        }.value
+    }
+
+    /// The daily index for right now, in the player's own zone.
+    nonisolated static var todayDailyIndex: Int {
+        dayIndex(now, epoch: dailyEpoch, timeZone: .current)
+    }
+
+    /// The storage index for right now. Keyed off `storageEpoch`, which never
+    /// moves, so a calendar regeneration cannot renumber a stored day.
+    nonisolated static var todayStorageIndex: Int {
+        dayIndex(now, epoch: storageEpoch, timeZone: .current)
+    }
+
     /// Read the reveal corpus off the main thread, from the app bundle.
     ///
     /// Its own detached task rather than a return value bolted onto
-    /// `buildTodaysPuzzle`, because the two answer different questions: that one
+    /// `loadLexicon`, because the two answer different questions: that one
     /// builds the game and must fail loudly if the word lists are missing, and
     /// this one fetches something the card can do without. Folding them together
     /// would put a `Result` around a load that cannot fail.
@@ -994,7 +1494,7 @@ extension GameModel {
     ///
     /// The same shape as `loadSourceEntries` and for the same reasons: its own
     /// detached task, because this fetches something the game can do without
-    /// and folding it into `buildTodaysPuzzle` would put a `Result` around a
+    /// and folding it into `loadLexicon` would put a `Result` around a
     /// load that cannot fail; and `bundledDataDirectory()` rather than the
     /// engine's `#filePath`-derived default, which resolves only on the machine
     /// that compiled the package and which the Simulator makes look correct.

@@ -1,20 +1,24 @@
 Thanks for taking this on. Eight scrambled letters, make what you can from them, then find the eight letter word they all came from. Find that one and a card opens with what the word means and where it came from, which is often the more interesting half.
 
-If you have seen an earlier build, three things moved. The rack is shorter and the controls are tighter, so more of the found list fits on screen. The row with your count and rarity tallies now sits above the list from the first launch of the day, instead of arriving when your first word lands. And the credits at the foot of the list gained a line.
+New in this build: past days. The small calendar next to your points opens a month at a time, and you can tap any day to play that day's board. The arrows either side of the month name move between months, and a swipe does the same. The first playable day is the 23rd of June.
 
-Your board, your streak and your found words are untouched by any of that.
+Your history should already be there when you open it. Every day of your streak is filled in, back to the 2nd of July, including the ones you played on the web before the app existed. The first open is the one that works all of that out, so it may sit for a moment before the calendar appears. That only happens once.
 
-Worth checking, as always:
-- The board is the same one everyone gets today, and it changes at midnight.
+Two things about that history are worth knowing before they look like bugs. Days from before the last couple of weeks show as finished without a heart, even the ones where you filled the basket. The streak only ever recorded that you finished, so the heart is not missing, it was never written down, and there is no way to recover it now. And the days you played on the web are not marked out in any way, because a day you finished is a day you finished.
+
+Playing a past day does not touch your streak and does not change today's board. While you are on one, the line under your points shows that day's date and a way back to today.
+
+Worth checking:
+- The calendar opens on this month, with today ringed.
+- The days it shows match what you remember playing, especially recent ones.
+- The small calendar is easy to hit with a thumb.
 - Your words and your streak should survive a force quit.
+- The board is the same one everyone gets today, and it changes at midnight.
 
-One ask that cannot be done in a single sitting: please open it on three separate days if you can. The board changing overnight, the streak counting up, and your found words still being there in the morning are the three things a single session cannot show, and they are the ones most likely to be wrong on a phone we do not have. If you only have one day in you, that is still useful, and this is the part to skip.
+If the calendar looks wrong about your own history, say so early rather than waiting to see if it settles. It works your history out once, on that first open, so the sooner I know the easier it is to put right.
 
-There is one board a day, so when you have finished it there is no second puzzle until midnight. That is the game as it stands rather than something broken. If you get to the end and want another, say so, because that is worth knowing and it is not a bug report.
+One ask that cannot be done in a single sitting: please open it on three separate days if you can. The board changing overnight, the streak counting up, and your found words still being there in the morning are the three things a single session cannot show. If you only have one day in you, that is still useful, and this is the part to skip.
 
-And particular to this build:
-- Some origins are long. The card should scroll, and you should be able to drag it up to read all of it, including the small credit line at the bottom.
-- A few words trail off into older alphabets, Greek and older still. Those characters are set in a different typeface because ours has no letters for them. That is expected, but say if it looks wrong.
-- The definitions and origins come from Wiktionary, so the wording is theirs rather than ours. If one reads oddly, is unhelpful, or says something surprising about a word, that is worth telling us.
+There is one new board a day, so when today is done there is no second puzzle until midnight. Past days are there if you want more.
 
 Anything that looks wrong, feels slow, or reads oddly is worth reporting, including the wording.

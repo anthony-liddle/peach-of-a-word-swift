@@ -215,6 +215,59 @@ enum Vocabulary {
     /// too, so the budget is smaller than the caption alone suggests.
     static let ladderPeak = "\(containerCapitalized) full"
 
+    // MARK: - The archive
+
+    /// What the calendar of past boards is called, and the label on the control
+    /// that opens it.
+    ///
+    /// Plain rather than themed. "Past days" says what it is at a glance and
+    /// survives being read aloud by VoiceOver, where a cute noun would have to be
+    /// decoded first. The basket vocabulary is for the thing you fill, not for
+    /// the way back to a day you already filled.
+    static let archiveTitle = "Past days"
+    // Spoken as "Previous month, August 2026", so the button says where it goes
+    // rather than which way it points.
+    static let archivePreviousMonth = "Previous month"
+    static let archiveNextMonth = "Next month"
+    static let archiveNoEarlierMonth = "no earlier month"
+    static let archiveNoLaterMonth = "no later month"
+
+    /// The six states, as a player reads them. Also the VoiceOver text, so the
+    /// screen and the announcement cannot say different things.
+    /// An empty past day.
+    ///
+    /// **"Not played" claimed a fact the app does not have.** The empty cells on
+    /// Bea's calendar are the days before her transferred run, and she may well
+    /// have played every one of them on the web: the transfer carries two bits
+    /// and only one survived. Saying "not played" about those is the same
+    /// mistake as marking transferred days as lesser, from the other direction.
+    ///
+    /// The boards are still there and still playable, so this says the thing
+    /// that is true of every empty cell regardless of what happened on the web.
+    static let markNoRecord = "Still on the tree"
+    static let markIncomplete = "Started"
+    static let markCleared = "Finished"
+    static let markBasket = "\(containerCapitalized) full"
+    static let markNotYet = "Not yet"
+    /// Said after the state, so "Finished, caught up later" reads as one phrase.
+    static let markCaughtUpLater = "caught up later"
+    /// Said of a day the streak's run establishes and nothing else does.
+    ///
+    /// **Not "played on the web", which is what this said and could not know.**
+    /// The run expanded on first launch covers the transfer and every day played
+    /// here since, and the record cannot tell them apart. This says the thing
+    /// that is true of all of them.
+    static let markFromStreak = "kept by your streak"
+    static let markToday = "today"
+
+    /// The way back from a past board.
+    ///
+    /// Text rather than an icon, because a date is information and this is the
+    /// action, and the two sat as two calendar glyphs in the same row before:
+    /// one beside the points and one beside the date, two affordances for one
+    /// thing to do.
+    static let backToToday = "Back to today"
+
     /// The completion card's one line.
     static let completionLine = "Every common word these letters can grow, picked."
 
