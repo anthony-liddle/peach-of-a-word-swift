@@ -676,7 +676,6 @@ extension GameStorage {
     /// The marker survives because it records something about the streak
     /// expansion rather than about any day, and re-arming it here would make a
     /// dead run expand a second time over the map that just replaced it.
-    #if DEBUG
     /// Put the archive back to never expanded: no days, and the flag down.
     ///
     /// **For a seed that wants to watch the expansion happen rather than plant
@@ -685,7 +684,9 @@ extension GameStorage {
     /// A seed run twice would then clear the days without re-arming and leave an
     /// empty calendar, which looks exactly like the expansion having produced
     /// nothing.
-    public func rearmBackFill() {
+    ///
+    /// Internal, not `#if DEBUG`. See `Seeding`.
+    func rearmBackFill() {
         var outcomes = readOutcomes()
         outcomes.days = [:]
         outcomes.backFilled = false
@@ -694,22 +695,29 @@ extension GameStorage {
 
     /// Replace the whole outcome map.
     ///
-    /// **Debug only, because it is the one write the storage design refuses.**
-    /// Everything else here adds a day or raises one; this can lower or erase
-    /// any of them, which is exactly what the separate, never-pruned key exists
-    /// to prevent. Its only callers are the seeds that plant a calendar to look
-    /// at, and the tests. A Release build cannot reach it, and the Release build
-    /// failing to compile is how that is checked.
-    public func replaceOutcomes(_ outcomes: [Int: DayOutcome]) {
+    /// **The one write the storage design refuses.** Everything else here adds a
+    /// day or raises one; this can lower or erase any of them, which is exactly
+    /// what the separate, never-pruned key exists to prevent. Its only callers
+    /// are the seeds that plant a calendar to look at, and the tests.
+    ///
+    /// **Internal, where this used to be `public` behind `#if DEBUG`.** The gate
+    /// was right about what it was protecting and wrong about how. It kept a
+    /// shipping app from reaching this, and it also kept the whole engine suite
+    /// from compiling in the configuration that ships, because a test that calls
+    /// this is a test that cannot exist in Release. The module boundary does the
+    /// same job without that cost: the app imports `PeachEngine` as a module and
+    /// cannot see anything internal to it, in any configuration, while the tests
+    /// use `@testable import` and can. See `Seeding` for the app's way in.
+    func replaceOutcomes(_ outcomes: [Int: DayOutcome]) {
         var state = readOutcomes()
         state.days = Dictionary(
             uniqueKeysWithValues: outcomes.map { (String($0.key), $0.value) }
         )
         writeOutcomes(state)
     }
-    #endif
 
     /// Every outcome, keyed by day index, for drawing the grid.
+
     ///
     /// Keys that are not integers are dropped rather than crashing: they cannot
     /// be produced by this code, and a hand-edited or foreign blob is not worth
@@ -870,3 +878,33 @@ public struct BackFillCounts: Equatable, Sendable {
         self.fromStreak = fromStreak
     }
 }
+
+#if DEBUG
+extension GameStorage {
+    /// The seeds' door into the writes the storage design otherwise refuses.
+    ///
+    /// **Debug only, and a door rather than a set of public functions.** The
+    /// capabilities behind it are internal, so a shipping app cannot reach them
+    /// whatever the build flags say. This is what lets the app's own seeds reach
+    /// them anyway, and it puts that fact at the call site: `storage.seeding`
+    /// reads as debug scaffolding in a way `storage.replaceOutcomes` did not.
+    ///
+    /// A Release build has no `seeding`, so a call to one of these from
+    /// shipping code fails to compile, which is the check the old `#if DEBUG`
+    /// was there to provide.
+    public var seeding: Seeding { Seeding(storage: self) }
+
+    public struct Seeding {
+        let storage: GameStorage
+
+        /// Replace the whole outcome map. See `GameStorage.replaceOutcomes`.
+        public func replaceOutcomes(_ outcomes: [Int: DayOutcome]) {
+            storage.replaceOutcomes(outcomes)
+        }
+
+        /// Put the archive back to never expanded. See
+        /// `GameStorage.rearmBackFill`.
+        public func rearmBackFill() { storage.rearmBackFill() }
+    }
+}
+#endif

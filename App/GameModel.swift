@@ -1242,7 +1242,7 @@ final class GameModel {
                 fromStreak: false
             )
         }
-        storage.replaceOutcomes(seeded)
+        storage.seeding.replaceOutcomes(seeded)
         // Offsets 7, 2 and 0 are deliberately left unwritten: two gaps and
         // today itself, so "no record" and the today ring are both on screen.
     }
@@ -1275,7 +1275,7 @@ final class GameModel {
         // than through `adoptStreak`, which re-arms only when it takes: run
         // twice, it refuses a count that does not beat the live one, and the
         // seed would clear the days without arming anything.
-        storage.rearmBackFill()
+        storage.seeding.rearmBackFill()
         _ = storage.adoptStreak(count: count, lastClearedDayIndex: last, todayIndex: today)
 
         // The days the prune would still be holding words for. Fourteen is the
