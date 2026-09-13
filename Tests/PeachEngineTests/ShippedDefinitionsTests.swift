@@ -34,18 +34,25 @@ struct ShippedDefinitionsTests {
     }
 
     /// **A row count, not a coverage figure**, and it exists because three
-    /// different numbers for this one file are in circulation. The brief that
-    /// asked for this feature said 24,877; `meta.json` records
-    /// `definitionsCovered: 24833` and is carried through from the web
-    /// untouched, because that file has to stay byte-identical with the web's
-    /// `serialiseMeta`; the file at orchard v1.5.0 has 24,892 rows.
+    /// different numbers for this one file are in circulation. orchard's own
+    /// `data-raw/definitions.tsv` has 24,877 rows; `meta.json` records
+    /// `definitionsCovered: 24596`, which counts distinct words carrying a
+    /// gloss in some shipped WEB BUNDLE and is therefore boundary-filtered and
+    /// rack-filtered in ways this file is not; the published corpus at orchard
+    /// v1.6.0 has 24,895 rows, because `pack:release` merges the 18 curated
+    /// glosses that are additions over the generated corpus.
+    ///
+    /// It moved 24,892 to 24,895 at v1.6.0: `spork`, `yeet` and `fae` gained
+    /// rows. `sel` did NOT change the count, because her curated row for it was
+    /// an override of a generated row rather than an addition, and her denial
+    /// of the word withdrew only the override.
     ///
     /// Pinned here so the corpus itself is the thing counted. If a future
     /// release moves it, this fails and the number gets looked at rather than
     /// inherited.
-    @Test("has the row count orchard v1.5.0 publishes")
+    @Test("has the row count orchard v1.6.0 publishes")
     func rowCount() {
-        #expect(readDefinitions().count == 24_892)
+        #expect(readDefinitions().count == 24_895)
     }
 
     /// Every crown has a gloss row.
@@ -113,6 +120,12 @@ struct ShippedDefinitionsTests {
     /// with the part-of-speech prefix every gloss carries and no full stop.
     /// Neither changes what the defects are, and both are pinned here as
     /// measured so the next person counts rather than inherits.
+    ///
+    /// **Unmoved at v1.6.0, and that was measured rather than assumed.** All
+    /// four texts and the count of 96 are identical against the v1.6.0 corpus.
+    /// That release added three glosses and withdrew one curated override, and
+    /// none of the four carries a spaced hyphen, so the class is untouched.
+    /// Only `rowCount` above moved.
     @Test("the known corpus defects are present and unpatched")
     func knownDefectsAreStillHere() {
         let definitions = readDefinitions()
