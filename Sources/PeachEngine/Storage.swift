@@ -268,6 +268,12 @@ public final class GameStorage {
             write(state)
             return
         }
+        // **The archive is written before the daily blob is cleaned up, and the
+        // order is load bearing.** Between the two writes the day exists in
+        // both stores, which costs nothing: the read prefers the daily blob and
+        // both copies are the same words. Reversed, a process killed between
+        // them would have removed the day from the daily blob without it
+        // reaching the archive, and the words would be gone.
         var archive = readArchive()
         archive.days[key] = progress
         writeArchive(archive)
@@ -301,6 +307,10 @@ public final class GameStorage {
             guard let progress = state.days.removeValue(forKey: String(day)) else { continue }
             archive.days[String(day)] = progress
         }
+        // Archive first, then the daily blob, for the reason `saveDayProgress`
+        // gives: a kill between the two writes must leave a day in both stores
+        // rather than in neither. `state` is only mutated in memory above, so
+        // nothing is removed from disk until the archive copy is on it.
         writeArchive(archive)
         write(state)
     }
