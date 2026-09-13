@@ -11,6 +11,16 @@ import Testing
 @Suite("archive day progress")
 struct ArchiveProgressTests {
     /// 2026-06-23 counted from the fixed storage epoch of 2026-01-01.
+    /// Read straight out of a store, so a guard can say which key holds a day
+    /// rather than only that something does.
+    private func daysUnder(_ store: InMemoryStore, _ key: String) -> Set<String> {
+        guard let data = store.data(forKey: key),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let days = json["days"] as? [String: Any]
+        else { return [] }
+        return Set(days.keys)
+    }
+
     static let firstPlayable = 173
     /// 2026-09-13, the day this was measured.
     static let today = 255
@@ -121,6 +131,53 @@ struct ArchiveProgressTests {
         let back = storage.loadDayProgress(dayIndex: played, sourceWord: "mnemonic")
         #expect(back.count == 3,
                 "a day played live \(Self.today - played) days ago has \(back.count) words")
+    }
+
+    /// **The only migration there is, and the path every existing device
+    /// takes.** A phone running the merged build has fourteen days of words in
+    /// `peach-of-a-word/v1` and no archive key at all. Nothing converts that
+    /// blob: the first launch calls `retirePastDays` before it adopts a board
+    /// and before the back-fill walks, and the days move then.
+    ///
+    /// Planted as raw JSON rather than written through the new API, because the
+    /// point is a blob this build did not write.
+    @Test("an upgraded device keeps the fourteen days it arrives with")
+    func theUpgradeFromTheMergedBuild() {
+        let days = (0..<14).map { back -> String in
+            let day = Self.today - 1 - back
+            return "\"\(day)\":{\"sourceWord\":\"w\(day)\",\"found\":[\"a\(day)\",\"b\(day)\"]}"
+        }.joined(separator: ",")
+        let blob = "{\"version\":1,\"days\":{\(days)},"
+            + "\"streak\":{\"count\":72,\"lastClearedDayIndex\":\(Self.today - 1)}}"
+
+        let store = InMemoryStore()
+        store.set(Data(blob.utf8), forKey: GameStorage.storageKey)
+        let storage = GameStorage(store: store)
+
+        // What the first launch on the new build does, before anything else.
+        storage.retirePastDays(todayIndex: Self.today)
+
+        for back in 0..<14 {
+            let day = Self.today - 1 - back
+            #expect(storage.loadDayProgress(dayIndex: day, sourceWord: "w\(day)")
+                    == ["a\(day)", "b\(day)"],
+                    "day \(day) did not survive the upgrade")
+        }
+        #expect(storage.daysWithProgress().count == 14,
+                "the walk was offered \(storage.daysWithProgress().count) of 14 days")
+        // And the streak came through the same read untouched.
+        #expect(storage.currentStreak(todayIndex: Self.today) == 72)
+
+        // **Where they landed, which is the part that can actually fail.**
+        // Reading them back proves nothing on its own: an upgrade that never
+        // migrated would leave all fourteen in the daily blob, where the read
+        // still finds them. What it would cost is the thing the split exists
+        // for, the daily blob growing with the history on the path that runs on
+        // every accepted word.
+        #expect(daysUnder(store, GameStorage.archiveKey).count == 14,
+                "the archive holds \(daysUnder(store, GameStorage.archiveKey).count) days")
+        #expect(daysUnder(store, GameStorage.storageKey).isEmpty,
+                "the daily blob still holds \(daysUnder(store, GameStorage.storageKey).count) days")
     }
 
     /// **The walk the back-fill does is now unbounded, and that is the caller's
