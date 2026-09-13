@@ -122,4 +122,55 @@ struct ArchiveProgressTests {
         #expect(back.count == 3,
                 "a day played live \(Self.today - played) days ago has \(back.count) words")
     }
+
+    /// **The walk the back-fill does is now unbounded, and that is the caller's
+    /// problem to cap.** It used to be held to fourteen by the prune, silently:
+    /// nothing said so except a docstring, and the back-fill was sized to it.
+    /// This guard states the fact the caller depends on, so the day someone
+    /// removes the cap there is the day this stops making sense.
+    @Test("every day with words is offered to the walk, however many there are")
+    func theWalkIsUnbounded() {
+        let store = InMemoryStore()
+        let storage = GameStorage(store: store)
+        let span = GameStorage.backFillWalkDayCount * 5
+        for day in 1...span {
+            storage.saveDayProgress(dayIndex: day, sourceWord: "w\(day)",
+                                    found: ["a\(day)"], fromArchive: false)
+            storage.retirePastDays(todayIndex: day + 1)
+        }
+        #expect(storage.daysWithProgress().count == span,
+                "the walk was offered \(storage.daysWithProgress().count) of \(span) days")
+        // Newest first, which is what makes a prefix the most recent days.
+        #expect(storage.daysWithProgress().first == span)
+    }
+
+    /// What the cap costs, which is nothing the player can see. A day the walk
+    /// does not reach is classified by the streak instead, the same way a day
+    /// whose words were never stored always was.
+    @Test("a day beyond the cap still gets its outcome from the run")
+    func aDayBeyondTheCapFallsToTheRun() {
+        let store = InMemoryStore()
+        let storage = GameStorage(store: store)
+        let span = 40
+        for day in 1...span {
+            storage.saveDayProgress(dayIndex: day, sourceWord: "w\(day)",
+                                    found: ["a\(day)"], fromArchive: false)
+            storage.retirePastDays(todayIndex: day + 1)
+        }
+        storage.adoptStreak(count: span, lastClearedDayIndex: span, todayIndex: span)
+
+        // A classifier that answers only for the days a capped walk built
+        // puzzles for: the most recent `backFillWalkDayCount`.
+        let reached = Set((span - GameStorage.backFillWalkDayCount + 1)...span)
+        storage.backFillOutcomes(firstPlayableDayIndex: 1) { day, _, _ in
+            reached.contains(day) ? DayOutcome.basket : nil
+        }
+
+        // Inside the walk: its own rung, from its own words.
+        #expect(storage.outcome(dayIndex: span)?.reached == DayOutcome.basket)
+        // Beyond it: still recorded, credited to the run.
+        let old = storage.outcome(dayIndex: 1)
+        #expect(old?.reached == DayOutcome.cleared, "a day beyond the cap has no outcome")
+        #expect(old?.fromStreak == true, "a day beyond the cap did not credit the streak")
+    }
 }

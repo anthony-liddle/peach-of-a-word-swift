@@ -1064,7 +1064,14 @@ final class GameModel {
         // in a row is about 1.3 seconds added to the one launch that does this.
         // Built concurrently it is a quarter of that, and the expansion still
         // finishes before anything can see a half filled calendar.
-        let days = storage.daysWithProgress()
+        // **Capped, where the prune used to cap it.** `daysWithProgress` was
+        // bounded at fourteen by the prune, and the back-fill relied on that
+        // without saying so. With every past day keeping its words the walk is
+        // unbounded, and each day it walks costs a puzzle build. Held to the
+        // most recent days, so the launch that does this costs what it was
+        // measured at; the streak accounts for every day beyond, which is what
+        // it was always going to do for days with no words at all.
+        let days = Array(storage.daysWithProgress().prefix(GameStorage.backFillWalkDayCount))
         var puzzles: [Int: Puzzle] = [:]
         await withTaskGroup(of: (Int, Puzzle?).self) { group in
             var next = 0
