@@ -22,9 +22,14 @@ enum WordCategory: Hashable {
 
     /// Spoken name. The mark carries the category visually and is decorative, so
     /// this is the only place a screen reader can learn it.
+    ///
+    /// The source word's name is read from `Vocabulary` rather than written
+    /// again here. The legend prints the same words for the same mark, and two
+    /// copies would be free to drift the first time either was reworded, which
+    /// is what `AppVocabularyTests` caught the moment the legend was added.
     var spokenName: String {
         switch self {
-        case .source: "source word"
+        case .source: Vocabulary.keySourceWord
         case .set: "on the page"
         case .uncommon: "Uncommon"
         case .rare: "Rare"
@@ -36,6 +41,27 @@ enum WordCategory: Hashable {
         switch self {
         case .source: Cute.crown
         case .set: Cute.accent          // --good, the "in the set" heart
+        case .uncommon, .rare, .mythic: Cute.discovery
+        }
+    }
+
+    /// The colour of the *word*, which is not the colour of its mark.
+    ///
+    /// The two diverge in both directions and that is deliberate on the web,
+    /// which this now mirrors. A set word carries a pink heart and is set in
+    /// plain ink, because colouring every set word pink would leave the list
+    /// with no quiet default to read against. The source word inverts it: the
+    /// mark is the peach and the text is the deeper `crownDeep`, since a fill
+    /// that reads well as a shape does not read well as a sentence.
+    ///
+    /// Only the off-page rungs share one colour between mark and text, which is
+    /// the whole point of the discovery ink: one colour, one job. That is what
+    /// Bea was seeing the absence of. The app painted every word `ink`, so the
+    /// purple stopped at the mark.
+    var textTint: Color {
+        switch self {
+        case .source: Cute.crownDeep
+        case .set: Cute.ink
         case .uncommon, .rare, .mythic: Cute.discovery
         }
     }

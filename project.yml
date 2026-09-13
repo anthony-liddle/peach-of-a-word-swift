@@ -89,6 +89,24 @@ targets:
         UIAppFonts:
           - Fredoka.ttf
           - Nunito.ttf
+        # The one-time streak transfer from the web build, and nothing else.
+        #
+        # A custom scheme rather than a Universal Link because a Universal Link
+        # needs an apple-app-site-association file served from the domain and
+        # the Associated Domains entitlement, which is real setup for moving one
+        # number between two people once. This is a plist entry and a handler.
+        #
+        # The trade is that a custom scheme is claimable by any app and carries
+        # no proof it came from our page. That is acceptable only because the
+        # payload is unauthenticated by design; see StreakTransfer for the
+        # reasoning and for the condition that retires it.
+        #
+        # Disposable: delete this block with the rest of the transfer path.
+        CFBundleURLTypes:
+          - CFBundleURLName: com.anthonyliddle.peachofaword.streaktransfer
+            CFBundleTypeRole: Viewer
+            CFBundleURLSchemes:
+              - peachofaword
     settings:
       base:
         GENERATE_INFOPLIST_FILE: NO
@@ -110,7 +128,15 @@ targets:
         # points block that used to fill it and gained nothing to replace it.
         # Shipping the machine ahead of the content was deliberate; shipping a
         # build during the gap would not have been.
-        CURRENT_PROJECT_VERSION: "3"
+        #
+        # 4 is a local-archive number only, and does not reach TestFlight.
+        # ci_scripts/ci_post_clone.sh rewrites this line on every Xcode Cloud
+        # build to CI_BUILD_NUMBER + 100, so a Cloud build ignores whatever is
+        # committed here and the delivered number is in the hundreds. Bumping
+        # this does not make a build shippable; pushing does. It is kept
+        # accurate so a local `xcodebuild archive` does not reuse a number App
+        # Store Connect has already reserved.
+        CURRENT_PROJECT_VERSION: "4"
         SWIFT_VERSION: "6.0"
         TARGETED_DEVICE_FAMILY: "1"
         # Signing lives here rather than in Xcode's UI, because this project is
@@ -122,6 +148,45 @@ targets:
         # simulator and blocks running on a real device.
         CODE_SIGN_STYLE: Automatic
         DEVELOPMENT_TEAM: 9ML46U556H
+    # Stamp the built bundle with the commit it came from.
+    #
+    # **This exists because two reports compared "the same build" and could not
+    # prove it.** Screenshots taken by `simctl` and numbers taken by XCUITest
+    # were attributed to one binary while being produced by two schemes writing
+    # into two derived-data trees, and a screenshot carries nothing that says
+    # which. A hash in the bundle makes every picture and every log line
+    # traceable to one commit.
+    #
+    # **It writes its own file rather than a key in Info.plist, and that is the
+    # whole point of the second attempt.** The first version added the key to
+    # the processed Info.plist and worked on every clean build. On an
+    # incremental build it silently did not: this phase declares no inputs, so
+    # the build system is free to schedule it before `ProcessInfoPlistFile`,
+    # which then regenerates the plist from source and drops the key. An
+    # unstamped bundle that reads as stamped is worse than no stamp, and it was
+    # found only because a measurement run printed an empty hash. Nothing else
+    # produces this file, so nothing else can overwrite it.
+    #
+    # Simulator Debug only, on both counts deliberately. It re-signs ad hoc
+    # after writing, which is right for a simulator bundle and wrong for a
+    # device or a Release build, so those exit before reaching it. Nothing here
+    # can change what ships.
+    postBuildScripts:
+      - name: Stamp the build with its commit
+        # Runs every build rather than when inputs change: HEAD moving is not a
+        # file change any dependency graph can see.
+        basedOnDependencyAnalysis: false
+        script: |
+          [ "$CONFIGURATION" = "Debug" ] || exit 0
+          [ "$EFFECTIVE_PLATFORM_NAME" = "-iphonesimulator" ] || exit 0
+          BUNDLE="$TARGET_BUILD_DIR/$WRAPPER_NAME"
+          mkdir -p "$BUNDLE"
+          STAMP=$(git -C "$SRCROOT" rev-parse --short HEAD 2>/dev/null || echo unknown)
+          if [ -n "$(git -C "$SRCROOT" status --porcelain 2>/dev/null)" ]; then
+            STAMP="$STAMP-dirty"
+          fi
+          printf '%s' "$STAMP" > "$BUNDLE/BuildStamp.txt"
+          codesign --force --sign - "$BUNDLE" >/dev/null 2>&1 || true
     # Attach the package's test bundle to this target's scheme.
     #
     # Without this, `xcodebuild test -scheme PeachOfAWord` has nothing to run
@@ -198,10 +263,23 @@ targets:
   # Not in the app scheme's testTargets. `xcodebuild test` and Xcode Cloud
   # therefore do not run these, which is deliberate for now: the delivery
   # pipeline took three pull requests to get green and a flaky UI test is the
-  # classic way to lose it again. Run them explicitly:
+  # classic way to lose it again. Run them explicitly, through this target's
+  # OWN scheme:
   #
-  #   xcodebuild test -scheme PeachOfAWord -only-testing:PeachOfAWordUITests \
-  #     -destination 'platform=iOS Simulator,name=iPhone 15'
+  #   xcodebuild test -scheme PeachOfAWordUITests \
+  #     -destination 'platform=iOS Simulator,name=iPhone 16 Pro'
+  #
+  # The scheme name is the part that matters and the part this comment used to
+  # get wrong. It said `-scheme PeachOfAWord -only-testing:PeachOfAWordUITests`,
+  # which cannot work for the exact reason the paragraph above gives: a target
+  # absent from a scheme's testTargets cannot be selected within it, and
+  # xcodebuild says so in a way that reads like the target is broken rather than
+  # the command:
+  #
+  #   Tests in the target "PeachOfAWordUITests" can't be run because
+  #   "PeachOfAWordUITests" isn't a member of the specified test plan or scheme.
+  #
+  # Corrected on 2026-08-29 after following it and hitting that.
   PeachOfAWordUITests:
     type: bundle.ui-testing
     platform: iOS

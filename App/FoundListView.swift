@@ -64,6 +64,9 @@ struct FlowLayout: Layout {
 /// One found word: its mark, the word, and what it was worth.
 struct WordChip: View {
     let found: FoundWord
+    /// What tapping this chip does. Defaulted to nothing so a preview or a
+    /// future read-only surface can render a chip without inventing an action.
+    var onSelect: () -> Void = {}
     /// The chip's LAYOUT height, matching the web's `min-height: 24px`.
     ///
     /// This is not the tap target. The touch region is expanded separately
@@ -80,33 +83,78 @@ struct WordChip: View {
     /// daily on a phone without complaint.
     @ScaledMetric(relativeTo: .body) private var chipHeight: CGFloat = 24
 
-    /// How far the touch region extends past the chip on each side, taking the
-    /// effective target to roughly 44pt without costing a single point of row
-    /// height.
-    @ScaledMetric(relativeTo: .body) private var touchInset: CGFloat = 10
+    /// How far the touch region extends past the chip, per side.
+    ///
+    /// **Half the gap, not the 10pt this used to hold, and the difference is
+    /// not a lowered standard.** The old value was written for a button that
+    /// was removed before it ever ran, alongside a claim that it took the
+    /// effective target "to roughly 44pt without costing a single point of row
+    /// height". The first half was true and the second half was true, and the
+    /// two together are not: `FlowLayout` sets a 12pt column gap and a 5pt row
+    /// gap, so two neighbouring chips each reaching 10pt outward **overlap by
+    /// 8pt horizontally and 15pt vertically**. SwiftUI resolves an overlapping
+    /// content shape in favour of the later subview, so taps in the seam open
+    /// the next word along, systematically and in one direction. A target that
+    /// opens the wrong word is worse than a small one.
+    ///
+    /// Half the gap on each side tiles instead: every point in the list belongs
+    /// to exactly one chip, with no overlap and no dead space between them. The
+    /// effective target becomes 29pt tall by the word's width plus 12.
+    ///
+    /// **24pt was already the defended figure**, and the comment on
+    /// `chipHeight` makes that case: WCAG 2.5.8 sets 24 by 24 and carves out an
+    /// explicit exception for inline targets constrained by surrounding text,
+    /// which is exactly what a word in a flowing paragraph is. Tiling to the
+    /// gaps is a strict improvement on that floor rather than a retreat from
+    /// 44, which was never reachable here without taking a neighbour's taps.
+    private let horizontalTouchInset: CGFloat = 6
+    private let verticalTouchInset: CGFloat = 2.5
 
-    /// **Deliberately not a button.**
+    /// **A button again.**
     ///
-    /// These were built as real buttons with real 44pt targets so the definition
-    /// reveal could drop in later. But the reveal is blocked on the WordNet
-    /// decision, and in the meantime a control that invites a tap and then
-    /// ignores it is worse than a label: it reads as broken, and VoiceOver
-    /// announces "button" and promises an action that never comes.
+    /// These were built as real buttons so the definition reveal could drop in
+    /// later, then made inert, because the reveal was blocked and a control
+    /// that invites a tap and then ignores it is worse than a label: it reads
+    /// as broken, and VoiceOver announces "button" and promises an action that
+    /// never comes. The corpus ships as of this change, so the promise can be
+    /// kept and the announcement is now accurate.
     ///
-    /// So they are inert until there is something to show. The chip structure,
-    /// the marks, the points and the row rhythm are all unchanged; restoring
-    /// the button is wrapping this in one when the reveal lands, not a rebuild.
+    /// It is the wrapper that comment predicted rather than a rebuild. The chip
+    /// structure, the marks, the points and the row rhythm are untouched: what
+    /// is added is a `Button`, a content shape, and the pad-out-then-pad-back
+    /// sandwich that grows the touch region without growing the layout. That
+    /// last part is why `FlowLayout` still measures the same chip: it asks each
+    /// subview for `sizeThatFits(.unspecified)`, and the negative padding
+    /// returns that answer to what it was.
     var body: some View {
-        Group {
+        Button {
+            onSelect()
+        } label: {
             HStack(spacing: 5) {
                 RarityMark(category: found.category)
+                // The web sets the source word in a semibold oblique and every
+                // off-page rung in the discovery ink; the app painted all of
+                // them `ink`, so the ladder's colour stopped at the mark. See
+                // `WordCategory.textTint`.
                 Text(found.word)
-                    .font(CuteFont.body(17, relativeTo: .body))
-                    .foregroundStyle(Cute.ink)
+                    .font(found.category == .source
+                          ? CuteFont.bodyOblique(17, weight: "SemiBold", relativeTo: .body)
+                          : CuteFont.body(17, relativeTo: .body))
+                    .foregroundStyle(found.category.textTint)
                 if found.category.isOffPage {
                     // Off-page finds show what they were worth. Set words do not:
                     // the group's "X of Y" already accounts for them, and a
                     // number on every chip would bury the ones that earned extra.
+                    //
+                    // **A deliberate difference from the web, decided rather
+                    // than overlooked.** The web prints points on every find,
+                    // set words included, in a muted ink. Reviewed on
+                    // 2026-08-29 alongside the three found-list mismatches Bea
+                    // did raise, and kept: she did not raise this one, the
+                    // reason above still holds, and matching the web here would
+                    // make the list noisier for no stated benefit. Recorded so
+                    // the next person to diff the two surfaces finds a decision
+                    // instead of what looks like an omission.
                     Text("+\(found.score)")
                         .font(CuteFont.body(13, weight: "SemiBold", relativeTo: .caption))
                         .foregroundStyle(Cute.discovery)
@@ -114,12 +162,22 @@ struct WordChip: View {
                 }
             }
             .frame(minHeight: chipHeight)
+            .padding(.horizontal, horizontalTouchInset)
+            .padding(.vertical, verticalTouchInset)
+            .contentShape(Rectangle())
+            .padding(.horizontal, -horizontalTouchInset)
+            .padding(.vertical, -verticalTouchInset)
         }
+        // Plain, so the chip keeps its own colours. The default style would
+        // tint the word and the mark accent blue, which would make the rarity
+        // marks mean nothing.
+        .buttonStyle(.plain)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(
             "\(found.word), \(found.category.spokenName), "
             + counted(found.score, "point")
         )
+        .accessibilityHint("Shows the definition")
     }
 }
 
@@ -130,13 +188,26 @@ struct FoundListView: View {
     /// The date the board belongs to, so a share names the right day even if
     /// midnight has passed while the app stayed open.
     var boardDate: Date = Date()
+    /// What tapping a chip does, threaded down to `WordChip`.
+    ///
+    /// A closure rather than the model, so this view keeps taking only the data
+    /// it renders. It is already built from a puzzle, a word list and a
+    /// standing rather than from `GameModel`, and handing it the model to reach
+    /// one method would trade that for nothing.
+    /// The glosses, carried through to the summary's rung sheets.
+    var definitions: [String: String] = [:]
+    var onSelect: (FoundWord) -> Void = { _ in }
 
     init(puzzle: Puzzle, found: [String], standing: TierStanding,
-         boardDate: Date = Date()) {
+         boardDate: Date = Date(),
+         definitions: [String: String] = [:],
+         onSelect: @escaping (FoundWord) -> Void = { _ in }) {
         self.puzzle = puzzle
         self.found = found
         self.standing = standing
         self.boardDate = boardDate
+        self.definitions = definitions
+        self.onSelect = onSelect
         self.words = classifyFound(found, in: puzzle)
     }
 
@@ -153,12 +224,94 @@ struct FoundListView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
+            // The heading the app never had, and the total that goes with it.
+            //
+            // Both live here rather than in the pinned summary, and that is the
+            // point: the pinned row is set progress ("35 of 85 words"), while
+            // this total counts every find including off-page ones. They are
+            // different numbers, so putting the new one in the pinned row would
+            // read as a contradiction of the number beside it, and would grow
+            // that row to a fourth line at accessibility sizes, where it
+            // already stacks. The pinned row was pinned so it would stop
+            // moving; this leaves it alone.
+            //
+            // Together they also sit where the web puts them, immediately above
+            // the word groups.
+            // The heading, with Share on its trailing edge.
+            //
+            // A section header carrying its own action is the standard iOS
+            // shape, it reclaims a row on a screen where 62pt of chrome was a
+            // project, and it keeps Share reachable without scrolling to it.
+            // It moves an existing pairing rather than inventing one: Share sat
+            // with the summary row before this.
+            HStack(alignment: .firstTextBaseline) {
+                Text(Vocabulary.glossaryTitle)
+                    .font(CuteFont.display(20, relativeTo: .title3))
+                    .foregroundStyle(Cute.ink)
+                Spacer(minLength: 8)
+                // Invisible rather than absent before the first find, which is
+                // the argument `FoundSummary` already makes about its own
+                // zeros: a control that appears later is a row that changes
+                // height later.
+                ShareSummaryButton(puzzle: puzzle, found: found,
+                                   standing: standing, boardDate: boardDate)
+                    .opacity(found.isEmpty ? 0 : 1)
+                    .allowsHitTesting(!found.isEmpty)
+                    .accessibilityHidden(found.isEmpty)
+            }
+
+            // The counts, no longer pinned above the scroll. See `ContentView`
+            // for the reversal this is.
+            FoundSummary(puzzle: puzzle, found: found, standing: standing,
+                         boardDate: boardDate, definitions: definitions)
+
+            if !found.isEmpty {
+                Text("\(counted(words.count, "word")) found")
+                    .font(CuteFont.body(13, relativeTo: .footnote))
+                    .foregroundStyle(Cute.inkFaint)
+                    .monospacedDigit()
+            }
+
+            bestWord
+
             if found.isEmpty {
+                // The line, and stars around it. This is the screen she sees
+                // first every morning and it was one sentence alone in the
+                // region.
+                //
+                // The stars are a background on a frame that claims no extra
+                // height, so the empty state measures exactly what it measured
+                // before. That matters more here than anywhere: the decoration
+                // vanishes when the first word lands, and the empty state and
+                // the first-find state are different heights by definition, so
+                // anything that added height would shove the list at the worst
+                // possible moment. `FirstFindShove` is the check.
                 Text(Vocabulary.emptyFoundList)
                     .font(CuteFont.body(15, relativeTo: .subheadline))
                     .foregroundStyle(Cute.inkFaint)
                     .frame(maxWidth: .infinity, alignment: .center)
                     .padding(.top, 24)
+                    // Anchored to the top and given a height of its own, so
+                    // the florettes spread into the empty region rather than
+                    // crowding the one line. A background does not take its
+                    // size from this frame, so the empty state still measures
+                    // what it measured before; anchoring top keeps the overflow
+                    // going downward into the slack rather than upward into the
+                    // pinned summary.
+                    // 84pt, which is the line's own height plus the gap
+                    // beneath it, measured rather than guessed: on an iPhone 16
+                    // Pro the message ends at 642pt and the credits begin at
+                    // 691.7pt, so the slack here is 49.7pt. The first attempt
+                    // asked for 190 on the assumption that this region was the
+                    // 223pt the empty list occupies, and it is not: the
+                    // colophon fills most of that, so the florettes landed
+                    // among the credits and mixed with the colophon's own.
+                    //
+                    // A background takes no size from this frame, so the empty
+                    // state still measures what it always did.
+                    .background(alignment: .top) {
+                        EmptyBasketDecoration().frame(height: 84)
+                    }
             } else {
                 // The summary is no longer here. It is pinned above the scroll
                 // as `FoundSummary`, because a status line you have to scroll
@@ -169,7 +322,68 @@ struct FoundListView: View {
                     }
                 }
             }
+            legend
             Colophon()
+        }
+    }
+
+    /// The single highest-scoring find.
+    ///
+    /// Ported from the web's `bestOf`: the highest score wins and a tie goes to
+    /// the earliest found, since its reduce keeps the incumbent on equality.
+    /// The chip is the same one the list below renders, so the mark, the colour
+    /// and the points agree by construction rather than by being copied.
+    @ViewBuilder
+    private var bestWord: some View {
+        if let best = words.reduce(nil, { (b: FoundWord?, w) in
+            b == nil || w.score > b!.score ? w : b
+        }) {
+            HStack(spacing: 8) {
+                Text("Best word")
+                    .font(CuteFont.body(12, weight: "SemiBold", relativeTo: .caption))
+                    .tracking(1.4)
+                    .textCase(.uppercase)
+                    .foregroundStyle(Cute.inkFaint)
+                WordChip(found: best) { onSelect(best) }
+            }
+        }
+    }
+
+    /// What the marks mean.
+    ///
+    /// The app has never had this and the web has always had it, which makes it
+    /// the one item in this pass that adds an element rather than moving one.
+    /// It earns its place because the rung marks are implicitly labelled by the
+    /// tally row above and the other two are not: nothing in the app says what
+    /// the heart or the peach stand for.
+    ///
+    /// Last, after the groups, where the web puts it and where space is
+    /// cheapest: the foot of a scroll region.
+    ///
+    /// `accessibilityHidden`, as the web's is. It is a key to a visual code,
+    /// and every chip it explains already says its own category aloud.
+    private var legend: some View {
+        FlowLayout(horizontalSpacing: 12, verticalSpacing: 6) {
+            Text(Vocabulary.legendCaption)
+                .font(CuteFont.body(11, weight: "SemiBold", relativeTo: .caption2))
+                .tracking(1.2)
+                .textCase(.uppercase)
+            entry(.set, Vocabulary.keyInContainer)
+            entry(.uncommon, "Uncommon")
+            entry(.rare, "Rare")
+            entry(.mythic, "Mythic")
+            entry(.source, Vocabulary.keySourceWord)
+        }
+        .font(CuteFont.body(11, relativeTo: .caption2))
+        .foregroundStyle(Cute.inkFaint)
+        .padding(.top, 10)
+        .accessibilityHidden(true)
+    }
+
+    private func entry(_ category: WordCategory, _ label: String) -> some View {
+        HStack(spacing: 4) {
+            RarityMark(category: category)
+            Text(label)
         }
     }
 
@@ -192,7 +406,9 @@ struct FoundListView: View {
 
             if !group.setWords.isEmpty {
                 FlowLayout() {
-                    ForEach(group.setWords) { WordChip(found: $0) }
+                    ForEach(group.setWords) { word in
+                        WordChip(found: word) { onSelect(word) }
+                    }
                 }
             }
 
@@ -210,7 +426,9 @@ struct FoundListView: View {
 
             if !group.offPageWords.isEmpty {
                 FlowLayout() {
-                    ForEach(group.offPageWords) { WordChip(found: $0) }
+                    ForEach(group.offPageWords) { word in
+                        WordChip(found: word) { onSelect(word) }
+                    }
                 }
             }
         }

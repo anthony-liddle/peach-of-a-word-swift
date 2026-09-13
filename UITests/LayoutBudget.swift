@@ -12,29 +12,85 @@ import XCTest
 /// date-dependent test looks like when you go hunting for the change that broke
 /// it and cannot find one.
 ///
-/// The two layouts are told apart by order rather than by measurement: in the
-/// fixed layout the controls sit BELOW the summary, and in the scrolling
-/// fallback they sit above it. That is a structural difference, so it cannot be
-/// fooled by a squeeze the way a height threshold could.
+/// **The two layouts are told apart by asking whether the rack is inside a
+/// scroll view, and the question it replaces is worth recording.** This used to
+/// compare the controls against the summary: in the fixed layout the controls
+/// sat BELOW the summary, and in the scrolling fallback they sat above it.
+///
+/// Moving the controls up under the rack did not merely invert that answer, it
+/// deleted the question. Both layouts now run header, well, rack, controls,
+/// summary, list in that exact order, so NO ordering test can separate them and
+/// the old probe would have reported "fallback" everywhere, confidently and
+/// wrongly, on a screen that had not changed layout at all.
+///
+/// Containment is the definitional difference rather than a correlate of it.
+/// The fixed layout exists precisely because the rack is not inside a scroll
+/// view, which is what makes the touch-down commit safe (`RackScrollTests`);
+/// the fallback exists because everything had to go into one. So this asks the
+/// property the two layouts are actually named for, and there is no
+/// rearrangement of the furniture that can fool it.
 final class LayoutBudget: XCTestCase {
-    private func probe(_ size: String) {
+    /// A rack tile, by the label it already carries.
+    ///
+    /// `app.buttons`, not every descendant: the rack container is labelled
+    /// "Letter tiles" and a loose query matches the container first. Same trap
+    /// `MessageLineShove` and `RackScrollTests` both record.
+    private func rackTile(_ app: XCUIApplication) -> XCUIElement {
+        app.buttons.matching(
+            NSPredicate(format: "label MATCHES %@", "^Letter [a-z].*")
+        ).element(boundBy: 0)
+    }
+
+    /// Is the rack outside every scroll view?
+    ///
+    /// Containment rather than a `minY` comparison, because containment says
+    /// the thing that is meant. "The scroll view starts above the rack" is a
+    /// correlate that holds today and would go on reporting an answer if the
+    /// furniture were reordered again; "the rack is inside the scroll view" is
+    /// the property itself.
+    ///
+    /// Every scroll view rather than `firstMatch`, deliberately. `firstMatch`
+    /// takes whichever one the query traverses first, which is unambiguous
+    /// today only because the fixed layout happens to contain exactly one. That
+    /// is a fact about the current view tree, not a guarantee, and this probe
+    /// exists to survive changes to the view tree.
+    private func rackIsFixed(_ app: XCUIApplication) -> Bool {
+        let tile = rackTile(app).frame
+        return !app.scrollViews.allElementsBoundByIndex.contains { $0.frame.contains(tile) }
+    }
+
+    private func probe(_ size: String,
+                       extra: [String] = [],
+                       tag: String = "LAYOUT") {
         let app = XCUIApplication()
         app.launchArguments = [
             "-resetProgress", "1", "-seedBoard", "almost",
             "-UIPreferredContentSizeCategoryName", size,
-        ]
+        ] + extra
         app.launch()
         // Waiting on the element rather than sleeping a fixed 2.5s and hoping.
         // A sleep that is too short reports "indeterminate", which reads as a
         // layout finding rather than as a test that gave up too early.
         let summary = app.staticTexts["FoundSummaryCount"]
-        let shuffle = app.buttons["Shuffle"]
-        guard summary.waitForExistence(timeout: 15), shuffle.exists else {
-            print("LAYOUT \(size) = indeterminate"); return
+        guard summary.waitForExistence(timeout: 15), rackTile(app).exists else {
+            print("\(tag) \(size) = indeterminate"); return
         }
-        let fixed = shuffle.frame.minY > summary.frame.minY
+        let fixed = rackIsFixed(app)
         let win = app.windows.firstMatch.frame
-        print("LAYOUT \(size) window=\(Int(win.height)) mode=\(fixed ? "FIXED" : "fallback")")
+        // The list height, which is the number the density work is actually
+        // spent on and which this probe did not used to print. It was measured
+        // by hand for the chrome reclaim, which meant the instruction on
+        // `minimumListHeight` to re-measure the tightest cell after any change
+        // to the furniture had no tool behind it. Now it does.
+        //
+        // Only meaningful in the fixed layout: in the fallback the whole screen
+        // is one scroll view and "the list's height" is not a frame that means
+        // anything, so it is reported as absent rather than as a number.
+        let list = fixed
+            ? String(format: "%.2f", app.scrollViews.firstMatch.frame.height)
+            : "n/a"
+        print("\(tag) \(size) window=\(Int(win.height)) "
+              + "mode=\(fixed ? "FIXED" : "fallback") list=\(list)")
     }
 
     /// The one guarantee that must not regress: a phone the size of the one
@@ -62,15 +118,31 @@ final class LayoutBudget: XCTestCase {
                       "the app never rendered the found summary")
         let win = app.windows.firstMatch.frame
         try XCTSkipIf(win.height < 800, "not a tall phone; the sweep covers short ones")
-        let summary = app.staticTexts["FoundSummaryCount"]
-        let shuffle = app.buttons["Shuffle"]
-        XCTAssertTrue(summary.waitForExistence(timeout: 15))
-        XCTAssertTrue(shuffle.exists)
-        XCTAssertGreaterThan(
-            shuffle.frame.minY, summary.frame.minY,
-            "the controls are above the summary, so this fell back to the "
+        XCTAssertTrue(rackTile(app).exists, "no rack tile found")
+        XCTAssertTrue(
+            rackIsFixed(app),
+            "the rack is inside a scroll view, so this fell back to the "
             + "scrolling layout at default size on a tall phone"
         )
+    }
+
+    /// The same sweep, on an archive board.
+    ///
+    /// **The meter grows a second row when a past day is on screen**, carrying
+    /// the date and the way back, and a row is the thing this whole file exists
+    /// to price. It appears only on an archive board, so `testSweep` never sees
+    /// it: without this the fixed layout's survival on the one screen that has
+    /// extra furniture would be a matter of opinion.
+    ///
+    /// `-archiveDay 7` opens a past board at launch, because the board cannot be
+    /// reached without a tap and a launch argument cannot perform one.
+    func testArchiveSweep() {
+        for s in ["UICTContentSizeCategoryL",
+                  "UICTContentSizeCategoryXL",
+                  "UICTContentSizeCategoryXXL",
+                  "UICTContentSizeCategoryXXXL"] {
+            probe(s, extra: ["-seedArchive", "showcase", "-archiveDay", "7"], tag: "ARCHIVE")
+        }
     }
 
     func testSweep() {

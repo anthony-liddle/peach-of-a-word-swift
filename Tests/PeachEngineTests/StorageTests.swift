@@ -57,25 +57,25 @@ struct StreakTests {
 
     @Test("consecutive days extend the streak, a gap restarts it")
     func extendsAndBreaks() {
-        storage.recordDailyCleared(dayIndex: 10)
+        storage.recordDailyCleared(dayIndex: 10, todayIndex: 10, fromArchive: false)
         #expect(storage.currentStreak(todayIndex: 10) == 1)
-        storage.recordDailyCleared(dayIndex: 11)
+        storage.recordDailyCleared(dayIndex: 11, todayIndex: 11, fromArchive: false)
         #expect(storage.currentStreak(todayIndex: 11) == 2)
         // Skip day 12.
-        storage.recordDailyCleared(dayIndex: 13)
+        storage.recordDailyCleared(dayIndex: 13, todayIndex: 13, fromArchive: false)
         #expect(storage.currentStreak(todayIndex: 13) == 1)
     }
 
     @Test("recording the same day twice does not double count")
     func idempotent() {
-        storage.recordDailyCleared(dayIndex: 10)
-        storage.recordDailyCleared(dayIndex: 10)
+        storage.recordDailyCleared(dayIndex: 10, todayIndex: 10, fromArchive: false)
+        storage.recordDailyCleared(dayIndex: 10, todayIndex: 10, fromArchive: false)
         #expect(storage.currentStreak(todayIndex: 10) == 1)
     }
 
     @Test("yesterday's clear still counts today, an older one does not")
     func staleness() {
-        storage.recordDailyCleared(dayIndex: 10)
+        storage.recordDailyCleared(dayIndex: 10, todayIndex: 10, fromArchive: false)
         #expect(storage.currentStreak(todayIndex: 11) == 1)  // yesterday, still live
         #expect(storage.currentStreak(todayIndex: 12) == 0)  // missed a day, broken
     }
@@ -182,7 +182,7 @@ struct StorageEpochTests {
 
         let key = dayIndex(today, epoch: storageEpoch, timeZone: utc)
         storage.saveDayProgress(dayIndex: key, sourceWord: "motorway", found: ["tram", "moray"])
-        storage.recordDailyCleared(dayIndex: key)
+        storage.recordDailyCleared(dayIndex: key, todayIndex: key, fromArchive: false)
 
         // A regeneration moves the daily epoch. Recompute the storage key the
         // way the app does, which does not consult dailyEpoch at all.
@@ -191,5 +191,205 @@ struct StorageEpochTests {
         #expect(storage.loadDayProgress(dayIndex: keyAfter, sourceWord: "motorway")
                 == ["tram", "moray"])
         #expect(storage.currentStreak(todayIndex: keyAfter) == 1)
+    }
+}
+
+/// The one-time streak transfer from the web build.
+///
+/// The two surfaces key days off the same fixed `storageEpoch`, so an incoming
+/// `lastClearedDayIndex` is directly comparable with no translation. These
+/// tests are the accept rule; the transfer is a throwaway path, but the rule it
+/// runs on is not, which is why it lives in `GameStorage` rather than in a URL
+/// handler where nothing could reach it.
+@Suite("adopting a transferred streak")
+struct AdoptStreakTests {
+    let store = InMemoryStore()
+    var storage: GameStorage { GameStorage(store: store) }
+
+    private let today = 220
+
+    @Test("a live, higher streak is adopted, both fields")
+    func adoptsLiveHigher() {
+        let s = storage
+        #expect(s.adoptStreak(count: 53, lastClearedDayIndex: today, todayIndex: today))
+        #expect(s.currentStreak(todayIndex: today) == 53)
+        // Tomorrow is the field that would be missing if only the count crossed:
+        // with lastCleared carried, clearing tomorrow extends rather than resets.
+        s.recordDailyCleared(dayIndex: today + 1, todayIndex: today + 1, fromArchive: false)
+        #expect(s.currentStreak(todayIndex: today + 1) == 54)
+    }
+
+    /// The failure the transfer exists to avoid, in the form it would take if
+    /// only `count` crossed: a 53 with no idea when it was last extended reads
+    /// as broken the next morning and restarts at 1.
+    @Test("a streak that stopped days ago is rejected, however large")
+    func rejectsDead() {
+        let s = storage
+        #expect(s.adoptStreak(count: 53, lastClearedDayIndex: today - 7, todayIndex: today) == false)
+        #expect(s.currentStreak(todayIndex: today) == 0)
+    }
+
+    /// Yesterday still counts as live: the rule is `last >= today - 1`, the same
+    /// one `currentStreak` reads. A player who cleared yesterday and has not
+    /// played yet today has not broken anything.
+    @Test("yesterday counts as live")
+    func yesterdayIsLive() {
+        let s = storage
+        #expect(s.adoptStreak(count: 12, lastClearedDayIndex: today - 1, todayIndex: today))
+        #expect(s.currentStreak(todayIndex: today) == 12)
+    }
+
+    /// The case that makes the comparison read `currentStreak` rather than the
+    /// stored `count`. A stored 12 that stopped a week ago has an effective
+    /// value of 0, so a live 53 must win. Comparing raw counts would reject it.
+    @Test("a live streak beats a larger stored streak that is itself dead")
+    func liveBeatsDeadStored() {
+        let s = storage
+        s.recordDailyCleared(dayIndex: today - 8, todayIndex: today - 8, fromArchive: false)
+        for d in (today - 7)...(today - 5) { s.recordDailyCleared(dayIndex: d, todayIndex: d, fromArchive: false) }
+        #expect(s.currentStreak(todayIndex: today) == 0)   // dead, though count is 4
+
+        #expect(s.adoptStreak(count: 53, lastClearedDayIndex: today, todayIndex: today))
+        #expect(s.currentStreak(todayIndex: today) == 53)
+    }
+
+    @Test("a smaller live streak never overwrites a larger one")
+    func rejectsSmaller() {
+        let s = storage
+        s.recordDailyCleared(dayIndex: today, todayIndex: today, fromArchive: false)
+        #expect(s.adoptStreak(count: 1, lastClearedDayIndex: today, todayIndex: today) == false)
+        #expect(s.currentStreak(todayIndex: today) == 1)
+    }
+
+    /// Equal is rejected, not merely "not an improvement".
+    ///
+    /// Adopting an equal streak can cost a day: a stored 9 last cleared
+    /// yesterday, overwritten by an incoming 9 last cleared today, would make
+    /// today's clear on this device a no-op instead of the tenth day.
+    @Test("an equal streak is rejected, because adopting it can cost a day")
+    func rejectsEqual() {
+        let s = storage
+        s.recordDailyCleared(dayIndex: today - 1, todayIndex: today - 1, fromArchive: false)
+        s.adoptStreak(count: 9, lastClearedDayIndex: today - 1, todayIndex: today - 1)
+        #expect(s.currentStreak(todayIndex: today) == 9)
+
+        #expect(s.adoptStreak(count: 9, lastClearedDayIndex: today, todayIndex: today) == false)
+        // Today is still available to extend, which adopting would have spent.
+        s.recordDailyCleared(dayIndex: today, todayIndex: today, fromArchive: false)
+        #expect(s.currentStreak(todayIndex: today) == 10)
+    }
+
+    /// Transferring with today already complete on the other surface. The path
+    /// exists because she may well play on web in the morning and transfer in
+    /// the evening, and it had never been exercised on either surface.
+    @Test("playing today after transferring a streak that already counts today")
+    func todayAlreadyCountedDoesNotDoubleCount() {
+        let s = storage
+        #expect(s.adoptStreak(count: 53, lastClearedDayIndex: today, todayIndex: today))
+
+        // She then plays today here too and reaches the streak rank.
+        s.recordDailyCleared(dayIndex: today, todayIndex: today, fromArchive: false)
+        #expect(s.currentStreak(todayIndex: today) == 53)   // not 54
+
+        // And tomorrow still extends normally.
+        s.recordDailyCleared(dayIndex: today + 1, todayIndex: today + 1, fromArchive: false)
+        #expect(s.currentStreak(todayIndex: today + 1) == 54)
+    }
+
+    @Test("a streak from the future is rejected")
+    func rejectsFuture() {
+        let s = storage
+        // Clocks disagree, or someone typed a number in. Either way this is not
+        // a day that has happened, and accepting it would freeze the streak:
+        // every real day after it would read as already recorded or as a gap.
+        #expect(s.adoptStreak(count: 99, lastClearedDayIndex: today + 1, todayIndex: today) == false)
+        #expect(s.currentStreak(todayIndex: today) == 0)
+    }
+
+    @Test("a non-positive count is rejected")
+    func rejectsNonPositive() {
+        let s = storage
+        #expect(s.adoptStreak(count: 0, lastClearedDayIndex: today, todayIndex: today) == false)
+        #expect(s.adoptStreak(count: -5, lastClearedDayIndex: today, todayIndex: today) == false)
+        #expect(s.currentStreak(todayIndex: today) == 0)
+    }
+
+    @Test("adopting leaves day progress alone")
+    func leavesProgressAlone() {
+        let s = storage
+        s.saveDayProgress(dayIndex: today, sourceWord: "motorway", found: ["tram"])
+        #expect(s.adoptStreak(count: 53, lastClearedDayIndex: today, todayIndex: today))
+        #expect(s.loadDayProgress(dayIndex: today, sourceWord: "motorway") == ["tram"])
+    }
+}
+
+/// What a rollover does to what is already on disk.
+///
+/// The app now rebuilds the board when it is foregrounded on a later day, which
+/// is the first path that changes the day index without a fresh launch. Two
+/// things were worth checking rather than assuming, because both are places a
+/// mistake would lose something a player earned.
+@Suite("a day rolling over under a running app")
+struct RolloverTests {
+    let store = InMemoryStore()
+    var storage: GameStorage { GameStorage(store: store) }
+
+    private let yesterday = 219
+    private let today = 220
+
+    /// Progress is written on every find, under the day the board was built
+    /// for, so a rollover has nothing to save. This says so rather than
+    /// trusting it: it is the case where a mistake costs her a day's words.
+    @Test("yesterday's words are already saved, and the new day starts empty")
+    func yesterdayIsSafe() {
+        let s = storage
+        s.saveDayProgress(dayIndex: yesterday, sourceWord: "yesterda",
+                          found: ["yes", "day", "stay"])
+
+        // The rollover loads the new day's key with the new day's word.
+        #expect(s.loadDayProgress(dayIndex: today, sourceWord: "motorway") == [])
+        // And yesterday is untouched, which is what makes the empty board above
+        // a fresh start rather than a loss.
+        #expect(s.loadDayProgress(dayIndex: yesterday, sourceWord: "yesterda")
+                == ["yes", "day", "stay"])
+    }
+
+    /// The streak reads from `lastClearedDayIndex`, and this is the first code
+    /// path that moves the day under it without relaunching.
+    @Test("a streak cleared yesterday survives the rollover and extends today")
+    func streakSurvives() {
+        let s = storage
+        s.recordDailyCleared(dayIndex: yesterday - 1, todayIndex: yesterday - 1, fromArchive: false)
+        s.recordDailyCleared(dayIndex: yesterday, todayIndex: yesterday, fromArchive: false)
+        #expect(s.currentStreak(todayIndex: yesterday) == 2)
+
+        // The app comes back on a new day and asks again with the new index.
+        #expect(s.currentStreak(todayIndex: today) == 2,
+                "yesterday's clear should still count on the morning after")
+
+        // And clearing the new day extends rather than restarts, which is the
+        // half that would break if a rollover reset anything.
+        s.recordDailyCleared(dayIndex: today, todayIndex: today, fromArchive: false)
+        #expect(s.currentStreak(todayIndex: today) == 3)
+    }
+
+    /// The failure the rollover would cause if it forgot the once-per-session
+    /// guard: the new day's first clear dropped, because the flag still said
+    /// this session had already recorded one.
+    ///
+    /// The guard lives in `GameModel`, which this bundle cannot import, so what
+    /// is asserted here is the storage half: recording the same day twice is a
+    /// no-op, and recording a *different* day is not, so nothing in storage
+    /// stops the new day being recorded. If the streak fails to move on the
+    /// morning after, the flag is where to look.
+    @Test("recording the new day is not blocked by yesterday's record")
+    func newDayCanStillBeRecorded() {
+        let s = storage
+        s.recordDailyCleared(dayIndex: yesterday, todayIndex: yesterday, fromArchive: false)
+        s.recordDailyCleared(dayIndex: yesterday, todayIndex: yesterday, fromArchive: false)      // twice, still one day
+        #expect(s.currentStreak(todayIndex: yesterday) == 1)
+
+        s.recordDailyCleared(dayIndex: today, todayIndex: today, fromArchive: false)
+        #expect(s.currentStreak(todayIndex: today) == 2)
     }
 }

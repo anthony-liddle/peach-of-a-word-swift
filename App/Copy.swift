@@ -75,11 +75,124 @@ enum Vocabulary {
     /// `themeCopy.ts:185` and calls it mirrored rather than translated.
     static let emptyFoundList = "No words picked yet. The \(container) is empty."
 
+    // MARK: - How the words work
+
+    /// The explainer's title. Sentence case, matching the colophon's trigger
+    /// and the app's other headings. The web's dialog title is title case while
+    /// its own trigger is sentence case, which is an inconsistency there rather
+    /// than a style to carry over.
+    static let explainerTitle = "How the words work"
+
+    /// The colophon's quiet way in.
+    static let explainerTrigger = "How the words work"
+
+    /// The explainer body, ported from the web's `HowItWorks.tsx`.
+    ///
+    /// **Substituted rather than copied, and the noun is the reason.** The web's
+    /// body is not themed at all: there is no `themeCopy.ts` entry for it, and
+    /// it says "the day's set" and "outside the set" in both themes. This app
+    /// never says set to a player. Its word for that collection is the
+    /// `container` above, so the paragraphs are built from it and the
+    /// substitution is one value rather than a dozen edits, which is why the
+    /// noun lives in this file at all.
+    ///
+    /// Nothing else is reworded. The rung names carry over untouched, since
+    /// Uncommon, Rare and Mythic are shared vocabulary.
+    ///
+    /// **The number is 427,000 and the web's 430,000 is wrong.** Both surfaces
+    /// ship `boundary: 426900` in `meta.json`. Hardcoded rather than read from
+    /// that file: an approximate number that is right beats a live number that
+    /// couples a sentence of prose to a data file, and this sentence only ever
+    /// wanted a sense of scale.
+    ///
+    /// The claims here are load-bearing and are asserted by
+    /// `ExplainerClaimsTests`. The web pins the same ones in
+    /// `HowItWorks.test.tsx`, on the model rather than the wording.
+    static let explainerParagraphs: [String] = [
+        "Every puzzle is built from two word lists doing different jobs.",
+
+        "ENABLE and SCOWL, together with a small patch list we keep by hand, "
+        + "decide what counts as a word: about 427,000 of them. Almost anything "
+        + "real you type is accepted. You will rarely be told a real word is "
+        + "not a word.",
+
+        "SCOWL also sorts those words into bands by how common they are, from "
+        + "everyday to obscure. The common band makes up the day's \(container), "
+        + "and the bands past it decide how rare everything else is.",
+
+        "The day's eight letters come from a common eight-letter word, chosen "
+        + "and checked ahead of time, and the same for everyone that day. The "
+        + "\(container) is every common word those letters can spell.",
+
+        "The goal is a ladder of named ranks, climbed by points. Every valid "
+        + "word moves you up, and rarer words move you further. Above the "
+        + "ladder sits completion: finding every common word the letters can "
+        + "spell. It is reachable, rare, and never required for a day to feel "
+        + "good.",
+
+        "Words you find beyond the \(container) are graded by how far past "
+        + "common they sit: Uncommon, then Rare, then Mythic, the deeper into "
+        + "the dictionary you go. They all score. They are not lesser, they are "
+        + "extra.",
+
+        "A word can feel common to you and still land outside the "
+        + "\(container). That is not your instinct being wrong. Common here is "
+        + "a statistical line drawn across a word list, and a statistical line "
+        + "does not always agree with a real person's vocabulary. A word you "
+        + "use every week can sit just outside the band. When that happens, you "
+        + "still found a real word. It simply was not on today's short list.",
+    ]
+
+    /// The two lists the explainer names, and where to read about them.
+    ///
+    /// **These links carry no licence obligation.** The attribution is already
+    /// discharged twice over: the colophon credits ENABLE and SCOWL on screen,
+    /// and `Data/ATTRIBUTION.md` ships inside the bundle carrying the notices.
+    /// These are here because they are interesting. Keeping that straight
+    /// matters, because an explainer that quietly becomes a second attribution
+    /// surface is one that can drift from the first without anyone noticing.
+    static let explainerLinks: [(name: String, url: String)] = [
+        ("ENABLE",
+         "https://www.bananagrammer.com/2013/12/the-amazing-enable-word-list-project.html"),
+        // Classic SCOWL (v1), not its renamed successor ESDB. The homepage now
+        // leads with ESDB, but this game uses v1: Mythic is defined as valid in
+        // ENABLE and beyond SCOWL size 95, and ESDB dropped the size 95 level.
+        // Same link and the same reason as the web's.
+        ("SCOWL", "https://wordlist.aspell.net/scowl_v1-readme/"),
+    ]
+
+    /// The legend's caption and the one label in it that carries the metaphor.
+    ///
+    /// The rung names are shared vocabulary and the source word is called the
+    /// source word on both surfaces; only the set's own name is themed, which
+    /// is why this is the single string here rather than five.
+    static let legendCaption = "Key"
+    static let keyInContainer = "in the \(container)"
+    static let keySourceWord = "source word"
+
+    /// The found list's heading, mirroring the web's `glossaryTitle`.
+    ///
+    /// The app had no heading at all, which is one of the three ways Bea
+    /// noticed the list not matching the web. Built from `container` like the
+    /// rest, so the noun stays swappable in one place.
+    static let glossaryTitle = "The \(container)"
+
     /// The kicker above the word on the source-word reveal card.
     static let revealKicker = "The peach every word grew from"
 
-    /// The reveal card's way back to the board.
+    /// The way back to the board, from a card the board presented.
     static let revealClose = "Back to the \(container)"
+
+    /// The way back to a rung's list, from a definition opened inside it.
+    ///
+    /// **Named rather than generic.** A bare "Back" is the obvious fix and it
+    /// is system language in a game that deliberately does not speak it.
+    /// Naming the rung is both truthful and in voice.
+    ///
+    /// The rung names are shared vocabulary rather than cute inventions, so
+    /// they are passed in rather than listed again here; `FoundSummary` owns
+    /// the list of them.
+    static func closeToRung(_ name: String) -> String { "Back to \(name)" }
 
     /// Shown in place of the next rank once the ladder is topped out.
     ///
@@ -101,6 +214,59 @@ enum Vocabulary {
     /// The row competes with the percentage and the streak, both of which grow
     /// too, so the budget is smaller than the caption alone suggests.
     static let ladderPeak = "\(containerCapitalized) full"
+
+    // MARK: - The archive
+
+    /// What the calendar of past boards is called, and the label on the control
+    /// that opens it.
+    ///
+    /// Plain rather than themed. "Past days" says what it is at a glance and
+    /// survives being read aloud by VoiceOver, where a cute noun would have to be
+    /// decoded first. The basket vocabulary is for the thing you fill, not for
+    /// the way back to a day you already filled.
+    static let archiveTitle = "Past days"
+    // Spoken as "Previous month, August 2026", so the button says where it goes
+    // rather than which way it points.
+    static let archivePreviousMonth = "Previous month"
+    static let archiveNextMonth = "Next month"
+    static let archiveNoEarlierMonth = "no earlier month"
+    static let archiveNoLaterMonth = "no later month"
+
+    /// The six states, as a player reads them. Also the VoiceOver text, so the
+    /// screen and the announcement cannot say different things.
+    /// An empty past day.
+    ///
+    /// **"Not played" claimed a fact the app does not have.** The empty cells on
+    /// Bea's calendar are the days before her transferred run, and she may well
+    /// have played every one of them on the web: the transfer carries two bits
+    /// and only one survived. Saying "not played" about those is the same
+    /// mistake as marking transferred days as lesser, from the other direction.
+    ///
+    /// The boards are still there and still playable, so this says the thing
+    /// that is true of every empty cell regardless of what happened on the web.
+    static let markNoRecord = "Still on the tree"
+    static let markIncomplete = "Started"
+    static let markCleared = "Finished"
+    static let markBasket = "\(containerCapitalized) full"
+    static let markNotYet = "Not yet"
+    /// Said after the state, so "Finished, caught up later" reads as one phrase.
+    static let markCaughtUpLater = "caught up later"
+    /// Said of a day the streak's run establishes and nothing else does.
+    ///
+    /// **Not "played on the web", which is what this said and could not know.**
+    /// The run expanded on first launch covers the transfer and every day played
+    /// here since, and the record cannot tell them apart. This says the thing
+    /// that is true of all of them.
+    static let markFromStreak = "kept by your streak"
+    static let markToday = "today"
+
+    /// The way back from a past board.
+    ///
+    /// Text rather than an icon, because a date is information and this is the
+    /// action, and the two sat as two calendar glyphs in the same row before:
+    /// one beside the points and one beside the date, two affordances for one
+    /// thing to do.
+    static let backToToday = "Back to today"
 
     /// The completion card's one line.
     static let completionLine = "Every common word these letters can grow, picked."

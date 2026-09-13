@@ -12,6 +12,20 @@ struct TierMeterView: View {
     let standing: TierStanding
     let streak: Int
 
+    /// The day this board belongs to, when it is not today's.
+    ///
+    /// Nil for the live daily. Non-nil turns the caption's trailing slot from
+    /// the streak into the date, which is two fixes in one: a past board gets
+    /// the "which day am I on" signal it otherwise has nowhere to put, and the
+    /// streak stops being shown beside a board it has nothing to do with.
+    var archiveDate: Date?
+
+    /// Opens the calendar of past days.
+    var onOpenArchive: () -> Void = {}
+
+    /// Leaves a past board for the live daily.
+    var onReturnToToday: () -> Void = {}
+
     /// Off-page points can push the score past reachable. The bar fills to full
     /// and the named rank caps at the top; the overflow is the climb toward the
     /// completion peak, which this bar does not measure.
@@ -43,7 +57,31 @@ struct TierMeterView: View {
                     .font(CuteFont.body(15, weight: "Bold", relativeTo: .subheadline))
                     .foregroundStyle(Cute.ink)
                     .monospacedDigit()
+                    .accessibilityIdentifier("MeterPoints")
+                    // **Overlaid on the points total, not on the row.**
+                    //
+                    // Anchoring to the row centres the glyph on the row, and the
+                    // row is not what it should line up with: the HStack aligns
+                    // its two texts on their first baseline, so an 18pt rank
+                    // label and a 15pt points total have different centres, and
+                    // the row's centre is neither. That left the glyph 1.25pt
+                    // off at default and 1.75pt at XXXL after it was moved off
+                    // the meter's corner, where it had been 9.25pt off.
+                    //
+                    // Overlaid on the points total itself, the vertical answer
+                    // is exact at every text size by construction. The offset
+                    // then puts it back where it was horizontally: the box's
+                    // trailing edge lands on the column edge, inside the width
+                    // the row reserves above.
+                    .overlay(alignment: .trailing) {
+                        archiveButton.offset(x: archiveReserve)
+                    }
             }
+            // Width reserved for the archive button, which is drawn as an
+            // overlay rather than as a third item in this row. See
+            // `archiveButton` for why.
+            .padding(.trailing, archiveReserve)
+            // The glyph rides the points total inside this row; see there.
 
             track
 
@@ -57,7 +95,12 @@ struct TierMeterView: View {
                 Text("\(percent)%")
                     .monospacedDigit()
                 Group {
-                    if let next = standing.next {
+                    if archiveDate != nil {
+                        // Yields. Three tenants do not fit one reserved
+                        // line at XXXL, and this is the one the bar
+                        // directly above already says.
+                        EmptyView()
+                    } else if let next = standing.next {
                         Text("Next: \(Vocabulary.tierNames[next.index]) at \(Int((next.threshold * 100).rounded()))%")
                     } else {
                         // "Top rank" is enough. The explanation that the full
@@ -67,7 +110,34 @@ struct TierMeterView: View {
                     }
                 }
                 Spacer(minLength: 4)
-                if streak > 0 {
+                if let archiveDate {
+                    // The date and the way back live in the caption's own row.
+                    //
+                    // **A row of their own was built first, then measured out of
+                    // existence.** `LayoutBudget.testArchiveSweep` priced it at
+                    // 24.5, 27.5 and 22.5 points on an iPhone SE 3, taking the
+                    // list from 150.00 to 125.50 at L and from 86.50 at XXXL
+                    // into the scrolling fallback. XXXL has about sixteen points
+                    // of slack and one line of text at that size already costs
+                    // sixteen, so a second text row does not fit on that phone
+                    // at all: the shape asked for does not exist there.
+                    //
+                    // This row is reserved height already paid for, and on an
+                    // archive board its other two tenants are idle: a streak has
+                    // nothing to do with a past board, and the next rank is
+                    // legible from the bar directly above. So the date and the
+                    // way back take space rather than adding it, and the fixed
+                    // layout keeps every size it had.
+                    Text(archiveDate, format: .dateTime.weekday(.abbreviated)
+                        .day().month(.abbreviated))
+                        .accessibilityIdentifier("ArchiveDateRow")
+                    Spacer(minLength: 6)
+                    Button(action: onReturnToToday) {
+                        Text(Vocabulary.backToToday)
+                            .foregroundStyle(Cute.accentDeep)
+                    }
+                    .buttonStyle(.plain)
+                } else if streak > 0 {
                     // A flame and a number said nothing about what it counted.
                     // The word is short enough to just print.
                     HStack(spacing: 3) {
@@ -84,11 +154,75 @@ struct TierMeterView: View {
             .font(CuteFont.body(12, relativeTo: .caption))
             .foregroundStyle(Cute.inkFaint)
         }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(
-            "\(label). \(standing.score) of \(standing.reachable) points, \(percent) percent."
-            + (streak > 0 ? " Streak \(streak)." : "")
-        )
+        // The button is lifted out of the combined element, or it becomes a
+        // fragment of one long label with no way to activate it. `MessageLine`
+        // and the rack both record the same trap: a container that combines its
+        // children swallows anything tappable inside it.
+        .accessibilityElement(children: .contain)
+    }
+
+    /// Width held back on the top row so the overlay has somewhere to sit.
+    ///
+    /// Slightly under the target, because the row already ends in a gutter and
+    /// the glyph is centred in its 44pt box: reserving the full 44 would leave a
+    /// visible gap between the points total and the icon.
+    @ScaledMetric(relativeTo: .subheadline) private var archiveReserve: CGFloat = 34
+
+    /// The way in to the archive, and the only navigation affordance in the app.
+    ///
+    /// **It rides this row rather than sitting in a toolbar, and that was
+    /// measured rather than preferred.** On an iPhone SE 3 at XXXL the fixed
+    /// layout has about sixteen points of slack before it falls back to
+    /// scrolling, and the smallest real tap target is forty-four; nothing that
+    /// could hold one fits in a row of its own. A third item in an `HStack` that
+    /// already exists costs **zero vertical points** and turns the question into
+    /// width on a 375pt screen, which the `ViewThatFits` budget never sees.
+    ///
+    /// The trade is the rank label's width, and this row already competes: see
+    /// `Vocabulary.ladderPeak`, which was shortened after being measured against
+    /// the caption at accessibility sizes rather than guessed at.
+    ///
+    /// **"Costs zero vertical points" is a claim about the design and was not
+    /// true of the first implementation, which is why it was measured.** A 44pt
+    /// button placed as a third item in the top row sets that row's height to
+    /// 44, where the text alone was about 26. Measured on an iPhone SE 3 that
+    /// cost the found list 21pt at L and 13pt at XXXL, taking the XXXL cell from
+    /// 86.50 to 73.50 against a floor near 70: it still fitted, with about three
+    /// points to spare, on the cell the source already calls one small
+    /// regression away from falling back.
+    ///
+    /// Drawn as an overlay instead, and the overlay adds no height wherever it
+    /// is anchored, which is the property worth keeping.
+    ///
+    /// **It hangs off the points total, not off the meter's corner, and that
+    /// moved once.** Anchored to the corner, a 44pt box centres its glyph 22pt
+    /// down from the meter's top, where the row's text centres near 13: the
+    /// glyph sat 9.25pt below the points label and its box lay across the track.
+    /// Anchoring to the row got that to 1.25pt and no further, because the row
+    /// baseline-aligns an 18pt rank label with a 15pt points total and the row's
+    /// centre is neither of theirs. On the label itself it is exact at every
+    /// text size by construction, measured at +0.25pt at L and at XXXL.
+    ///
+    /// The row still reserves the width, so nothing is drawn over the points
+    /// total. Measured off a screenshot on an iPhone SE 3, the drawn glyph
+    /// clears the track by 9.00pt at L and 10.50pt at XXXL, and clears the
+    /// points total by 6.00pt and 14.00pt. The 44pt hit box does lie across the
+    /// track, which is not interactive and is the whole point of the overlay.
+    private var archiveButton: some View {
+        Button(action: onOpenArchive) {
+            Image(systemName: "calendar")
+                .font(CuteFont.body(15, weight: "SemiBold", relativeTo: .subheadline))
+                .foregroundStyle(Cute.accentDeep)
+                // The drawn mark, identified separately from the 44pt box around
+                // it, so a test can ask where the glyph is rather than where the
+                // hit area is. The two are allowed to differ and the difference
+                // is the whole point of the overlay.
+                .accessibilityIdentifier("ArchiveGlyph")
+                .frame(width: Cute.minTapTarget, height: Cute.minTapTarget)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(Vocabulary.archiveTitle)
     }
 
     /// Three segments fill the track: on-page set points, off-page discovery
@@ -115,6 +249,7 @@ struct TierMeterView: View {
         // session: a GeometryReader consumes all offered space rather than
         // reporting an intrinsic size.
         .frame(height: 12)
+        .accessibilityIdentifier("MeterTrack")
         .motion(Feel.settle, value: standing.score)
         .background(Cute.paperDeep)
         .clipShape(Capsule())

@@ -43,18 +43,31 @@ The full SCOWL readme and the per-source copyrights are at
 
 ## Wiktionary (definitions and etymologies)
 
-`etymology.tsv` in this directory holds a short definition and an etymology for
-820 words, covering every crown the game can deal. The text is from the English
-Wiktionary and is licensed **Creative Commons Attribution-ShareAlike 4.0**.
+Two files in this directory hold Wiktionary text, and both are licensed
+**Creative Commons Attribution-ShareAlike 4.0**.
+
+`etymology.tsv` holds a short definition and an etymology for 820 words,
+covering every crown the game can deal.
+
+`definitions.tsv` holds a short definition for 24,892 words: the corpus behind
+the tappable found-word chips. Every set word on every one of the 626 calendar
+racks has a row in it. That is a presence check and nothing more, and the
+distinction matters for anyone reading the number: it says each of those words
+has an entry, not that each entry is good. Some are not. The corpus is scraped
+from Wiktionary and carries what Wiktionary had.
 
 - Source: <https://en.wiktionary.org/>
 - Licence: <https://creativecommons.org/licenses/by-sa/4.0/>
 
 Share-alike applies to that text: a derivative of it has to be released under
 the same terms, and the attribution has to be visible to the player rather than
-only in a file like this one. It is. The reveal card carries the credit
-underneath the content it credits, and the colophon at the foot of the found
-list carries it for the app as a whole.
+only in a file like this one. It is. Each reveal card carries the credit
+underneath the content it credits, naming what it actually shows, and the
+colophon at the foot of the found list carries it for the app as a whole.
+
+A card with nothing to show carries no credit. Crediting a source that was not
+used would be worse than saying nothing, which is the same argument the section
+below records this file having made once already.
 
 **This section used to say the opposite**, and the earlier wording is worth
 knowing rather than overwriting silently. Until 2026-08-14 this file recorded

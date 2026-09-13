@@ -23,32 +23,124 @@ struct ContentView: View {
     /// of chips. Scales with Dynamic Type, because a floor in fixed points
     /// would itself be crushed at large sizes.
     ///
-    /// **This floor decides that a 667pt phone scrolls at every text size**,
-    /// including the default, where it previously used the fixed layout. That
-    /// was considered and kept, for two reasons.
+    /// **This floor used to decide that a 667pt phone scrolled at every text
+    /// size. It no longer does, and the reasoning that accepted that outcome
+    /// has been overtaken rather than overruled.**
     ///
-    /// The 40pt it had there was never a list. It was a heading and a clipped
-    /// word row, and trading a real list for a touch-down commit on the one
-    /// phone that cannot display the list is the wrong way round. The
-    /// complaint that started this work was about flow while composing, which
-    /// a 40pt viewport does not help either.
+    /// The argument was that the 40pt the SE got from the fixed layout "was
+    /// never a list", so trading a real list for the touch-down commit on the
+    /// one phone that could not show a list was the wrong way round. That was
+    /// correct about 40pt. After the chrome reclaim (the wordmark and the
+    /// message row, 61.67pt on a 390pt phone) the same phone measures
+    /// **107.5pt of list at default size**, which is more than two and a half
+    /// times what the argument was written about. The premise changed, so the
+    /// conclusion changed with it, and the SE now takes the fixed layout at L,
+    /// XL and XXL.
     ///
-    /// It also gives that phone **one layout instead of two**, so it never
-    /// switches regimes as text size changes. That is the same "same shape at
-    /// every size" property that made the fixed layout attractive in the first
-    /// place, and a short phone is the one device that can actually have it.
-    /// Two regimes with a boundary nobody could observe is what produced the
-    /// untestable path this replaces.
+    /// **The cost is the other half of the old argument, and it is real.** That
+    /// phone no longer has one layout at every size: it switches regimes
+    /// between XXL and XXXL. "Same shape at every size" was a genuine property
+    /// and it has been spent to buy a usable list and the touch-down commit at
+    /// the three sizes most people actually use. Flagged here rather than
+    /// smoothed over, because it was a deliberate decision once and is now a
+    /// consequence of a different one.
+    ///
+    /// What has not changed is what the floor is for: it makes "fits" mean
+    /// "fits with a list worth having" rather than "fits with the list crushed
+    /// to nothing". On the SE at XXL that is doing visible work, holding the
+    /// list at 63.5pt, which is the tightest cell in the whole matrix and sits
+    /// essentially on the floor itself. That phone at that size is one small
+    /// regression away from falling back, which is the floor working rather
+    /// than a problem, but it is the cell to re-measure after any change to the
+    /// furniture above it.
+    ///
+    /// **Re-measured when the controls moved up under the rack, and it held at
+    /// 63.5pt.** That move reorders the furniture without changing how much of
+    /// it there is, so this cell was expected to be untouched and is. Recorded
+    /// because the instruction above is to re-measure rather than to reason,
+    /// and a re-measurement that confirms the prediction is still the thing
+    /// that was asked for.
     @ScaledMetric(relativeTo: .body) private var minimumListHeight: CGFloat = 52
-    #if TAP_RECORDER
+    /// Foreground and background transitions.
+    ///
+    /// Was declared only for the tap recorder. The shipping build needs it too
+    /// now: coming back to the app is where the day catches up, and that is not
+    /// a diagnostic concern.
     @Environment(\.scenePhase) private var scenePhase
-    #endif
+
+    /// Whether the calendar of past days is on screen.
+    /// The archive, and the height it was measured at, as one value.
+    ///
+    /// **Not a flag and a separate height, because the two have to arrive
+    /// together.** Measuring when the sheet is asked for means the height
+    /// changes in the same turn the sheet appears, and a detent set that only
+    /// becomes right as the sheet presents does not take: the sheet came up
+    /// large on a phone the rule had just said could keep the card, with 576.0
+    /// sitting in state and one height detent reaching the modifier. Carrying
+    /// the height in the presented value hands it to the sheet as it is built
+    /// rather than asking the view to have caught up.
+    private struct ArchivePresentation: Identifiable {
+        let id = UUID()
+        /// nil means the large detent, which is the sheet unscaled.
+        let height: CGFloat?
+    }
+
+    @State private var archivePresentation: ArchivePresentation?
+
+    /// The width the sheet will be laid out in, which on iPhone is the screen's.
+    @State private var archiveWidth: CGFloat = 0
+
+    /// Whether the app has been away since launch.
+    ///
+    /// Only the debug clock needs this; the rollover itself is safe on any
+    /// activation, since it compares the day and does nothing when it matches.
+    @State private var wentAway = false
 
     /// `storage` is injectable so a preview does not scribble on the real
     /// UserDefaults every time the canvas re-renders.
     init(debugSeed: String? = nil, storage: GameStorage = .appDefault) {
         self.debugSeed = debugSeed
         _model = State(initialValue: GameModel(storage: storage))
+    }
+
+    /// One month's worth of sheet, or the large detent when a month cannot fit.
+    private func archiveDetents(_ height: CGFloat?) -> Set<PresentationDetent> {
+        guard let height else { return [.large] }
+        return [.height(height)]
+    }
+
+    /// Opens the archive, taking its height first.
+    ///
+    /// **The measurement belongs here and not at launch.** It walks the whole
+    /// archive and lays the sheet out in a hosting controller, and doing that
+    /// when the width first became known put both on the launch path of a
+    /// session that may never open the calendar. Taken here it still lands
+    /// before the sheet's first frame, because this runs in the same update
+    /// that presents it.
+    private func openArchive() {
+        // The width can still be unread here: the archive is reachable in the
+        // same turn the app appears, and a zero width makes the rule compute an
+        // 18pt cell and refuse the card on every phone.
+        let width = archiveWidth > 0 ? archiveWidth : ArchiveSheet.windowWidth
+        archivePresentation = ArchivePresentation(height: archiveHeight(width: width))
+    }
+
+    /// The height this opening wants, or nil for the large detent.
+    private func archiveHeight(width: CGFloat) -> CGFloat? {
+        // No height means the large detent, which is the sheet unscaled.
+        //
+        // Two reasons to refuse the fitted card. At accessibility sizes a month
+        // does not fit whatever the sheet is given. And on a narrow screen the
+        // card's own scaling takes the day cells under the tap target: 44.14pt
+        // laid out reaches the glass at 42.12pt on both 375pt phones. The empty
+        // space the card was for is worth less than a grid you can hit.
+        guard !dynamicTypeSize.isAccessibilitySize,
+              ArchiveSheet.cardKeepsTheTapTarget(width: width) else { return nil }
+        return ArchiveSheet.fittedHeight(
+            width: width,
+            days: model.archiveDays(),
+            canPlay: model.canPlayArchive,
+            dynamicTypeSize: dynamicTypeSize)
     }
 
     var body: some View {
@@ -63,6 +155,7 @@ struct ContentView: View {
                 // it is also where the dictionary load hides.
                 VStack(spacing: 18) {
                     PeachMark().frame(width: 72, height: 72)
+                    wordmark
                     Text(Vocabulary.mastheadSubline)
                         .font(CuteFont.body(12, weight: "SemiBold", relativeTo: .caption))
                         .tracking(4.4)
@@ -96,12 +189,28 @@ struct ContentView: View {
             Group {
                 switch moment {
                 case .sourceWord(let word):
-                    SourceRevealCard(
-                        word: word,
-                        entry: model.sourceEntries[word]
-                    ) { model.moment = nil }
+                    let entry = model.sourceEntries[word]
+                    SourceRevealCard(word: word, entry: entry) { model.moment = nil }
+                        // Large only, and the board is covered whenever this is
+                        // up. No crown carrying an entry has ever fitted the
+                        // medium detent, and 615 of 626 carry one, so offering
+                        // medium was offering a height that truncated almost
+                        // every card. The way out is pinned inside the card
+                        // rather than depending on this, which is what makes
+                        // the long ones usable. See `SourceRevealCard`.
+                        .presentationDetents([.large])
                 case .completion(let setTotal, let score):
                     CompletionCard(setTotal: setTotal, score: score) { model.moment = nil }
+                        .presentationDetents([.medium, .large])
+                case .definition(let word, let category):
+                    // `DefinitionSheet` rather than `DefinitionCard`, because a
+                    // rung sheet now opens the same card and two constructions
+                    // would be free to drift. See `DefinitionSheet`.
+                    DefinitionSheet(
+                        word: word,
+                        category: category,
+                        definition: model.definitions[word]
+                    ) { model.moment = nil }
                 }
             }
             // Medium rather than full, so the board stays visible behind it and
@@ -111,15 +220,20 @@ struct ContentView: View {
             // Large is offered as well as medium, so accessibility text sizes
             // have somewhere to go rather than being squeezed into a fixed
             // height.
-            .presentationDetents([.medium, .large])
+            //
+            // Set per card rather than once for all three, because the source
+            // reveal now decides its own from its content. The other two are
+            // unchanged and carry the pair explicitly, so that this comment
+            // still describes what they do.
             .presentationDragIndicator(.visible)
         }
         // The feedback line, spoken.
         //
-        // `MessageLine` is hidden from the accessibility tree, so before this
-        // there was no way to hear a rejected guess at all. Posted here rather
-        // than from the row because the row is instantiated twice, once per arm
-        // of the `ViewThatFits`, and the root is instantiated once.
+        // The feedback is not in the accessibility tree: it renders inside
+        // `ComposingStick`, which ignores its children, so before this there
+        // was no way to hear a rejected guess at all. Posted here rather than
+        // from the well because the well is instantiated twice, once per arm of
+        // the `ViewThatFits`, and the root is instantiated once.
         //
         // Keyed on the counter rather than on `feedback` itself: the same word
         // rejected twice produces an equal value, which is not a change, and a
@@ -129,6 +243,57 @@ struct ContentView: View {
             guard let message = model.feedback.message else { return }
             AccessibilityNotification.Announcement(message).post()
         }
+        // The calendar of past days.
+        //
+        // A sheet rather than a pushed screen, because there is no navigation
+        // stack to push onto: the play surface has no chrome and the layout
+        // budget has no room to grow any. See `ArchiveSheet`.
+        .sheet(item: $archivePresentation) { presentation in
+            GeometryReader { sheet in
+                ArchiveSheet(
+                    width: sheet.size.width,
+                    days: model.archiveDays(),
+                    canPlay: model.canPlayArchive,
+                    onPick: { day in
+                        archivePresentation = nil
+                        Task { await model.openArchiveDay(storageDay: day) }
+                    },
+                    onClose: { archivePresentation = nil }
+                )
+                // Top aligned and painted to the edges. The sheet is sized to
+                // the content, so there is normally nothing left over, but a
+                // point or two of slack must read as sheet rather than as a
+                // band of a different colour under the way out.
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                .background(Cute.paper.ignoresSafeArea())
+            }
+            // Sized to one month below the accessibility sizes, and large above
+            // them, where a month does not fit whatever the sheet is given.
+            .presentationDetents(archiveDetents(presentation.height))
+            .presentationDragIndicator(.visible)
+        }
+        // The width the archive will get, read from the screen it will cover.
+        .background {
+            GeometryReader { screen in
+                Color.clear
+                    .onAppear { archiveWidth = screen.size.width }
+                    .onChange(of: screen.size.width) { _, width in
+                        archiveWidth = width
+                    }
+            }
+        }
+        // The one-time streak transfer from the web build. Disposable: when the
+        // handoff is done, this modifier, `StreakTransfer`, `adoptStreak`, and
+        // the CFBundleURLTypes entry in project.yml all go together.
+        //
+        // No confirmation UI on purpose. A transfer that lands shows the new
+        // number on the meter, which is the whole of what she is here for, and
+        // one that does not land leaves the number alone. Anything more would
+        // be building a feature out of a migration.
+        .onOpenURL { url in
+            guard let transfer = StreakTransfer(url: url) else { return }
+            model.adoptTransferredStreak(transfer)
+        }
         #if TAP_RECORDER
         // The window-level probe, and the flush. Backgrounding is the natural
         // end of a session: handing the phone over writes the log.
@@ -137,7 +302,51 @@ struct ContentView: View {
             if phase != .active { TapRecorder.shared.flush() }
         }
         #endif
+        // The day catches up when she comes back.
+        //
+        // `.onChange` on the phase rather than `.onAppear`, because a
+        // foregrounding app does not appear again: the view is already there
+        // with yesterday's board on it, which is exactly what she saw.
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .active else {
+                wentAway = true
+                return
+            }
+            #if DEBUG
+            // Only after actually going away. Launching runs inactive to
+            // active, which is a change like any other, so setting this on any
+            // activation moved the clock before the first board was even built
+            // and made the return a no-op: the test then failed against a
+            // working rollover.
+            if wentAway { GameModel.hasResumed = true }
+            #endif
+            Task { await model.rollOverIfNewDay() }
+        }
         .task {
+            #if DEBUG
+            // `-openArchive 1` opens the calendar at launch.
+            //
+            // The same argument as `-revealCard` and `-holdLoading`: `simctl`
+            // has no way to tap, so a sheet that only a finger can open is a
+            // sheet that can only ever be reasoned about. This is the smallest
+            // thing that makes it screenshottable, and it is the only way the
+            // grid reaches a pull request.
+            if UserDefaults.standard.bool(forKey: "openArchive") {
+                // Opened once the model says it is ready, not on appear.
+                //
+                // `-openArchiveDelay` used to hold this back by a fixed number
+                // of milliseconds, which was a guess standing in for an
+                // ordering rule. A seeded run has a real one: the seed writes
+                // the archive's input and the sheet measures itself against the
+                // result, so opening first measures an empty calendar.
+                Task { @MainActor in
+                    while case .loading = model.phase {
+                        try? await Task.sleep(nanoseconds: 20_000_000)
+                    }
+                    openArchive()
+                }
+            }
+            #endif
             #if TAP_RECORDER
             // A session marker written immediately, so the log exists before any
             // taps do. That is what makes "is the recorder actually live" a
@@ -154,6 +363,42 @@ struct ContentView: View {
         }
     }
 
+    /// The name of the game, and the only place in the app it appears.
+    ///
+    /// **Transcribed from the masthead rather than approximated**, because the
+    /// masthead is gone: it came off the play screen in the chrome reclaim, on
+    /// the argument that an app is already open, already named on the home
+    /// screen, already the thing that was tapped. That argument is about the
+    /// play screen and it does not reach here. A splash is exactly where an app
+    /// announces itself, once per session, and it was announcing everything
+    /// except its name.
+    ///
+    /// "Peach" keeps the pink oblique, which is the identifying mark and the
+    /// half of the wordmark that is not just words. `displayOblique` shears
+    /// Fredoka by hand through CoreText because Fredoka has no italic face and
+    /// `.italic()` therefore selects nothing; see `CuteFont`.
+    ///
+    /// The two halves are concatenated with `+` rather than set in an `HStack`.
+    /// That is not a style preference: `Text + Text` is one text run, so it
+    /// wraps, scales and truncates as a single unit, and the space before "of"
+    /// belongs to the run rather than to a stack's spacing. An `HStack` would
+    /// let the two halves scale independently.
+    private var wordmark: some View {
+        (Text("Peach").font(CuteFont.displayOblique(22, relativeTo: .title3))
+            .foregroundColor(Cute.accent)
+         + Text(" of a Word").font(CuteFont.display(22, relativeTo: .title3))
+            .foregroundColor(Cute.ink))
+            .lineLimit(1)
+            .minimumScaleFactor(0.7)
+            // The gutter the masthead used to inherit from its container.
+            // Transcribing the view verbatim dropped it, because the play
+            // screen padded the whole column by 18 and this splash pads
+            // nothing: at AX5 the name rendered in full and touched both
+            // bezels. Worth catching, since "exactly as the masthead had it"
+            // turns out to include the box the masthead was in.
+            .padding(.horizontal, 18)
+    }
+
     /// **A screen, not a page.**
     ///
     /// The web version is a page: it may be arrived at from anywhere, so it can
@@ -162,12 +407,23 @@ struct ContentView: View {
     /// kicker is gone, the wordmark is small, and the rack and controls fit in
     /// one view with the found list scrolling beneath.
     ///
-    /// The layout is also bottom-weighted, which pages are not. The controls are
-    /// pinned to the bottom in comfortable thumb reach, the reading material
-    /// (the found list) takes the loose middle, and the things being acted on
-    /// (well and rack) sit above it. That also gives the controls room to be
-    /// bigger, which they needed: they are the most-used targets on the screen
-    /// and were previously the smallest.
+    /// **The controls sit directly under the rack, and this reverses a decision
+    /// made deliberately when the fixed layout was built.** They used to be
+    /// pinned to the bottom edge in comfortable thumb reach, with the found
+    /// list scrolling in the loose middle between them and the rack. The
+    /// argument was that phones are bottom-weighted where pages are top-
+    /// weighted, and it is a good argument.
+    ///
+    /// It lost to two testers who reported the same friction independently and
+    /// unprompted. Words arrive in bursts, so backspace, pick word, shuffle and
+    /// clear are used *between* taps on the rack rather than after a run of
+    /// them, and a list scrolling between the two put the whole found list's
+    /// height of finger travel inside a single word. A principle about where
+    /// thumbs rest lost to two reports of what hands actually did.
+    ///
+    /// The controls keep the size that pinning them bought. They are the
+    /// most-used targets on the screen and were once the smallest; being at the
+    /// bottom was never what made them big.
     ///
     /// At accessibility text sizes none of that fits, so the whole thing becomes
     /// one scroll view instead. Dynamic Type has been regressed here once
@@ -207,20 +463,20 @@ struct ContentView: View {
         // 12pt was giving it.
         VStack(spacing: 0) {
             header
-            ComposingStick(word: model.composedWord)
+            // Feedback lives INSIDE the well now, not in a row of its own
+            // beneath it. See `ComposingStick`.
+            ComposingStick(word: model.composedWord, feedback: model.feedback,
+                               feedbackSeq: model.feedbackSeq)
                 .padding(.top, 12)
-            // Feedback lives here, directly under the well it reports on, and
-            // it lives here permanently. It previously sat between the rack and
-            // the list, immediately above the summary line, where the two read
-            // as one slot alternating between a count and a message.
-            MessageLine(feedback: model.feedback)
-                .padding(.top, 6)
             TypeCase(model: model, commitOnTouchDown: true)
                 .padding(.top, 8)
 
-            // Pinned, above the scroll rather than inside it.
-            pinnedSummary
-                .padding(.top, 10)
+            Controls(model: model)
+                // 8 rather than 10. Taken off the gap above the block rather
+                // than out of the buttons: the utility pair stands at 46pt
+                // against a 44pt minimum target, so there are two points there
+                // and they are not the two points to spend.
+                .padding(.top, 8)
 
             scrollingList
                 // The floor. Without it the list is the flexible element and
@@ -239,13 +495,6 @@ struct ContentView: View {
                        idealHeight: minimumListHeight,
                        maxHeight: .infinity)
                 .padding(.top, 6)
-
-            Controls(model: model)
-                // 8 rather than 10. Taken off the gap above the block rather
-                // than out of the buttons: the utility pair stands at 46pt
-                // against a 44pt minimum target, so there are two points there
-                // and they are not the two points to spend.
-                .padding(.top, 8)
         }
         .padding(.horizontal, 18)
         .padding(.top, 4)
@@ -262,11 +511,10 @@ struct ContentView: View {
         ScrollView {
             VStack(spacing: 14) {
                 header
-                ComposingStick(word: model.composedWord)
+                ComposingStick(word: model.composedWord, feedback: model.feedback,
+                               feedbackSeq: model.feedbackSeq)
                 TypeCase(model: model, commitOnTouchDown: false)
                 Controls(model: model)
-                MessageLine(feedback: model.feedback)
-                pinnedSummary
                 foundList
             }
             .padding(.horizontal, 18)
@@ -278,19 +526,43 @@ struct ContentView: View {
         .modifier(DebugScrollAnchor())
     }
 
+    /// The tier meter, and nothing else.
+    ///
+    /// **The wordmark is gone from the play screen**, and the `VStack` that held
+    /// it went with it rather than being left behind with one child. That second
+    /// half is the load-bearing half: a `VStack(spacing: 8)` with a single child
+    /// still allocates nothing visible but reads as a container that wants a
+    /// sibling, and the 8pt only comes back because the stack itself is gone.
+    /// Measured at 34.67pt returned on an iPhone 13 at default text size, 26.67
+    /// of wordmark and 8 of spacing; leaving the stack in place would have
+    /// quietly returned 26.67 and looked like the same change.
+    ///
+    /// The argument for cutting it was already written one level up, in `game`:
+    /// an app is already open, already named on the home screen, already the
+    /// thing that was tapped. The kicker went for that reason in an earlier
+    /// pass and the wordmark stayed on the grounds that it was small. Small is
+    /// not free on the one screen that has to hold everything at once, and this
+    /// is the cheapest 35pt on it.
+    ///
+    /// The mark is not lost from the app. `PeachMark` and the subline are on
+    /// the splash, which is where a name belongs: once per session, at the
+    /// moment the app is announcing itself, rather than permanently above a
+    /// board being played.
     private var header: some View {
-        VStack(spacing: 8) {
-            // Small. A browser tab needs a wordmark that size; an app does not.
-            // "Peach" keeps the pink oblique, which is the identifying mark.
-            (Text("Peach").font(CuteFont.displayOblique(22, relativeTo: .title3))
-                .foregroundColor(Cute.accent)
-             + Text(" of a Word").font(CuteFont.display(22, relativeTo: .title3))
-                .foregroundColor(Cute.ink))
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
-
+        Group {
             if let standing = model.standing {
-                TierMeterView(standing: standing, streak: model.streak)
+                TierMeterView(
+                    standing: standing,
+                    streak: model.streak,
+                    // Nil for the live daily, so the caption keeps the streak.
+                    archiveDate: model.isArchiveBoard ? model.boardDate : nil,
+                    onOpenArchive: {
+                        #if DEBUG
+                        #endif
+                        openArchive()
+                    },
+                    onReturnToToday: { Task { await model.returnToToday() } }
+                )
             }
         }
     }
@@ -299,37 +571,40 @@ struct ContentView: View {
         Group {
             if let puzzle = model.puzzle, let standing = model.standing {
                 FoundListView(puzzle: puzzle, found: model.found,
-                              standing: standing, boardDate: model.boardDate)
+                              standing: standing, boardDate: model.boardDate,
+                              definitions: model.definitions) { word in
+                    model.revealFound(word)
+                }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    /// The status row, outside the scroll region.
+    /// **The status row is no longer pinned, and that reverses Bea's own
+    /// earlier feedback rather than overruling it.**
     ///
-    /// **Rendered on an empty board too, showing zeros.** It used to be gated on
-    /// `!model.found.isEmpty`, and a row that is absent is a row whose height
-    /// arrives later: on a fresh day the first find inserted the row AND the
-    /// 10pt padding above it, 52.67pt measured on an iPhone 17 at default size,
-    /// which the found list absorbed by dropping its top from 512.00 to 564.67
-    /// at the moment the first word landed. Same defect class as the message
-    /// line and the tier caption, one level up: those two reserved a row that
-    /// could grow, this one hid a row that could appear.
+    /// She asked for it pinned because she missed it when it scrolled away, and
+    /// that was a correction to a call made without her. What changed is the
+    /// list rather than the preference. It was about 160pt then, sitting
+    /// between the rack and the controls; it is 257pt now and bleeds to the
+    /// screen edge, so scrolling to the counts costs less than it did.
     ///
-    /// Zeros rather than reserved blank space, because `FoundSummary` already
-    /// makes that argument about itself: it prints a rung with nothing at it as
-    /// "0 Uncommon" rather than hiding it, so the row cannot grow the first time
-    /// a Rare turns up. Hiding the whole row undid that one level up. A tally
-    /// reading zero is information; 42.67pt of nothing is not.
-    private var pinnedSummary: some View {
-        Group {
-            if let puzzle = model.puzzle, let standing = model.standing {
-                FoundSummary(puzzle: puzzle, found: model.found,
-                             standing: standing, boardDate: model.boardDate)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
+    /// It moved because she asked for something else that this was in the way
+    /// of: "I don't feel as accomplished on the app as I do on web when I can't
+    /// see my counts until I share them", and a goal that someone moving
+    /// between the two surfaces recognises where everything is. The web keeps
+    /// the heading, the counts, the best word and Share together above the
+    /// groups. Splitting the counts out to pin them was the app's own
+    /// invention, and it is what made the block unrecognisable.
+    ///
+    /// The same shape as the control reorder: both arrangements are hers, and
+    /// the axis changed rather than the taste.
+    ///
+    /// The argument the old note made still holds and is now made one level
+    /// down, in `FoundSummary` and in the found list's header: a control or a
+    /// row that appears with the first find is a row whose height arrives late,
+    /// so the zeros still print and Share is still invisible rather than
+    /// absent.
 
     /// The scrolling list, with its boundaries faded.
     ///
@@ -348,6 +623,88 @@ struct ContentView: View {
     ///
     /// The gradient is opaque through the middle and only eats the outer few
     /// points, so it never dims content that is fully in view.
+    ///
+    /// **This is now the bottom-most view, and that is worth a number rather
+    /// than a shrug.** Moving the controls up under the rack does not change
+    /// how much furniture there is, so the list was expected to measure exactly
+    /// the same and on an iPhone SE it did: 107.5 / 84.5 / 63.5 at L, XL and
+    /// XXL, unchanged to the hundredth of a point.
+    ///
+    /// **Those three numbers stopped being true, and are kept as history rather
+    /// than as measurements.** Re-measured on 2026-09-06, before the summary was
+    /// unpinned, the same phone read 97.50 at L, 73.50 at XL, and the fallback
+    /// at XXL: about 10pt shorter at the two sizes that still fitted, and one
+    /// cell already over the line the note was written to protect. Something in
+    /// the intervening week cost that 10pt and it has not been established
+    /// what; it is filed as its own investigation rather than guessed at here.
+    ///
+    /// Recorded because a number in a comment that describes something which
+    /// stopped being true is worse than no number: it is trusted at exactly the
+    /// moment it is wrong, which is the failure this project has spent a month
+    /// cataloguing.
+    ///
+    /// On an iPhone 13 the frame gained **34.00pt at every size**, and the 34
+    /// is not a coincidence: it is the bottom safe-area inset. A scroll view
+    /// sitting at the bottom edge extends its frame through the home indicator,
+    /// which is the native treatment and the reason a list runs to the edge of
+    /// the screen rather than stopping short of it. The controls could never
+    /// claim that region, because a button under the home indicator is a button
+    /// competing with a system gesture.
+    ///
+    /// **That 34pt is not 34pt of words, and the frame measurement cannot tell
+    /// you so.** Extending through the inset comes with a matching bottom
+    /// content inset, so the visible content window is exactly what it was.
+    /// Screenshotted before and after at the same seed on the same phone: both
+    /// end on the same last row, `7 letters / destine entries / also found`.
+    /// **Zero additional rows are readable at rest.** What actually changed is
+    /// that the list bleeds to the screen edge instead of stopping above a row
+    /// of buttons, which is a better treatment and is not a density win.
+    ///
+    /// Written down because "the list gets everything below the controls"
+    /// sounds like it should be worth the controls' height; because a frame
+    /// that measures 34pt taller looks like it settles the question and does
+    /// not; and because the answer on any phone with a home button is zero
+    /// either way. The layout is height-neutral by construction. This is the
+    /// one edge effect on top of it, and it is cosmetic.
+    ///
+    /// **Measured again on 2026-08-29, after Bea reported dead space at the
+    /// bottom of the screen.** The question that measurement could not answer
+    /// is what the bottom of the screen actually looks like at a given list
+    /// length, so this is that, taken off screenshots rather than off frames.
+    ///
+    /// Space below the last row of content, to the bottom safe area:
+    ///
+    ///   iPhone 16 Pro   empty board      26.0pt
+    ///                   12 words         31.0pt
+    ///                   40 words         31.0pt
+    ///                   near-complete    31.3pt
+    ///   iPhone SE 3     empty board       0.5pt
+    ///                   near-complete     0.5pt
+    ///
+    /// So it does not vary with list length, on either phone, and it is not
+    /// dead space: it is the bottom safe-area inset on the phone that has one
+    /// and nothing at all on the phone that does not. A fresh board and a
+    /// near-complete board end in the same place, because the colophon rides at
+    /// the foot of the list and fills what a short list would otherwise leave.
+    ///
+    /// One measurement worth not repeating: the largest continuous band of
+    /// blank pixels below the rack is 46pt, which looks like a finding and is
+    /// not. It sits between the label of the top control row and the label of
+    /// the bottom one, so it is the lower half of one pill, the 7pt between the
+    /// rows, and the upper half of the next. Intra-component whitespace, not a
+    /// gap in the layout.
+    ///
+    /// **The current matrix, after the summary left the fixed furniture.**
+    /// Measured on an iPhone SE 3 on 2026-09-06 by `LayoutBudget.testSweep`:
+    ///
+    ///   L      FIXED  150.00      XXXL             FIXED  86.50
+    ///   XL     FIXED  130.50      AccessibilityM   fallback
+    ///   XXL    FIXED  113.00      AccessibilityXXXL fallback
+    ///
+    /// Unpinning gave the list roughly 55pt at every size, because the summary
+    /// stopped being furniture the fixed layout had to fit around. XXL and XXXL
+    /// came back from the fallback with it, so the cell that had already
+    /// crossed the line is inside it again by a wide margin.
     private var scrollingList: some View {
         ScrollView {
             // Padding inside the scrolled content, so at rest the fade eats
@@ -399,16 +756,88 @@ private struct DebugScrollAnchor: ViewModifier {
 
 // MARK: - Compose well
 
-/// The stick: the letters placed so far, in order.
+/// The stick: the letters placed so far, in order, **and the feedback line**.
 ///
-/// One fixed height for both the empty and filled states, so the rack never
-/// shifts when the first letter lands. That is why the web pins it too.
+/// One fixed height for every state, so the rack never shifts when the first
+/// letter lands. That is why the web pins it too.
+///
+/// **The message used to have a row of its own directly beneath this one, and
+/// that row is what paid for the found list.** It cost 21pt of reserved height
+/// plus a 6pt gap, 27pt at default text size on an iPhone 13 and 31pt at XXL,
+/// for a slot that is empty most of the time. The list is the only flexible
+/// element on this screen, so every point that row held was a point the list
+/// did not get.
+///
+/// **The reserved-height discipline is not merely carried across, it gets
+/// stronger.** `MessageLine` reserved an exact 21pt so a two-line rejection
+/// could not push the rack down mid-play; `MessageLineShove` exists because
+/// that shove was real and was measured. Here the container is a fixed 58pt
+/// well that was already fixed for its own reasons, so no string can change any
+/// height at all. Reserving was a promise a frame had to keep. This is a
+/// promise the layout cannot break.
+///
+/// **Three states, one slot, and the composed word wins.** Letters if there are
+/// letters, otherwise the message, otherwise the placeholder. The well is the
+/// composing surface and a slot holds one thing, so the question is only which
+/// thing, and the answer is whatever the player is doing right now rather than
+/// what they did last.
+///
+/// That is why `GameModel.addTile` clears the feedback when a tile lands. The
+/// alternative was to leave the model's value set and merely hide it, which
+/// looks equivalent and is not: deleting back to an empty well would bring a
+/// stale rejection back, an answer to a question nobody had asked. Clearing on
+/// the first letter is the same event the player already experiences as
+/// starting over.
+///
+/// **The web keeps its message visible while composing, and that parity is
+/// deliberately not carried.** It can afford to because its message has a row
+/// of its own, and it can afford the row because the web is a page where
+/// nothing is pinned and the found list has no ceiling to run out of. That row
+/// is exactly what is being reclaimed here, so the reason the web's behaviour
+/// works is the reason it does not port. Same discipline as `RungSheet`: the
+/// reasoning carries over, the constraint does not.
+///
+/// **Two lines rather than one, which the old row could not afford.**
+/// `MessageLine` was `lineLimit(1)` with a 0.6 floor and recorded two strings
+/// that still truncate at AX5. A fixed 58pt box fits two 15pt lines with room
+/// to spare, so those strings get a second line instead of an ellipsis, and it
+/// costs nothing because the box cannot grow either way.
+///
+/// The announcement still comes from `ContentView.body`, not from here, for the
+/// same reason it never came from `MessageLine`: this view is instantiated
+/// twice, once per arm of the `ViewThatFits`, and the root exactly once.
 private struct ComposingStick: View {
     let word: String
+    var feedback: GameModel.Feedback = .none
+    /// Bumped on every resolved guess, so a rejection can be told from the same
+    /// rejection again.
+    ///
+    /// The tone alone is not enough: rejecting the same word twice produces an
+    /// equal `feedback` value, which is not a change and so animates nothing.
+    /// The web had exactly this bug and fixed it by making its tone attribute
+    /// round-trip, so a rejection, a tile, then a second rejection replays the
+    /// shake. This is the same fix in the shape this app already had lying
+    /// around for the spoken announcement.
+    var feedbackSeq: Int = 0
     @ScaledMetric(relativeTo: .title) private var height: CGFloat = 58
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var shake: CGFloat = 0
 
     private var shape: RoundedRectangle {
         RoundedRectangle(cornerRadius: Cute.cardRadius, style: .continuous)
+    }
+
+    /// Inherited from `MessageLine` unchanged: a find is the accent, an
+    /// off-page find the discovery purple, a rejection the faint ink that says
+    /// "nothing happened" without shouting about it.
+    private var tint: Color {
+        switch feedback {
+        case .none: Cute.inkFaint
+        case .accepted(_, _, let rung): rung == .set ? Cute.accent : Cute.discovery
+        case .sourceFound: Cute.accent
+        case .rejected: Cute.inkFaint
+        }
     }
 
     var body: some View {
@@ -416,7 +845,22 @@ private struct ComposingStick: View {
             shape.fill(Cute.paperDeep)
             shape.stroke(Cute.tileEdge, lineWidth: 1)
 
-            if word.isEmpty {
+            if word.isEmpty, let message = feedback.message {
+                Text(message)
+                    .font(CuteFont.body(15, relativeTo: .callout))
+                    .foregroundStyle(tint)
+                    .multilineTextAlignment(.center)
+                    // Two lines, and the same 0.6 floor the row used. Dropping
+                    // the floor further would put a 24pt glyph in front of
+                    // someone who asked for 43, which looks like it worked.
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.6)
+                    // The well is full content width, so this keeps nearly all
+                    // of the width the row had: 330pt of 354 on a 390pt phone
+                    // against the row's 354, bought back several times over by
+                    // the second line.
+                    .padding(.horizontal, 12)
+            } else if word.isEmpty {
                 // Obliqued, not `.italic()`. The web sets `.stick__empty` in
                 // italic and this line claimed to match it for months while
                 // rendering upright, because Nunito ships no italic face for
@@ -439,7 +883,47 @@ private struct ComposingStick: View {
             }
         }
         .frame(height: height)
+        // The rejection nudge, ported from the web, where Bea called it
+        // delightful and asked for it here.
+        //
+        // **Web values rather than this app's existing ones, on purpose.** The
+        // tiles already shake, at travel 4 over three cycles in 0.22s, which is
+        // a fast buzz and reads as a refusal: that tile cannot be picked. The
+        // web's `nudge` is one out-and-back of 5px over 0.32s, which reads as a
+        // headshake: that word is not a word. They are different events and
+        // they are allowed to feel different, so this matches the thing being
+        // ported rather than the nearest thing already here.
+        //
+        // **Keyed on the counter, not on the tone, and that is not what the
+        // web's markup looks like.** There, `.stick[data-tone='error']` drives
+        // the shake straight off the attribute, so reading the web today and
+        // copying its shape gives you a version keyed on the tone.
+        //
+        // That version is broken and the web only recently stopped being it.
+        // The same word rejected twice sets an equal value, which is not a
+        // change and so animates nothing: the shake fires once and then goes
+        // quiet exactly when someone is retrying. The web fixed it by making
+        // the attribute round-trip, and this app already had a counter for the
+        // spoken announcement, which is the same fix in the shape that was
+        // already here.
+        //
+        // Written down because copying what the web does now, without knowing
+        // it was wrong until recently, is the obvious way to reintroduce it.
+        // See `feedbackSeq`.
+        .modifier(ShakeEffect(travel: 5, cycles: 1, animatableData: shake))
+        .onChange(of: feedbackSeq) {
+            guard case .rejected = feedback, !reduceMotion else { return }
+            shake = 0
+            withAnimation(.easeOut(duration: 0.32)) { shake = 1 }
+        }
         .cuteSlab(shape, color: Cute.rule, y: 6)
+        // `children: .ignore`, so the message inside is not a second element to
+        // swipe past. It is already spoken, as an announcement posted the
+        // moment it lands, and this label deliberately does not repeat it:
+        // hearing every rejection twice, once when it happens and again on the
+        // next swipe, is what the old row's `accessibilityHidden(true)` was
+        // avoiding. The label describes the composing state, which is what this
+        // element is.
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(word.isEmpty
             ? "No letters picked yet"
@@ -576,6 +1060,42 @@ private struct TileButton: View {
     /// tall; capped, they draw 104 and the rack gives back 10pt across its two
     /// rows.
     ///
+    /// **92 was tried, measured, and reverted. Do not reach for it again
+    /// without reading this.** It returned 24pt at default size, and the
+    /// arithmetic is what makes it a trap: the cap constrains HEIGHT, and the
+    /// column stays 81.75pt wide whatever the tile does. So a 92pt cap draws a
+    /// 69 x 92 tile in an 81.75pt column and **the leftover 13pt per column
+    /// becomes gap**. On the phone the rack stops reading as a grid of tiles
+    /// and starts reading as tiles floating in space.
+    ///
+    /// This is the same mechanism the 118-to-104 move already flagged, where a
+    /// 14pt trim cost about 4pt of width and was recorded as a visible change
+    /// nobody asked for. At 24pt it is three times that, which is where it
+    /// crosses from unnoticed to wrong.
+    ///
+    /// **The 44pt tap floor was never the constraint** and is not what stops
+    /// this. A 69 x 92 tile is more than twice the minimum in both directions.
+    /// The constraint is that these are the most identifying objects on the
+    /// screen and the leftover width has nowhere to go.
+    ///
+    /// **This cap is also a DEFAULT-SIZE lever only, and it does not look like
+    /// one.** Measured on a 390pt phone across the 104-to-92 experiment: **24pt
+    /// returned at L, 11 at XXL, and 2 at XXXL.** The reason is `@ScaledMetric`
+    /// on this line. Dynamic Type grows the cap along with everything else, so
+    /// it climbs out of biting range while the tile's natural 3:4 height (fixed
+    /// by the column width, which does not scale) stays put. By XXXL the cap is
+    /// above the height the ratio asks for and clamps nothing at all: at 92,
+    /// `RackShape` still printed a 107.67pt tile there.
+    ///
+    /// So anyone pricing a further trim should expect it to buy points at
+    /// default size and almost nothing at the sizes where the screen is
+    /// tightest, which is the opposite of the intuition, and to pay for them in
+    /// column gap. Both halves point the same way: this is the weakest of the
+    /// levers on this screen. If large text ever needs the room, it is not this
+    /// number. It is either dropping `relativeTo:` so the cap stops scaling,
+    /// which would pin tile size against Dynamic Type and is its own argument,
+    /// or taking the points somewhere else entirely.
+    ///
     /// **It is still a cap on HEIGHT, which is why it is the safe lever.** The
     /// tile shrinks inside a column it never asked to widen, so it cannot demand
     /// width the container has not got, and the column count is not negotiated
@@ -671,16 +1191,33 @@ private struct TileButton: View {
 
 // MARK: - Controls
 
-/// Two rows, ordered by how often each action is used.
+/// Two rows, grouped by what each action does.
 ///
-/// The **primary pair (Delete, then Pick word) sits on top**, closest to the
-/// rack and the well where the action already is, and the utility pair
-/// (Shuffle, Clear) sits quietly beneath. The eye scans top to bottom and lands
-/// on the most-used actions first.
+///   Shuffle   Pick word
+///   Clear     Delete
 ///
-/// Delete comes before Submit. That ordering is not aesthetic: it came from Bea
-/// telling Antoine that delete is one of the most-used buttons and was in the
-/// wrong place. Do not reorder it.
+/// **This replaced an ordering by frequency, and both orderings are Bea's.**
+/// The rows used to be the primary pair (Delete, then Pick word) on top and the
+/// utility pair (Shuffle, Clear) beneath, so the eye met the most-used actions
+/// first. Delete sat before Submit because she told Antoine that delete is one
+/// of the most-used buttons and was in the wrong place, and the comment here
+/// used to end "do not reorder it".
+///
+/// She then asked for this arrangement, on 2026-08-27, with a reason that is
+/// not a preference: **Delete and Clear are both undo, so they belong in the
+/// same row.** Delete goes on the right because it is used more of the two, and
+/// the undo row sits below the row with Pick word in it because Pick word is
+/// the most obvious action on the screen.
+///
+/// So the axis changed rather than the taste: the old rows grouped by how often
+/// you press a thing, these group by what pressing it does. That is why the
+/// earlier instruction not to reorder is gone rather than overruled. It was
+/// protecting a decision of hers, and this is a later decision of hers.
+///
+/// Shuffle keeps the width cap that Delete used to have, for the same reason:
+/// the web gives Submit `flex: 2` against its neighbour's `flex: 1`, and
+/// capping the neighbour is the simple approximation of that ratio. Whatever
+/// shares a row with Pick word stays the smaller of the two.
 private struct Controls: View {
     let model: GameModel
 
@@ -692,20 +1229,22 @@ private struct Controls: View {
         // the space between the rows is spare, the height of the rows is not.
         VStack(spacing: 7) {
             HStack(spacing: 10) {
-                PillButton(kind: .delete, disabled: empty,
-                           label: "Delete last letter") { model.removeLast() }
-                    // The web gives Submit `flex: 2` against Delete's `flex: 1`.
-                    // Capping Delete is the simple approximation of that ratio
-                    // and holds at phone widths, which is all this targets.
+                PillButton("Shuffle", kind: .utility) { model.shuffleRack() }
+                    // The cap Delete used to carry, for the same reason: the
+                    // web gives Submit `flex: 2` against its neighbour's
+                    // `flex: 1`, and capping the neighbour approximates that
+                    // ratio at phone widths, which is all this targets.
                     .frame(maxWidth: 116)
                 PillButton(Vocabulary.submitWord, kind: .primary,
                            disabled: model.composedWord.count < minWordLength) {
                     model.submit()
                 }
             }
+            // The undo row. Delete on the right, being the more used of the two.
             HStack(spacing: 10) {
-                PillButton("Shuffle", kind: .utility) { model.shuffleRack() }
                 PillButton("Clear", kind: .utility, disabled: empty) { model.clear() }
+                PillButton(kind: .delete, disabled: empty,
+                           label: "Delete last letter") { model.removeLast() }
             }
         }
     }
@@ -801,94 +1340,6 @@ private struct PillButton: View {
     }
 }
 
-// MARK: - Message line
-
-/// The feedback slot. Blank when there is nothing to say.
-///
-/// It previously echoed the compose well's placeholder, so "Pick letters to make
-/// a word" appeared twice on screen. On the web this line only ever carries a
-/// find or a rejection.
-///
-/// **The height is reserved, which it previously only claimed to be.** The
-/// frame said `minHeight: 20`, and a minimum is a floor, not a reservation: the
-/// rejection for an unformable word wrapped to two lines and pushed the rack,
-/// the summary and the list down, mid-play, at the exact moment a finger was
-/// heading for a tile. Same defect the tier caption had, same fix, and the
-/// second half of it matters as much as the first: reserving alone turns the
-/// shove into a truncation, so the copy is cut to fit the reserved line too.
-/// See `Vocabulary` and `GameModel.resolve` for what each string had to become.
-///
-/// **VoiceOver has never heard this line, and now it does.** The row is hidden
-/// from the accessibility tree, which was defensible while it wrapped: the
-/// sentence stayed whole on screen and the slot added nothing to swipe past.
-/// Reserving the height changed that bargain. The visible line can now shrink
-/// and, at the largest text sizes, truncate, so it is the only channel for the
-/// information and it is a lossy one. The people most likely to be at those
-/// sizes are the people most likely to be using VoiceOver, which is the wrong
-/// way round. So the message is announced, from the same `Feedback.message` the
-/// row renders, which is what makes the announcement carry the whole string no
-/// matter what the row does to fit it.
-///
-/// The announcement is posted from `ContentView.body` rather than from here,
-/// and that is load bearing: this view is instantiated twice, once in each arm
-/// of the `ViewThatFits`, so announcing from inside it would be betting that
-/// SwiftUI never runs `onChange` on the arm it measured and discarded. The root
-/// exists exactly once, so there is no bet to lose.
-private struct MessageLine: View {
-    let feedback: GameModel.Feedback
-
-    /// The reserved height for the message row. One line of Nunito at 15pt
-    /// measures 21, and `@ScaledMetric` grows that with Dynamic Type, so the
-    /// row still gets bigger as the text does. What it will not do is get
-    /// bigger because of what the row happens to say.
-    @ScaledMetric(relativeTo: .callout) private var messageHeight: CGFloat = 21
-
-    private var tint: Color {
-        switch feedback {
-        case .none: Cute.inkFaint
-        case .accepted(_, _, let rung): rung == .set ? Cute.accent : Cute.discovery
-        case .sourceFound: Cute.accent
-        case .rejected: Cute.inkFaint
-        }
-    }
-
-    var body: some View {
-        // A space rather than an empty string, so the row has a baseline to
-        // sit on whatever else changes.
-        Text(feedback.message ?? " ")
-            .foregroundStyle(tint)
-            .font(CuteFont.body(15, relativeTo: .callout))
-            // 0.6 is the tier caption's allowance, and it buys a real amount
-            // here. Measured in Nunito at 339pt of content, which is 375pt of
-            // phone less the 18pt margins. That is the 13 mini, and it is the
-            // binding case rather than the SE for a reason worth writing down:
-            // the SE takes the scrolling fallback at every text size, so the
-            // fixed layout never exists there, while the mini is narrow AND
-            // tall enough to keep it. Widening this bound to a 402pt phone
-            // would be measuring the wrong device.
-            //
-            // At AX5 the two shortened rejections need 0.78 and 0.81, and the
-            // off-page find messages 0.65 and 0.72. Two strings still land
-            // under 0.6 and will truncate: the source-word line (0.56), kept
-            // deliberately because it is the game's one loaded sentence and a
-            // sheet is opening behind it anyway, and an eight-letter uncommon
-            // find (0.56), which is a format rather than a phrase. Dropping
-            // the floor to fit them would put a 24pt glyph in front of someone
-            // who asked for 43, which looks like it worked.
-            .lineLimit(1)
-            .minimumScaleFactor(0.6)
-            // Min and max both, which is how `frame` spells an exact height
-            // while taking the full width. There is no `maxWidth:height:`.
-            .frame(maxWidth: .infinity,
-                   minHeight: messageHeight, maxHeight: messageHeight)
-            // Still hidden as an element, and now that is a choice rather than
-            // a gap: the announcement above is the channel, and leaving the row
-            // in the tree as well would mean hearing every message twice, once
-            // when it lands and again on the next swipe past it.
-            .accessibilityHidden(true)
-    }
-}
-
 #Preview("Empty board") {
     ContentView(storage: GameStorage(store: InMemoryStore()))
 }
@@ -919,3 +1370,5 @@ extension GameStorage {
         #endif
     }
 }
+
+

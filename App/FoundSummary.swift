@@ -20,6 +20,9 @@ struct FoundSummary: View {
     let found: [String]
     let standing: TierStanding
     var boardDate: Date = Date()
+    /// The glosses, carried through to the rung sheet so a word listed there
+    /// can open its definition. Not used by this view itself.
+    var definitions: [String: String] = [:]
 
     /// The off-page finds bucketed by rung, alphabetical within each.
     ///
@@ -33,11 +36,12 @@ struct FoundSummary: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     init(puzzle: Puzzle, found: [String], standing: TierStanding,
-         boardDate: Date = Date()) {
+         boardDate: Date = Date(), definitions: [String: String] = [:]) {
         self.puzzle = puzzle
         self.found = found
         self.standing = standing
         self.boardDate = boardDate
+        self.definitions = definitions
         let classified = classifyFound(found, in: puzzle)
         self.allWords = classified
         var b: [WordCategory: [FoundWord]] = [.uncommon: [], .rare: [], .mythic: []]
@@ -64,25 +68,19 @@ struct FoundSummary: View {
                 RarityMark(category: .set)
                 Text("\(standing.setFound) of \(counted(standing.setTotal, "word"))")
                     .font(CuteFont.body(15, weight: "SemiBold", relativeTo: .subheadline))
-                    .foregroundStyle(Cute.ink)
+                    // The pink of the heart beside it, which is the web's
+                    // `--good`. Recorded here as pending on 2026-08-29 and
+                    // settled now: it was left alone then because it lives in
+                    // the summary, and that pass was scoped to leave the
+                    // summary alone. The summary is no longer pinned and parity
+                    // is the brief, so the scope that deferred it is gone.
+                    .foregroundStyle(Cute.accent)
                     .monospacedDigit()
                     // A stable handle for the UI tests. They used to find this
                     // label by its exact text, which embeds the day's set size,
                     // so the query only matched on days whose crown happened to
                     // have that many words. See UITests/LayoutBudget.swift.
                     .accessibilityIdentifier("FoundSummaryCount")
-                Spacer(minLength: 8)
-                // Kept in the layout on an empty board, not removed from it.
-                // The row is pinned above the list and now renders from the
-                // first launch of the day, so anything that comes and goes
-                // inside it is another way for the row to change height. There
-                // is nothing worth sharing before the first find, so the button
-                // is invisible and untappable, and its space is still spent.
-                ShareSummaryButton(puzzle: puzzle, found: found,
-                                   standing: standing, boardDate: boardDate)
-                    .opacity(found.isEmpty ? 0 : 1)
-                    .allowsHitTesting(!found.isEmpty)
-                    .accessibilityHidden(found.isEmpty)
             }
 
             // Three across normally, stacked at accessibility sizes. Side by
@@ -108,6 +106,10 @@ struct FoundSummary: View {
                 }
             }
             .font(CuteFont.body(13, relativeTo: .footnote))
+            // The rung tallies override this with the discovery ink, matching
+            // the web, where every off-page rung shares one colour across its
+            // mark, its tally and its words. This soft ink remains the default
+            // for anything else that lands in the row, and for the separators.
             .foregroundStyle(Cute.inkSoft)
         }
         #if DEBUG
@@ -127,7 +129,8 @@ struct FoundSummary: View {
             RungSheet(
                 rung: selection.category,
                 name: selection.name,
-                words: buckets[selection.category] ?? []
+                words: buckets[selection.category] ?? [],
+                definitions: definitions
             ) { openRung = nil }
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
@@ -148,6 +151,7 @@ struct FoundSummary: View {
                 RarityMark(category: category)
                 Text("0 \(name)")
             }
+            .foregroundStyle(Cute.discovery)
             .accessibilityElement(children: .combine)
         } else {
             Button {
@@ -157,6 +161,7 @@ struct FoundSummary: View {
                     RarityMark(category: category)
                     Text("\(items.count) \(name)")
                 }
+                .foregroundStyle(Cute.discovery)
                 // The visible tally stays a tally. The full target is taken by
                 // padding the hit region rather than the box, so the row keeps
                 // its height. Unlike the found-list chips, which sit at 24pt
