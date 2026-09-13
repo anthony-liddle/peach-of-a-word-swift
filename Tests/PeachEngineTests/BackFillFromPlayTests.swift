@@ -33,7 +33,7 @@ struct BackFillFromPlayTests {
     @Test("a day whose words survive keeps the basket the run cannot express")
     func basketSurvives() {
         armTheRun()
-        storage.saveDayProgress(dayIndex: 250, sourceWord: "chestnut", found: ["chest"])
+        storage.saveDayProgress(dayIndex: 250, sourceWord: "chestnut", found: ["chest"], fromArchive: false)
 
         let counts = storage.backFillOutcomes(firstPlayableDayIndex: Self.firstPlayable,
                                               fromPlay: classifier([250: DayOutcome.basket]))
@@ -53,7 +53,7 @@ struct BackFillFromPlayTests {
     @Test("a recomputation below the rank cannot lower a day inside the run")
     func theRunIsAFloor() {
         armTheRun()
-        storage.saveDayProgress(dayIndex: 250, sourceWord: "chestnut", found: ["chest"])
+        storage.saveDayProgress(dayIndex: 250, sourceWord: "chestnut", found: ["chest"], fromArchive: false)
 
         storage.backFillOutcomes(firstPlayableDayIndex: Self.firstPlayable,
                                  fromPlay: classifier([250: DayOutcome.played]))
@@ -68,7 +68,7 @@ struct BackFillFromPlayTests {
     func outsideTheRun() {
         armTheRun()
         // 181 is the day before the run starts.
-        storage.saveDayProgress(dayIndex: 181, sourceWord: "validity", found: ["valid"])
+        storage.saveDayProgress(dayIndex: 181, sourceWord: "validity", found: ["valid"], fromArchive: false)
 
         storage.backFillOutcomes(firstPlayableDayIndex: Self.firstPlayable,
                                  fromPlay: classifier([181: DayOutcome.played]))
@@ -81,7 +81,7 @@ struct BackFillFromPlayTests {
     @Test("a day the classifier cannot speak for falls to the run")
     func unclassifiedFallsToTheRun() {
         armTheRun()
-        storage.saveDayProgress(dayIndex: 250, sourceWord: "chestnut", found: ["chest"])
+        storage.saveDayProgress(dayIndex: 250, sourceWord: "chestnut", found: ["chest"], fromArchive: false)
 
         storage.backFillOutcomes(firstPlayableDayIndex: Self.firstPlayable,
                                  fromPlay: classifier([:]))
@@ -96,7 +96,7 @@ struct BackFillFromPlayTests {
     /// entry only because something wrote an empty one.
     @Test("an empty found list is not classified as played")
     func emptyFoundListIsNotPlay() {
-        storage.saveDayProgress(dayIndex: 100, sourceWord: "validity", found: [])
+        storage.saveDayProgress(dayIndex: 100, sourceWord: "validity", found: [], fromArchive: false)
 
         var asked: [Int] = []
         storage.backFillOutcomes(firstPlayableDayIndex: Self.firstPlayable) { day, _, _ in

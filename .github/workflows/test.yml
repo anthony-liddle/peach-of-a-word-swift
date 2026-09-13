@@ -56,6 +56,14 @@ jobs:
       - name: swift test
         run: swift test
 
+      # The same suite in the configuration that ships, which is the only way
+      # this stays true. It stopped building at all when an engine function was
+      # gated behind `#if DEBUG` while a test still called it, and nothing
+      # caught it, because nothing ran this. Release is also where the
+      # optimiser can change behaviour the Debug run never sees.
+      - name: swift test, release configuration
+        run: swift test -c release
+
       # Generates PeachOfAWord.xcodeproj, which is not committed.
       #
       # Deliberately the same script Xcode Cloud runs, rather than a second

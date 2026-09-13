@@ -8,6 +8,8 @@ Two things about that history are worth knowing before they look like bugs. Days
 
 Playing a past day does not touch your streak and does not change today's board. While you are on one, the line under your points shows that day's date and a way back to today.
 
+Words you find on a past day stay found. An earlier build kept only the last couple of weeks, so anything older emptied itself the moment you closed it, and words you found before this build are not coming back.
+
 Worth checking:
 - The calendar opens on this month, with today ringed.
 - The days it shows match what you remember playing, especially recent ones.

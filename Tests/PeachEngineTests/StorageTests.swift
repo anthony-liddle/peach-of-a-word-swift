@@ -16,7 +16,7 @@ struct StorageTests {
     @Test("saved progress round-trips")
     func roundTrip() {
         storage.saveDayProgress(dayIndex: 220, sourceWord: "motorway",
-                                found: ["motorway", "tram", "moray"])
+                                found: ["motorway", "tram", "moray"], fromArchive: false)
         #expect(storage.loadDayProgress(dayIndex: 220, sourceWord: "motorway")
                 == ["motorway", "tram", "moray"])
     }
@@ -24,7 +24,7 @@ struct StorageTests {
     @Test("yesterday's progress does not restore into today")
     func yesterdayStaysYesterday() {
         storage.saveDayProgress(dayIndex: 219, sourceWord: "yesterda",
-                                found: ["yes", "day"])
+                                found: ["yes", "day"], fromArchive: false)
         #expect(storage.loadDayProgress(dayIndex: 220, sourceWord: "motorway") == [])
         // And yesterday is still intact, it is just not today's.
         #expect(storage.loadDayProgress(dayIndex: 219, sourceWord: "yesterda") == ["yes", "day"])
@@ -32,21 +32,28 @@ struct StorageTests {
 
     @Test("a day whose source word no longer matches is discarded, not misattributed")
     func wordMismatchDiscards() {
-        storage.saveDayProgress(dayIndex: 220, sourceWord: "motorway", found: ["tram"])
+        storage.saveDayProgress(dayIndex: 220, sourceWord: "motorway", found: ["tram"], fromArchive: false)
         // The calendar was regenerated and this date now serves a different word.
         #expect(storage.loadDayProgress(dayIndex: 220, sourceWord: "audience") == [])
     }
 
-    @Test("only the most recent days are kept")
-    func prunesOldDays() {
-        for day in 1...(GameStorage.maxDaysKept + 6) {
-            storage.saveDayProgress(dayIndex: day, sourceWord: "w\(day)", found: ["a\(day)"])
+    /// This asserted the opposite until 2026-09-13: that the oldest days were
+    /// dropped, which was a sound bound while today was the only day anyone
+    /// could play and a defect from the moment a past day could be opened. The
+    /// day the calendar shipped, 83% of it could not hold progress.
+    @Test("a day keeps its words however long ago it was played")
+    func keepsEveryDay() {
+        // Three weeks of play, one day at a time, each turning over into the
+        // next the way real days do.
+        for day in 1...20 {
+            storage.saveDayProgress(dayIndex: day, sourceWord: "w\(day)",
+                                    found: ["a\(day)"], fromArchive: false)
+            storage.retirePastDays(todayIndex: day + 1)
         }
-        // The oldest are gone, the newest survive.
-        #expect(storage.loadDayProgress(dayIndex: 1, sourceWord: "w1") == [])
-        #expect(storage.loadDayProgress(dayIndex: GameStorage.maxDaysKept + 6,
-                                        sourceWord: "w\(GameStorage.maxDaysKept + 6)")
-                == ["a\(GameStorage.maxDaysKept + 6)"])
+        // The oldest and the newest alike.
+        #expect(storage.loadDayProgress(dayIndex: 1, sourceWord: "w1") == ["a1"])
+        #expect(storage.loadDayProgress(dayIndex: 20, sourceWord: "w20") == ["a20"])
+        #expect(storage.daysWithProgress().count == 20)
     }
 }
 
@@ -107,7 +114,7 @@ struct StorageResilienceTests {
         #expect(s.loadDayProgress(dayIndex: 220, sourceWord: "motorway") == [])
         #expect(s.currentStreak(todayIndex: 220) == 0)
         // And it must still be writable afterwards, not wedged.
-        s.saveDayProgress(dayIndex: 220, sourceWord: "motorway", found: ["tram"])
+        s.saveDayProgress(dayIndex: 220, sourceWord: "motorway", found: ["tram"], fromArchive: false)
         #expect(s.loadDayProgress(dayIndex: 220, sourceWord: "motorway") == ["tram"])
     }
 
@@ -181,7 +188,7 @@ struct StorageEpochTests {
         let today = date(2026, 8, 9)
 
         let key = dayIndex(today, epoch: storageEpoch, timeZone: utc)
-        storage.saveDayProgress(dayIndex: key, sourceWord: "motorway", found: ["tram", "moray"])
+        storage.saveDayProgress(dayIndex: key, sourceWord: "motorway", found: ["tram", "moray"], fromArchive: false)
         storage.recordDailyCleared(dayIndex: key, todayIndex: key, fromArchive: false)
 
         // A regeneration moves the daily epoch. Recompute the storage key the
@@ -317,7 +324,7 @@ struct AdoptStreakTests {
     @Test("adopting leaves day progress alone")
     func leavesProgressAlone() {
         let s = storage
-        s.saveDayProgress(dayIndex: today, sourceWord: "motorway", found: ["tram"])
+        s.saveDayProgress(dayIndex: today, sourceWord: "motorway", found: ["tram"], fromArchive: false)
         #expect(s.adoptStreak(count: 53, lastClearedDayIndex: today, todayIndex: today))
         #expect(s.loadDayProgress(dayIndex: today, sourceWord: "motorway") == ["tram"])
     }
@@ -344,7 +351,7 @@ struct RolloverTests {
     func yesterdayIsSafe() {
         let s = storage
         s.saveDayProgress(dayIndex: yesterday, sourceWord: "yesterda",
-                          found: ["yes", "day", "stay"])
+                          found: ["yes", "day", "stay"], fromArchive: false)
 
         // The rollover loads the new day's key with the new day's word.
         #expect(s.loadDayProgress(dayIndex: today, sourceWord: "motorway") == [])
