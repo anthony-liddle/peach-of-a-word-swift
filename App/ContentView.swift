@@ -484,6 +484,24 @@ struct ContentView: View {
         // 12pt was giving it.
         VStack(spacing: 0) {
             header
+                // The meter at its full height, always.
+                //
+                // Without this the meter was compressible, and `ViewThatFits`
+                // measured one height and laid out another. It asked whether
+                // the furniture fit with the meter at its ideal height, took
+                // yes, then squeezed the tier name to "Perfectly..." on one
+                // line to make the realised layout hold: a 375 by 812 phone at
+                // AX1 and a 420 by 912 phone at AX2, 36 and 42pt shorter than
+                // the same meter drawn in the scrolling layout. The layout was
+                // being chosen on a height that only held if the meter
+                // degraded.
+                //
+                // Held at its ideal height, the meter costs what it measures,
+                // and a smaller list or the scrolling layout is the true
+                // consequence. A truncated tier name was already judged
+                // broken-looking once: "The full basket" became "Basket full"
+                // because it truncated at accessibility-XXXL.
+                .fixedSize(horizontal: false, vertical: true)
             // Feedback lives INSIDE the well now, not in a row of its own
             // beneath it. See `ComposingStick`.
             ComposingStick(word: model.composedWord, feedback: model.feedback,
