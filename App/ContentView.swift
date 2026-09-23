@@ -23,6 +23,26 @@ struct ContentView: View {
     /// of chips. Scales with Dynamic Type, because a floor in fixed points
     /// would itself be crushed at large sizes.
     ///
+    /// **52 was chosen before it was measured, and it has now been measured.**
+    /// `LayoutBudget.testHeaderAndRow` reads the first group's header down to
+    /// the bottom of the first chip beneath it, on an iPhone SE 3:
+    ///
+    ///   L 51.92   XL 56.50   XXL 60.50   XXXL 66.00   AX1 76.00   AX5 132.50
+    ///
+    /// So 52 is the header and the row at the default size to within a tenth
+    /// of a point, and scaling with `.body` keeps it above them at every size
+    /// after that (about 58, 64, 70, 86 and 162), because the header and the
+    /// chips are set in smaller styles that grow more slowly than body text.
+    /// The ~27pt an earlier note called unusable is half of it.
+    ///
+    /// **Whether the fixed layout is used is still decided by this floor and
+    /// not by a text size**, through `ViewThatFits` in `game`, which is the
+    /// shape the calendar's card rule has: computed from the space rather than
+    /// listed by device or category. `RackAtLargeText` holds the list to the
+    /// measured header and row at every size from L to AX5, and was shown red
+    /// with the floor removed, where an SE at AX1 took the fixed layout with a
+    /// 44.5pt list.
+    ///
     /// **This floor used to decide that a 667pt phone scrolled at every text
     /// size. It no longer does, and the reasoning that accepted that outcome
     /// has been overtaken rather than overruled.**
@@ -425,9 +445,10 @@ struct ContentView: View {
     /// most-used targets on the screen and were once the smallest; being at the
     /// bottom was never what made them big.
     ///
-    /// At accessibility text sizes none of that fits, so the whole thing becomes
-    /// one scroll view instead. Dynamic Type has been regressed here once
-    /// already by assuming rather than checking, so both paths are verified.
+    /// Where none of that fits, everything but the controls becomes one scroll
+    /// view, and the controls pin to the bottom edge. Dynamic Type has been
+    /// regressed here once already by assuming rather than checking, so both
+    /// paths are verified, at every size from L to AX5 (`RackAtLargeText`).
     private var game: some View {
         // Decided by available height, not by text size.
         //
@@ -500,13 +521,37 @@ struct ContentView: View {
         .padding(.top, 4)
     }
 
-    /// Everything scrolls, for when the fixed layout genuinely cannot fit.
+    /// Everything but the controls scrolls, for when the fixed layout
+    /// genuinely cannot fit.
     ///
     /// The rack is inside the scroll view here, so the touch-down commit is off:
     /// `RackScrollTests` measured that forcing it on stops the view scrolling
     /// and inserts a letter. A player in this layout keeps the slower tiles, and
     /// that is now a known cost of a layout that only appears when nothing else
     /// will fit.
+    ///
+    /// **The controls are pinned to the bottom edge in this layout, and only
+    /// in this one.** They used to scroll with everything else, which meant
+    /// that wherever this layout was chosen some control started below the
+    /// fold: a tester at a larger text size reported CLEAR and the delete glyph
+    /// cut off at the bottom edge. Untying the tiles from Dynamic Type brought
+    /// the fixed layout back for that tester, but not for everyone. On an
+    /// iPhone SE at AX5 the meter, the well and the rack come to about 700pt
+    /// of a 667pt screen before any control is counted, so no order of one
+    /// scroll can put all four on screen, and the meter is not this layout's to
+    /// shrink.
+    ///
+    /// This is the reverse of the fixed layout's arrangement, where the
+    /// controls sit directly under the rack because two testers said that is
+    /// where hands are. That argument assumes the rack and the controls can
+    /// both be on screen, and here they cannot always be. Given the choice
+    /// between the controls scrolling away and the controls staying put, the
+    /// most-used targets on the screen stay put. With the rack scrolled up to
+    /// meet them, the two sit together again.
+    ///
+    /// `safeAreaInset` rather than an overlay, so the scroll view knows the
+    /// bar is there: the last of the found list scrolls up clear of it instead
+    /// of passing underneath.
     private var scrollingFallback: some View {
         ScrollView {
             VStack(spacing: 14) {
@@ -514,7 +559,6 @@ struct ContentView: View {
                 ComposingStick(word: model.composedWord, feedback: model.feedback,
                                feedbackSeq: model.feedbackSeq)
                 TypeCase(model: model, commitOnTouchDown: false)
-                Controls(model: model)
                 foundList
             }
             .padding(.horizontal, 18)
@@ -524,6 +568,15 @@ struct ContentView: View {
         // screen is one scroll view at these sizes, simctl cannot scroll, and
         // anything below the fold could only be reasoned about.
         .modifier(DebugScrollAnchor())
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            Controls(model: model)
+                .padding(.horizontal, 18)
+                .padding(.vertical, 8)
+                // The page's own foot colour, carried through the home
+                // indicator, so the bar reads as the bottom of the page rather
+                // than as a panel laid over it.
+                .background(Cute.pageFoot.ignoresSafeArea(edges: .bottom))
+        }
     }
 
     /// The tier meter, and nothing else.

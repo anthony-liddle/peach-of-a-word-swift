@@ -40,6 +40,26 @@ final class RackAtLargeText: XCTestCase {
         app.buttons.matching(NSPredicate(format: "label MATCHES %@", "^Letter [a-z].*"))
     }
 
+    /// Every control is on screen at rest and hittable, at every size.
+    ///
+    /// **At rest is the property, not merely hittable.** In the scrolling
+    /// layout a control below the fold can be scrolled to, and a player
+    /// looking at the screen they launched into cannot see it. See
+    /// `LayoutBudget.controlIsOnScreen`.
+    func testEveryControlIsOnScreenAtEverySize() {
+        for size in Self.sizes {
+            let app = launch(size)
+            for label in LayoutBudget.controlLabels {
+                let control = app.buttons[label]
+                XCTAssertTrue(
+                    LayoutBudget.controlIsOnScreen(control, in: app),
+                    "\(label) is not fully on screen at rest at \(size): "
+                    + "bottom \(control.frame.maxY) in a "
+                    + "\(app.windows.firstMatch.frame.height)pt window")
+            }
+        }
+    }
+
     /// A tile is at least 44 by 44 at every size. They are buttons.
     ///
     /// Every tile the tree holds, and at least one full row of them. **Not
@@ -90,6 +110,42 @@ final class RackAtLargeText: XCTestCase {
                            "tile width moved between \(ref.size) and \(size)")
             XCTAssertEqual(frame.height, ref.frame.height, accuracy: 0.5,
                            "tile height moved between \(ref.size) and \(size)")
+        }
+    }
+
+    /// The found list has room for a group header and a row of chips, at
+    /// every size, in whichever layout is active.
+    ///
+    /// The floor is measured in the same launch rather than written down:
+    /// the first group's header to the bottom of the first chip beneath it,
+    /// which is what "a list worth calling a list" means in points at that
+    /// size. `ContentView.minimumListHeight` is chosen against the same
+    /// measurement (see `LayoutBudget.testHeaderAndRow`).
+    ///
+    /// In the scrolling layout the list is part of the page and has the whole
+    /// window once scrolled to, so what is checked there is the page's own
+    /// scroll view. The property is structural in that layout, and it is
+    /// asserted rather than assumed so a change to the fallback cannot quietly
+    /// make it false.
+    func testFoundListHasRoomForAHeaderAndARow() {
+        for size in Self.sizes {
+            let app = launch(size)
+            let header = app.descendants(matching: .any).matching(
+                NSPredicate(format: "label MATCHES %@", "^[0-9]+ letters.*")
+            ).firstMatch
+            XCTAssertTrue(header.exists, "no group header at \(size)")
+            let top = header.frame
+            guard let chip = app.buttons.matching(
+                NSPredicate(format: "label MATCHES %@", ".*, [0-9]+ points?$")
+            ).allElementsBoundByIndex.first(where: { $0.frame.minY >= top.maxY - 1 })
+            else { XCTFail("no chip under the first header at \(size)"); continue }
+            let needed = chip.frame.maxY - top.minY
+            let list = app.scrollViews.firstMatch.frame.height
+            print("LISTGUARD \(size) fixed=\(LayoutBudget.rackIsFixed(app)) list=\(list) needed=\(needed)")
+            XCTAssertGreaterThanOrEqual(
+                list, needed,
+                "the list is \(list)pt at \(size), and one header and one row "
+                + "need \(needed)pt")
         }
     }
 }

@@ -49,8 +49,12 @@ enum Cute {
     static let surfaceShadow = Color(hex: 0xFFC9B4)
 
     /// `--page-bg: linear-gradient(180deg, #fff4ee, #ffe6dc)`
+    /// The foot of the page gradient, for anything pinned to the bottom edge
+    /// that must sit on the page rather than on a band of its own.
+    static let pageFoot = Color(hex: 0xFFE6DC)
+
     static let pageBackground = LinearGradient(
-        colors: [Color(hex: 0xFFF4EE), Color(hex: 0xFFE6DC)],
+        colors: [Color(hex: 0xFFF4EE), pageFoot],
         startPoint: .top,
         endPoint: .bottom
     )
