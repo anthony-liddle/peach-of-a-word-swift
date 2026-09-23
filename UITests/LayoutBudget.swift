@@ -146,26 +146,78 @@ final class LayoutBudget: XCTestCase {
             : "OFF[\(off.joined(separator: ","))|floor=\(Int(floor))]"
     }
 
+    /// The top edge of the controls, or nil if none are in the tree.
+    static func controlsTop(_ app: XCUIApplication) -> CGFloat? {
+        controlLabels.map { app.buttons[$0] }.filter { $0.exists }
+            .map { $0.frame.minY }.min()
+    }
+
+    /// Whether a tile can be used without scrolling: wholly on screen, above
+    /// the top of the controls, and hittable.
+    ///
+    /// Hittable is what catches the pinned bar in the scrolling layout, which
+    /// draws its background 8pt above the controls themselves: a tile whose
+    /// centre is under the bar is not one a finger can reach.
+    static func tileIsUsableAtRest(_ tile: XCUIElement, in app: XCUIApplication) -> Bool {
+        guard let top = controlsTop(app) else { return false }
+        return tile.frame.minY >= app.windows.firstMatch.frame.minY
+            && tile.frame.maxY <= top && tile.isHittable
+    }
+
+    static func tilesUsableAtRest(_ app: XCUIApplication) -> Int {
+        app.buttons.matching(NSPredicate(format: "label MATCHES %@", "^Letter [a-z].*"))
+            .allElementsBoundByIndex
+            .filter { tileIsUsableAtRest($0, in: app) }.count
+    }
+
     /// The controls block's height, and how many tiles are usable at rest.
     ///
     /// The block runs from the top of the highest control to the bottom of the
     /// lowest; where the controls are pinned, the bar around them adds its 8pt
-    /// of padding above and below. A tile counts as usable at rest when it sits
-    /// wholly on screen above the top of the controls and is hittable, which in
-    /// the scrolling layout is the question of whether the pinned bar has
-    /// covered the rack.
+    /// of padding above and below.
     private func restReport(_ app: XCUIApplication) -> String {
         let controls = Self.controlLabels.map { app.buttons[$0] }.filter { $0.exists }
-        guard !controls.isEmpty else { return "block=none tilesAtRest=?" }
-        let top = controls.map { $0.frame.minY }.min()!
+        guard let top = Self.controlsTop(app) else { return "block=none tilesAtRest=?" }
         let bottom = controls.map { $0.frame.maxY }.max()!
-        let win = app.windows.firstMatch.frame
-        let usable = app.buttons.matching(
-            NSPredicate(format: "label MATCHES %@", "^Letter [a-z].*")
-        ).allElementsBoundByIndex.filter {
-            $0.frame.minY >= win.minY && $0.frame.maxY <= top && $0.isHittable
-        }.count
-        return String(format: "block=%.2f top=%.2f tilesAtRest=%d", bottom - top, top, usable)
+        return String(format: "block=%.2f top=%.2f tilesAtRest=%d",
+                      bottom - top, top, Self.tilesUsableAtRest(app))
+    }
+
+    /// What the furniture above the rack would have to give back for the
+    /// rack's first row to clear the pinned bar at rest.
+    ///
+    /// Printed rather than asserted: it is a budget for the pass that owns the
+    /// meter and the well, not a property of this one. The well is found by
+    /// the label it carries when empty. The first row's frame is the button's
+    /// ink, which in the scrolling layout includes the slab beneath the face,
+    /// and the bar's top edge is 8pt above the controls.
+    func testRackRowBudget() {
+        // L first, as the reference: the well's height there is what capping
+        // it at the default size would leave.
+        for s in ["UICTContentSizeCategoryL",
+                  "UICTContentSizeCategoryAccessibilityXXL",
+                  "UICTContentSizeCategoryAccessibilityXXXL"] {
+            let app = XCUIApplication()
+            app.launchArguments = [
+                "-resetProgress", "1", "-seedBoard", "almost",
+                "-UIPreferredContentSizeCategoryName", s,
+            ]
+            app.launch()
+            let tile = Self.rackTile(app)
+            let well = app.descendants(matching: .any)["No letters picked yet"].firstMatch
+            guard tile.waitForExistence(timeout: 15), well.exists,
+                  let top = Self.controlsTop(app) else {
+                print("BUDGET \(s) = indeterminate"); continue
+            }
+            let bar = top - 8
+            print(String(format: "BUDGET %@ window=%dx%d wellTop=%.2f wellHeight=%.2f "
+                         + "rowTop=%.2f rowBottom=%.2f barTop=%.2f shortfall=%.2f",
+                         s, Int(app.windows.firstMatch.frame.width),
+                         Int(app.windows.firstMatch.frame.height),
+                         well.frame.minY, well.frame.height,
+                         tile.frame.minY, tile.frame.maxY, bar,
+                         tile.frame.maxY - bar))
+        }
     }
 
     /// Columns and the first tile's size, read off the tiles' own frames.
