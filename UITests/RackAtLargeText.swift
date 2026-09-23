@@ -141,7 +141,6 @@ final class RackAtLargeText: XCTestCase {
             else { XCTFail("no chip under the first header at \(size)"); continue }
             let needed = chip.frame.maxY - top.minY
             let list = app.scrollViews.firstMatch.frame.height
-            print("LISTGUARD \(size) fixed=\(LayoutBudget.rackIsFixed(app)) list=\(list) needed=\(needed)")
             XCTAssertGreaterThanOrEqual(
                 list, needed,
                 "the list is \(list)pt at \(size), and one header and one row "
