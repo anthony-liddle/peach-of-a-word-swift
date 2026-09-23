@@ -95,7 +95,7 @@ final class LayoutBudget: XCTestCase {
               + "mode=\(fixed ? "FIXED" : "fallback") list=\(list) "
               + "cols=\(rack.columns) tile=\(rack.size) "
               + "meter=\(String(format: "%.2f+%.2f", meter.minY, meter.height)) "
-              + "controls=\(controlsReport(app))")
+              + "controls=\(controlsReport(app)) \(restReport(app))")
         shoot(app, name: "\(tag)-\(Int(win.width))x\(Int(win.height))-\(size)")
     }
 
@@ -144,6 +144,28 @@ final class LayoutBudget: XCTestCase {
         return off.isEmpty
             ? "all-on"
             : "OFF[\(off.joined(separator: ","))|floor=\(Int(floor))]"
+    }
+
+    /// The controls block's height, and how many tiles are usable at rest.
+    ///
+    /// The block runs from the top of the highest control to the bottom of the
+    /// lowest; where the controls are pinned, the bar around them adds its 8pt
+    /// of padding above and below. A tile counts as usable at rest when it sits
+    /// wholly on screen above the top of the controls and is hittable, which in
+    /// the scrolling layout is the question of whether the pinned bar has
+    /// covered the rack.
+    private func restReport(_ app: XCUIApplication) -> String {
+        let controls = Self.controlLabels.map { app.buttons[$0] }.filter { $0.exists }
+        guard !controls.isEmpty else { return "block=none tilesAtRest=?" }
+        let top = controls.map { $0.frame.minY }.min()!
+        let bottom = controls.map { $0.frame.maxY }.max()!
+        let win = app.windows.firstMatch.frame
+        let usable = app.buttons.matching(
+            NSPredicate(format: "label MATCHES %@", "^Letter [a-z].*")
+        ).allElementsBoundByIndex.filter {
+            $0.frame.minY >= win.minY && $0.frame.maxY <= top && $0.isHittable
+        }.count
+        return String(format: "block=%.2f top=%.2f tilesAtRest=%d", bottom - top, top, usable)
     }
 
     /// Columns and the first tile's size, read off the tiles' own frames.

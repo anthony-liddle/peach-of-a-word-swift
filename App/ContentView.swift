@@ -1312,12 +1312,19 @@ private struct Controls: View {
         // the space between the rows is spare, the height of the rows is not.
         VStack(spacing: 7) {
             HStack(spacing: 10) {
-                PillButton("Shuffle", kind: .utility) { model.shuffleRack() }
-                    // The cap Delete used to carry, for the same reason: the
-                    // web gives Submit `flex: 2` against its neighbour's
-                    // `flex: 1`, and capping the neighbour approximates that
-                    // ratio at phone widths, which is all this targets.
-                    .frame(maxWidth: 116)
+                // At least 116pt wide, and as wide as its label needs.
+                //
+                // This was a 116pt ceiling, the approximation of the web's
+                // `flex: 2` for Submit against `flex: 1` for its neighbour, and
+                // it was only right while the label was small enough to sit
+                // inside it. At AX1 on a 390pt phone SHUFFLE already filled the
+                // pill edge to edge, and at AX2 on an iPhone SE it broke across
+                // two lines as "SHUFFL" and "E". A floor keeps the default
+                // ratio exactly, since the label is well under 116 there, and
+                // lets the pill grow with its word instead of cutting it.
+                PillButton("Shuffle", kind: .utility, hugsLabel: true) {
+                    model.shuffleRack()
+                }
                 PillButton(Vocabulary.submitWord, kind: .primary,
                            disabled: model.composedWord.count < minWordLength) {
                     model.submit()
@@ -1330,6 +1337,25 @@ private struct Controls: View {
                            label: "Delete last letter") { model.removeLast() }
             }
         }
+        // **The labels grow with Dynamic Type up to AX1, and stop there.**
+        //
+        // The same defect as the tiles, one layer over. These scaled without a
+        // bound: the labels, the pill heights and the delete glyph are all
+        // relative to a text style, so at AX5 the block was 324pt tall on an
+        // iPhone SE, and pinned to the bottom of the scrolling layout it was
+        // half the screen and covered the whole rack at rest.
+        //
+        // They stay words. A reader who turned the text up needs to read
+        // SHUFFLE and CLEAR, and an icon would serve VoiceOver while failing
+        // the sighted low-vision reader, who is exactly who this is for. What
+        // stops is the growth past the size where the words are already large.
+        //
+        // AX1 because it is the tester's own size, the one the report came
+        // from, so they see exactly what they chose; and because it is the
+        // largest size at which the fixed layout held on the 390pt phones.
+        // The cap covers the pill heights too, since `@ScaledMetric` reads the
+        // same environment value.
+        .dynamicTypeSize(...DynamicTypeSize.accessibility1)
     }
 }
 
@@ -1340,16 +1366,25 @@ private struct PillButton: View {
     let kind: Kind
     var disabled: Bool = false
     var label: String? = nil
+    /// Sized to the label, with a floor, rather than sharing the row equally.
+    /// See Shuffle in `Controls`.
+    var hugsLabel: Bool = false
     let action: () -> Void
 
     init(_ title: String = "", kind: Kind, disabled: Bool = false,
-         label: String? = nil, action: @escaping () -> Void) {
+         label: String? = nil, hugsLabel: Bool = false,
+         action: @escaping () -> Void) {
         self.title = title
         self.kind = kind
         self.disabled = disabled
         self.label = label
+        self.hugsLabel = hugsLabel
         self.action = action
     }
+
+    /// The narrowest a label-sized pill gets: the width the web's ratio came
+    /// to at phone widths, when this was a ceiling.
+    private static let hugFloor: CGFloat = 116
 
     /// The delete control carries an icon rather than a glyph in a text font.
     /// It is the only icon-only control on the screen and was the least legible
@@ -1409,13 +1444,21 @@ private struct PillButton: View {
                                             relativeTo: .subheadline))
                         .tracking(2.1)
                         .textCase(.uppercase)
+                        // A word is never broken across lines. The cap on the
+                        // controls' text size is what keeps each one fitting;
+                        // this is the backstop if a label ever outgrows it.
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
                 }
             }
             .foregroundStyle(foreground)
-            .frame(maxWidth: .infinity)
+            .padding(.horizontal, hugsLabel ? 16 : 0)
+            .frame(minWidth: hugsLabel ? Self.hugFloor : nil,
+                   maxWidth: hugsLabel ? nil : .infinity)
             .frame(minHeight: height)
             .background(Capsule().fill(fill))
             .overlay(Capsule().stroke(border, lineWidth: 1))
+            .fixedSize(horizontal: hugsLabel, vertical: false)
         }
         .buttonStyle(.plain)
         .disabled(disabled)
