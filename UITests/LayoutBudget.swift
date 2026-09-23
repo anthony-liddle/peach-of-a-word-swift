@@ -35,7 +35,7 @@ final class LayoutBudget: XCTestCase {
     /// `app.buttons`, not every descendant: the rack container is labelled
     /// "Letter tiles" and a loose query matches the container first. Same trap
     /// `MessageLineShove` and `RackScrollTests` both record.
-    private func rackTile(_ app: XCUIApplication) -> XCUIElement {
+    static func rackTile(_ app: XCUIApplication) -> XCUIElement {
         app.buttons.matching(
             NSPredicate(format: "label MATCHES %@", "^Letter [a-z].*")
         ).element(boundBy: 0)
@@ -54,7 +54,7 @@ final class LayoutBudget: XCTestCase {
     /// today only because the fixed layout happens to contain exactly one. That
     /// is a fact about the current view tree, not a guarantee, and this probe
     /// exists to survive changes to the view tree.
-    private func rackIsFixed(_ app: XCUIApplication) -> Bool {
+    static func rackIsFixed(_ app: XCUIApplication) -> Bool {
         let tile = rackTile(app).frame
         return !app.scrollViews.allElementsBoundByIndex.contains { $0.frame.contains(tile) }
     }
@@ -72,10 +72,10 @@ final class LayoutBudget: XCTestCase {
         // A sleep that is too short reports "indeterminate", which reads as a
         // layout finding rather than as a test that gave up too early.
         let summary = app.staticTexts["FoundSummaryCount"]
-        guard summary.waitForExistence(timeout: 15), rackTile(app).exists else {
+        guard summary.waitForExistence(timeout: 15), Self.rackTile(app).exists else {
             print("\(tag) \(size) = indeterminate"); return
         }
-        let fixed = rackIsFixed(app)
+        let fixed = Self.rackIsFixed(app)
         let win = app.windows.firstMatch.frame
         // The list height, which is the number the density work is actually
         // spent on and which this probe did not used to print. It was measured
@@ -194,9 +194,9 @@ final class LayoutBudget: XCTestCase {
                       "the app never rendered the found summary")
         let win = app.windows.firstMatch.frame
         try XCTSkipIf(win.height < 800, "not a tall phone; the sweep covers short ones")
-        XCTAssertTrue(rackTile(app).exists, "no rack tile found")
+        XCTAssertTrue(Self.rackTile(app).exists, "no rack tile found")
         XCTAssertTrue(
-            rackIsFixed(app),
+            Self.rackIsFixed(app),
             "the rack is inside a scroll view, so this fell back to the "
             + "scrolling layout at default size on a tall phone"
         )

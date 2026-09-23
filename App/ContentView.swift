@@ -941,10 +941,9 @@ private struct ComposingStick: View {
 /// minimum width, so on a 390pt phone at anything above the default text size a
 /// fourth column stopped fitting and the rack split 3, 3, 2.
 ///
-/// A fixed count makes that unrepresentable. Four columns at normal text sizes,
-/// three at accessibility sizes, and 4x4 or 3+3+2 are the only two shapes this
-/// can ever produce. The web does the same thing deliberately: four columns on
-/// phone, eight on desktop, never negotiated.
+/// A fixed count makes that unrepresentable. Four columns, 4+4, at every text
+/// size, which is the only shape this can produce. The web does the same thing
+/// deliberately: four columns on phone, eight on desktop, never negotiated.
 ///
 /// Adaptive is still right for the found-word chips, where the count genuinely
 /// varies.
@@ -953,12 +952,28 @@ private struct TypeCase: View {
     /// Whether this rack sits in a fixed layout, and can therefore commit on
     /// touch down. See `effectiveCommitOnTouchDown`.
     let commitOnTouchDown: Bool
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
-    /// Three columns at accessibility sizes is the reflow that was previously
-    /// happening by accident of available width. Now it is an explicit response
-    /// to Dynamic Type, which is what it always should have been.
-    private var columnCount: Int { dynamicTypeSize.isAccessibilitySize ? 3 : 4 }
+    /// **Four at every text size. This used to drop to three at the
+    /// accessibility sizes, and the drop was the defect rather than a response
+    /// to it.**
+    ///
+    /// Three columns was written as "an explicit response to Dynamic Type", on
+    /// the reasoning that bigger text wants bigger tiles. What it actually did
+    /// was widen the column from 78pt to 107 on a 375pt phone, and the 3:4
+    /// ratio turned that into a 143pt tile, three rows of them. At the first
+    /// accessibility size an iPhone SE put every control below the fold; a
+    /// tester at a larger default text size reported CLEAR and the delete
+    /// glyph cut off at the bottom edge. The tiles grew, and nobody had asked
+    /// for bigger tiles. They had asked for bigger words.
+    ///
+    /// Once the tile stops following the text setting (see `TileButton`), the
+    /// three-column shape buys nothing at all: the height cap stops a 107pt
+    /// column drawing anything taller than it draws in a 78pt one, so the
+    /// extra width would become gap and the third row would cost 114pt for no
+    /// tile of any different size. The only thing that could force three
+    /// columns is a column narrower than the 44pt tap target, which needs a
+    /// rack under 203pt wide, and the narrowest window this app gets is 375.
+    private let columnCount = 4
 
     /// Whether tiles commit on touch down.
     ///
@@ -1036,16 +1051,28 @@ private struct TileButton: View {
         RoundedRectangle(cornerRadius: Cute.tileRadius, style: .continuous)
     }
 
-    // The web sizes the glyph from the viewport (`clamp(1.75rem, 16vw, 5rem)`),
-    // which lands near 56 percent of tile height at phone width. A GeometryReader
-    // was tried for that and is wrong here: it consumes all offered space rather
-    // than reporting an intrinsic size, so the font came out sized for a box the
-    // tile never actually got and the glyph overflowed at large text sizes.
-    // @ScaledMetric tracks Dynamic Type without depending on layout at all, and
-    // minimumScaleFactor is the backstop for the extreme sizes.
-    @ScaledMetric(relativeTo: .largeTitle) private var glyphSize: CGFloat = 46
+    /// The letter, as a fraction of the tile's height: 46pt in a 104pt tile.
+    ///
+    /// **Sized from the tile, not from the text setting, and that is a
+    /// decision, not an accessibility oversight.** It is the move the calendar
+    /// already made: `ArchiveSheet.cellSize` takes the width and the day number
+    /// follows it at a fixed fraction, and the number does not scale with
+    /// type. The reasoning there carries over unchanged. Once a container stops
+    /// growing, a glyph that keeps growing inside it does not get bigger, it
+    /// gets squeezed: this letter used to be a 46pt `@ScaledMetric` set in a
+    /// face that also scaled with `.body`, so it was scaled twice and held
+    /// inside the tile only by `minimumScaleFactor`.
+    ///
+    /// Dynamic Type still governs what a player reads: the control labels,
+    /// the found list, the meter and the message line all scale. The letter on
+    /// a tile is the tile's face, at 32pt of cap height, and it was never the
+    /// text anyone turned the setting up to read.
+    ///
+    /// The web sizes it from the viewport (`clamp(1.75rem, 16vw, 5rem)`), which
+    /// lands near the same fraction at phone width.
+    private static let glyphFraction: CGFloat = 46.0 / 104.0
 
-    /// An upper bound only, and deliberately generous.
+    /// An upper bound on the tile's height, and **fixed rather than scaled**.
     ///
     /// **Width is the driver and height follows it**, via the 3:4 ratio, from
     /// whatever the fixed grid column gives. An earlier version inverted that:
@@ -1053,77 +1080,62 @@ private struct TileButton: View {
     /// each tile demanded a width the container could not supply four of, and
     /// the rack broke to 3+3+2. That inversion is the thing not to reintroduce.
     ///
-    /// **Lowered from 118 to 104, which means it now bites at phone width.**
-    /// The rack was the tallest furniture on a screen that has to hold
-    /// everything at once, and this is where the vertical points are. On a 390pt
-    /// phone the column gives 81.75pt of width, so the tiles were drawing 109pt
-    /// tall; capped, they draw 104 and the rack gives back 10pt across its two
-    /// rows.
+    /// On a 375pt phone the column is 78pt, so the ratio gives exactly 104 and
+    /// the cap is not what binds. From 390pt up the column gives more and the
+    /// cap holds the tile at 104. So the tile is 104pt tall on every phone this
+    /// app runs on, and 78pt wide on the narrowest, which is the smallest tile
+    /// the layout can produce.
+    ///
+    /// **This used to be a `@ScaledMetric`, and it was the reason large text
+    /// had nowhere to go.** Dynamic Type grew the cap with the text, so at the
+    /// accessibility sizes it stopped clamping anything and a 107pt column drew
+    /// a 148pt tile. Pinning it is the "drop `relativeTo:`" option an earlier
+    /// note here described as its own argument; the argument is that the tester
+    /// who turned the text up needed SHUFFLE and CLEAR readable, and got
+    /// hundred-point letters that pushed both off the screen. See `TypeCase`.
     ///
     /// **92 was tried, measured, and reverted. Do not reach for it again
-    /// without reading this.** It returned 24pt at default size, and the
-    /// arithmetic is what makes it a trap: the cap constrains HEIGHT, and the
-    /// column stays 81.75pt wide whatever the tile does. So a 92pt cap draws a
-    /// 69 x 92 tile in an 81.75pt column and **the leftover 13pt per column
-    /// becomes gap**. On the phone the rack stops reading as a grid of tiles
-    /// and starts reading as tiles floating in space.
+    /// without reading this.** The cap constrains HEIGHT, and the column stays
+    /// as wide as it is whatever the tile does, so a 92pt cap draws a 69 x 92
+    /// tile in an 81.75pt column on a 390pt phone and **the leftover 13pt per
+    /// column becomes gap**. The rack stops reading as a grid of tiles and
+    /// starts reading as tiles floating in space. The 44pt tap floor was never
+    /// the constraint; the leftover width having nowhere to go is.
     ///
-    /// This is the same mechanism the 118-to-104 move already flagged, where a
-    /// 14pt trim cost about 4pt of width and was recorded as a visible change
-    /// nobody asked for. At 24pt it is three times that, which is where it
-    /// crosses from unnoticed to wrong.
-    ///
-    /// **The 44pt tap floor was never the constraint** and is not what stops
-    /// this. A 69 x 92 tile is more than twice the minimum in both directions.
-    /// The constraint is that these are the most identifying objects on the
-    /// screen and the leftover width has nowhere to go.
-    ///
-    /// **This cap is also a DEFAULT-SIZE lever only, and it does not look like
-    /// one.** Measured on a 390pt phone across the 104-to-92 experiment: **24pt
-    /// returned at L, 11 at XXL, and 2 at XXXL.** The reason is `@ScaledMetric`
-    /// on this line. Dynamic Type grows the cap along with everything else, so
-    /// it climbs out of biting range while the tile's natural 3:4 height (fixed
-    /// by the column width, which does not scale) stays put. By XXXL the cap is
-    /// above the height the ratio asks for and clamps nothing at all: at 92,
-    /// `RackShape` still printed a 107.67pt tile there.
-    ///
-    /// So anyone pricing a further trim should expect it to buy points at
-    /// default size and almost nothing at the sizes where the screen is
-    /// tightest, which is the opposite of the intuition, and to pay for them in
-    /// column gap. Both halves point the same way: this is the weakest of the
-    /// levers on this screen. If large text ever needs the room, it is not this
-    /// number. It is either dropping `relativeTo:` so the cap stops scaling,
-    /// which would pin tile size against Dynamic Type and is its own argument,
-    /// or taking the points somewhere else entirely.
-    ///
-    /// **It is still a cap on HEIGHT, which is why it is the safe lever.** The
-    /// tile shrinks inside a column it never asked to widen, so it cannot demand
-    /// width the container has not got, and the column count is not negotiated
-    /// at all: `columnCount` is 4, or 3 at accessibility sizes, and nothing
-    /// about a tile's size can change that. The 3:4 ratio is untouched, which
-    /// matters beyond the silhouette: `.sort` in the web's `index.css` is
-    /// `aspect-ratio: 3 / 4` and that is a number the two versions share.
-    ///
-    /// Still scaled, so Dynamic Type still grows the tiles rather than pinning
-    /// them at a constant the moment the text gets bigger.
-    @ScaledMetric(relativeTo: .largeTitle) private var maxTileHeight: CGFloat = 104
+    /// The 3:4 ratio is untouched, which matters beyond the silhouette: `.sort`
+    /// in the web's `index.css` is `aspect-ratio: 3 / 4` and that is a number
+    /// the two versions share.
+    private static let maxTileHeight: CGFloat = 104
 
     private var face: some View {
         ZStack {
             shape.fill(Cute.tileFace)
             shape.stroke(Cute.tileEdge, lineWidth: 1)
-            Text(letter)
-                .font(CuteFont.display(glyphSize))
-                .foregroundStyle(placed ? Cute.inkFaint : Cute.ink)
-                .lineLimit(1)
-                .minimumScaleFactor(0.4)
-                .padding(4)
         }
         // Taller than wide. This is most of why they read as tiles rather
         // than as buttons.
         .aspectRatio(3.0 / 4.0, contentMode: .fit)
-        .frame(maxHeight: maxTileHeight)
+        .frame(maxHeight: Self.maxTileHeight)
         .frame(minHeight: Cute.minTapTarget)
+        // The letter reads the tile's settled size and takes a fixed fraction
+        // of it.
+        //
+        // A GeometryReader was tried for this once and rightly removed, but it
+        // was the tile's CONTENT then: it consumed all the space it was offered
+        // instead of reporting a size, so the font was chosen for a box the
+        // tile never got. In an overlay it has no say in the layout at all. It
+        // is handed the tile's finished frame and can only read it, which is
+        // exactly the question being asked.
+        .overlay {
+            GeometryReader { tile in
+                Text(letter)
+                    .font(.custom("Fredoka-SemiBold",
+                                  fixedSize: tile.size.height * Self.glyphFraction))
+                    .foregroundStyle(placed ? Cute.inkFaint : Cute.ink)
+                    .lineLimit(1)
+                    .frame(width: tile.size.width, height: tile.size.height)
+            }
+        }
     }
 
     /// Commit on touch down, animation following.
