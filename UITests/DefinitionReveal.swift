@@ -117,59 +117,11 @@ final class DefinitionReveal: XCTestCase {
 
     /// **The card stays usable at the largest accessibility size.**
     ///
-    /// Dynamic Type has been regressed on this app's cards three times, and the
-    /// specific failure each time was content taller than a sheet detent: the
-    /// crown card's celebration line and kicker both truncated to an ellipsis
-    /// before `SourceRevealCard` was made scrollable. This card is one long
-    /// paragraph, so it overflows a medium detent at AX5 by construction rather
-    /// than by accident, and the question is not whether it overflows but
-    /// whether the player can still read it and get out.
-    ///
-    /// Asserted on the way out rather than on the prose, because a card you
-    /// cannot dismiss is the failure that traps someone. The prose being
-    /// present is already covered above at default size; reachability is what
-    /// only this size can test.
-    func testTheCardIsUsableAtTheLargestTextSize() {
-        let app = XCUIApplication()
-        app.launchArguments = [
-            "-resetProgress", "1", "-seedBoard", "almost",
-            "-UIPreferredContentSizeCategoryName",
-            "UICTContentSizeCategoryAccessibilityXXXL",
-        ]
-        app.launch()
-        XCTAssertTrue(app.staticTexts["FoundSummaryCount"].waitForExistence(timeout: 40))
-
-        let setChips = chips(app, category: "on the page")
-        XCTAssertFalse(setChips.isEmpty, "no set-word chips on a seeded board")
-        setChips[0].tap()
-
-        let prose = app.staticTexts["DefinitionProse"]
-        XCTAssertTrue(prose.waitForExistence(timeout: 10),
-                      "the card carried no prose at AX5")
-
-        // The way out, after scrolling the card. `swipeUp` scrolls the content
-        // inside the sheet; it does NOT drag the sheet to its large detent, and
-        // the distinction is worth keeping straight because both would make
-        // this pass and only one is what runs.
-        //
-        // Reachability is asserted after the scroll rather than before it, so
-        // this passes whether or not the button was already in view at the
-        // medium detent. That is deliberate: at AX5 one long gloss overflows a
-        // medium detent by construction, so requiring no-scroll would be
-        // requiring the card not to be what it is. The failure being guarded is
-        // a card that cannot be dismissed at all.
-        let close = closeButton(app)
-        if !close.isHittable {
-            app.swipeUp()
-        }
-        XCTAssertTrue(close.waitForExistence(timeout: 10),
-                      "the close button does not exist at AX5")
-        XCTAssertTrue(close.isHittable,
-                      "the close button is not reachable at AX5, so the card traps you")
-        close.tap()
-        XCTAssertTrue(app.staticTexts["FoundSummaryCount"].waitForExistence(timeout: 10),
-                      "the card did not dismiss at AX5")
-    }
+    /// The card at the largest text size, and whether it can be left, is
+    /// `DefinitionCardExits`, at every size from L to AX5. The test that used to
+    /// sit here swiped once and asked `isHittable`, which failed about one day
+    /// in six on an SE for the length of that day's gloss and passed on days
+    /// when the way out was mostly below the edge (#68).
 
     /// **The crown keeps the crown card.** The whole point of building a second
     /// card was that a found word wants a definition and very little else; the
