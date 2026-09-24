@@ -84,6 +84,16 @@ final class RackScrollTests: XCTestCase {
     private func runSwipe(forceTouchDown: Bool) throws -> (scrolled: Bool, typed: Bool) {
         let app = launch(forceTouchDown: forceTouchDown)
         let tile = try firstTile(in: app)
+        // The premise is a thumb resting on a tile it can see. On a phone where
+        // the rack is below the fold at rest there is no such tile, and a swipe
+        // from where the tile would be starts on the pinned controls instead,
+        // which answers a different question. Skipped, not pre-scrolled: the
+        // limitation is asserted in its own right by
+        // `testTheRackIsBelowTheFoldAtRestOnAShortPhone`, which goes red when
+        // it stops being true, and this skip stops firing at the same moment.
+        try XCTSkipUnless(
+            LayoutBudget.tileIsUsableAtRest(tile, in: app),
+            "the rack is below the fold at rest on this phone at this size")
         let before = tile.frame.origin.y
         swipeUp(from: tile, in: app)
         // Settle, since the scroll is animated and the assertion is about where
@@ -128,6 +138,61 @@ final class RackScrollTests: XCTestCase {
             "the touch-down commit no longer blocks the scroll; "
             + "recheck whether the exclusion is still needed"
         )
+    }
+
+    /// **Where the rack is below the fold at rest, and only there.** This
+    /// asserts the limitation rather than stepping around it.
+    ///
+    /// The controls are pinned beneath the scrolling layout and stop growing
+    /// at AX1, which brings the rack's first row into view at rest everywhere
+    /// it can come. Where it cannot, the meter and the well above the rack take
+    /// the room, and the meter was out of scope for the pass that wrote this.
+    /// Measured across eight phones from L to AX5, no tile is usable at rest
+    /// in exactly these cells:
+    ///
+    ///   375 x 667 (iPhone SE)        AX4, AX5
+    ///   375 x 812 (13 mini)          AX5
+    ///   390 x 844 (iPhone 13)        AX5
+    ///   393 x 852 (iPhone 16)        AX5
+    ///
+    /// The limit follows the phone's height, not its width: at AX4 the mini
+    /// has its first row, and the SE does not. `LayoutBudget.testRackRowBudget`
+    /// prints what the meter and the well would have to give back.
+    ///
+    /// **Written to fail when the constraint goes away.** When the meter or
+    /// the well give back enough, a tile becomes usable at rest in one of these
+    /// cells, this goes red, and the swipe tests above stop skipping there.
+    /// Remove the cell from the table then. Phones not in it are skipped.
+    func testTheRackIsBelowTheFoldAtRestOnAShortPhone() throws {
+        // Keyed by the window as "width x height" in points.
+        let belowTheFold: [String: [String]] = [
+            "375x667": ["UICTContentSizeCategoryAccessibilityXXL",
+                        "UICTContentSizeCategoryAccessibilityXXXL"],
+            "375x812": ["UICTContentSizeCategoryAccessibilityXXXL"],
+            "390x844": ["UICTContentSizeCategoryAccessibilityXXXL"],
+            "393x852": ["UICTContentSizeCategoryAccessibilityXXXL"],
+        ]
+        var checked = 0
+        for size in ["UICTContentSizeCategoryAccessibilityXXL",
+                     "UICTContentSizeCategoryAccessibilityXXXL"] {
+            let app = XCUIApplication()
+            app.launchArguments = [
+                "-resetProgress", "1", "-seedBoard", "almost",
+                "-UIPreferredContentSizeCategoryName", size,
+            ]
+            app.launch()
+            XCTAssertTrue(try firstTile(in: app).exists)
+            let win = app.windows.firstMatch.frame.size
+            let key = "\(Int(win.width))x\(Int(win.height))"
+            guard belowTheFold[key]?.contains(size) == true else { continue }
+            checked += 1
+            XCTAssertEqual(
+                LayoutBudget.tilesUsableAtRest(app), 0,
+                "a rack tile is usable at rest at \(size) on a "
+                + "\(Int(win.width)) by \(Int(win.height)) phone: "
+                + "the constraint this records is gone")
+        }
+        try XCTSkipIf(checked == 0, "the rack is at rest on screen on this phone")
     }
 
     /// A tap must still commit, so a swipe test that passes by breaking taps

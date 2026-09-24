@@ -23,6 +23,26 @@ struct ContentView: View {
     /// of chips. Scales with Dynamic Type, because a floor in fixed points
     /// would itself be crushed at large sizes.
     ///
+    /// **52 was chosen before it was measured, and it has now been measured.**
+    /// `LayoutBudget.testHeaderAndRow` reads the first group's header down to
+    /// the bottom of the first chip beneath it, on an iPhone SE 3:
+    ///
+    ///   L 51.92   XL 56.50   XXL 60.50   XXXL 66.00   AX1 76.00   AX5 132.50
+    ///
+    /// So 52 is the header and the row at the default size to within a tenth
+    /// of a point, and scaling with `.body` keeps it above them at every size
+    /// after that (about 58, 64, 70, 86 and 162), because the header and the
+    /// chips are set in smaller styles that grow more slowly than body text.
+    /// The ~27pt an earlier note called unusable is half of it.
+    ///
+    /// **Whether the fixed layout is used is still decided by this floor and
+    /// not by a text size**, through `ViewThatFits` in `game`, which is the
+    /// shape the calendar's card rule has: computed from the space rather than
+    /// listed by device or category. `RackAtLargeText` holds the list to the
+    /// measured header and row at every size from L to AX5, and was shown red
+    /// with the floor removed, where an SE at AX1 took the fixed layout with a
+    /// 44.5pt list.
+    ///
     /// **This floor used to decide that a 667pt phone scrolled at every text
     /// size. It no longer does, and the reasoning that accepted that outcome
     /// has been overtaken rather than overruled.**
@@ -425,9 +445,10 @@ struct ContentView: View {
     /// most-used targets on the screen and were once the smallest; being at the
     /// bottom was never what made them big.
     ///
-    /// At accessibility text sizes none of that fits, so the whole thing becomes
-    /// one scroll view instead. Dynamic Type has been regressed here once
-    /// already by assuming rather than checking, so both paths are verified.
+    /// Where none of that fits, everything but the controls becomes one scroll
+    /// view, and the controls pin to the bottom edge. Dynamic Type has been
+    /// regressed here once already by assuming rather than checking, so both
+    /// paths are verified, at every size from L to AX5 (`RackAtLargeText`).
     private var game: some View {
         // Decided by available height, not by text size.
         //
@@ -463,6 +484,24 @@ struct ContentView: View {
         // 12pt was giving it.
         VStack(spacing: 0) {
             header
+                // The meter at its full height, always.
+                //
+                // Without this the meter was compressible, and `ViewThatFits`
+                // measured one height and laid out another. It asked whether
+                // the furniture fit with the meter at its ideal height, took
+                // yes, then squeezed the tier name to "Perfectly..." on one
+                // line to make the realised layout hold: a 375 by 812 phone at
+                // AX1 and a 420 by 912 phone at AX2, 36 and 42pt shorter than
+                // the same meter drawn in the scrolling layout. The layout was
+                // being chosen on a height that only held if the meter
+                // degraded.
+                //
+                // Held at its ideal height, the meter costs what it measures,
+                // and a smaller list or the scrolling layout is the true
+                // consequence. A truncated tier name was already judged
+                // broken-looking once: "The full basket" became "Basket full"
+                // because it truncated at accessibility-XXXL.
+                .fixedSize(horizontal: false, vertical: true)
             // Feedback lives INSIDE the well now, not in a row of its own
             // beneath it. See `ComposingStick`.
             ComposingStick(word: model.composedWord, feedback: model.feedback,
@@ -500,13 +539,37 @@ struct ContentView: View {
         .padding(.top, 4)
     }
 
-    /// Everything scrolls, for when the fixed layout genuinely cannot fit.
+    /// Everything but the controls scrolls, for when the fixed layout
+    /// genuinely cannot fit.
     ///
     /// The rack is inside the scroll view here, so the touch-down commit is off:
     /// `RackScrollTests` measured that forcing it on stops the view scrolling
     /// and inserts a letter. A player in this layout keeps the slower tiles, and
     /// that is now a known cost of a layout that only appears when nothing else
     /// will fit.
+    ///
+    /// **The controls are pinned to the bottom edge in this layout, and only
+    /// in this one.** They used to scroll with everything else, which meant
+    /// that wherever this layout was chosen some control started below the
+    /// fold: a tester at a larger text size reported CLEAR and the delete glyph
+    /// cut off at the bottom edge. Untying the tiles from Dynamic Type brought
+    /// the fixed layout back for that tester, but not for everyone. On an
+    /// iPhone SE at AX5 the meter, the well and the rack come to about 700pt
+    /// of a 667pt screen before any control is counted, so no order of one
+    /// scroll can put all four on screen, and the meter is not this layout's to
+    /// shrink.
+    ///
+    /// This is the reverse of the fixed layout's arrangement, where the
+    /// controls sit directly under the rack because two testers said that is
+    /// where hands are. That argument assumes the rack and the controls can
+    /// both be on screen, and here they cannot always be. Given the choice
+    /// between the controls scrolling away and the controls staying put, the
+    /// most-used targets on the screen stay put. With the rack scrolled up to
+    /// meet them, the two sit together again.
+    ///
+    /// `safeAreaInset` rather than an overlay, so the scroll view knows the
+    /// bar is there: the last of the found list scrolls up clear of it instead
+    /// of passing underneath.
     private var scrollingFallback: some View {
         ScrollView {
             VStack(spacing: 14) {
@@ -514,7 +577,6 @@ struct ContentView: View {
                 ComposingStick(word: model.composedWord, feedback: model.feedback,
                                feedbackSeq: model.feedbackSeq)
                 TypeCase(model: model, commitOnTouchDown: false)
-                Controls(model: model)
                 foundList
             }
             .padding(.horizontal, 18)
@@ -524,6 +586,15 @@ struct ContentView: View {
         // screen is one scroll view at these sizes, simctl cannot scroll, and
         // anything below the fold could only be reasoned about.
         .modifier(DebugScrollAnchor())
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            Controls(model: model)
+                .padding(.horizontal, 18)
+                .padding(.vertical, 8)
+                // The page's own foot colour, carried through the home
+                // indicator, so the bar reads as the bottom of the page rather
+                // than as a panel laid over it.
+                .background(Cute.pageFoot.ignoresSafeArea(edges: .bottom))
+        }
     }
 
     /// The tier meter, and nothing else.
@@ -941,10 +1012,9 @@ private struct ComposingStick: View {
 /// minimum width, so on a 390pt phone at anything above the default text size a
 /// fourth column stopped fitting and the rack split 3, 3, 2.
 ///
-/// A fixed count makes that unrepresentable. Four columns at normal text sizes,
-/// three at accessibility sizes, and 4x4 or 3+3+2 are the only two shapes this
-/// can ever produce. The web does the same thing deliberately: four columns on
-/// phone, eight on desktop, never negotiated.
+/// A fixed count makes that unrepresentable. Four columns, 4+4, at every text
+/// size, which is the only shape this can produce. The web does the same thing
+/// deliberately: four columns on phone, eight on desktop, never negotiated.
 ///
 /// Adaptive is still right for the found-word chips, where the count genuinely
 /// varies.
@@ -953,12 +1023,28 @@ private struct TypeCase: View {
     /// Whether this rack sits in a fixed layout, and can therefore commit on
     /// touch down. See `effectiveCommitOnTouchDown`.
     let commitOnTouchDown: Bool
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
-    /// Three columns at accessibility sizes is the reflow that was previously
-    /// happening by accident of available width. Now it is an explicit response
-    /// to Dynamic Type, which is what it always should have been.
-    private var columnCount: Int { dynamicTypeSize.isAccessibilitySize ? 3 : 4 }
+    /// **Four at every text size. This used to drop to three at the
+    /// accessibility sizes, and the drop was the defect rather than a response
+    /// to it.**
+    ///
+    /// Three columns was written as "an explicit response to Dynamic Type", on
+    /// the reasoning that bigger text wants bigger tiles. What it actually did
+    /// was widen the column from 78pt to 107 on a 375pt phone, and the 3:4
+    /// ratio turned that into a 143pt tile, three rows of them. At the first
+    /// accessibility size an iPhone SE put every control below the fold; a
+    /// tester at a larger default text size reported CLEAR and the delete
+    /// glyph cut off at the bottom edge. The tiles grew, and nobody had asked
+    /// for bigger tiles. They had asked for bigger words.
+    ///
+    /// Once the tile stops following the text setting (see `TileButton`), the
+    /// three-column shape buys nothing at all: the height cap stops a 107pt
+    /// column drawing anything taller than it draws in a 78pt one, so the
+    /// extra width would become gap and the third row would cost 114pt for no
+    /// tile of any different size. The only thing that could force three
+    /// columns is a column narrower than the 44pt tap target, which needs a
+    /// rack under 203pt wide, and the narrowest window this app gets is 375.
+    private let columnCount = 4
 
     /// Whether tiles commit on touch down.
     ///
@@ -1036,16 +1122,28 @@ private struct TileButton: View {
         RoundedRectangle(cornerRadius: Cute.tileRadius, style: .continuous)
     }
 
-    // The web sizes the glyph from the viewport (`clamp(1.75rem, 16vw, 5rem)`),
-    // which lands near 56 percent of tile height at phone width. A GeometryReader
-    // was tried for that and is wrong here: it consumes all offered space rather
-    // than reporting an intrinsic size, so the font came out sized for a box the
-    // tile never actually got and the glyph overflowed at large text sizes.
-    // @ScaledMetric tracks Dynamic Type without depending on layout at all, and
-    // minimumScaleFactor is the backstop for the extreme sizes.
-    @ScaledMetric(relativeTo: .largeTitle) private var glyphSize: CGFloat = 46
+    /// The letter, as a fraction of the tile's height: 46pt in a 104pt tile.
+    ///
+    /// **Sized from the tile, not from the text setting, and that is a
+    /// decision, not an accessibility oversight.** It is the move the calendar
+    /// already made: `ArchiveSheet.cellSize` takes the width and the day number
+    /// follows it at a fixed fraction, and the number does not scale with
+    /// type. The reasoning there carries over unchanged. Once a container stops
+    /// growing, a glyph that keeps growing inside it does not get bigger, it
+    /// gets squeezed: this letter used to be a 46pt `@ScaledMetric` set in a
+    /// face that also scaled with `.body`, so it was scaled twice and held
+    /// inside the tile only by `minimumScaleFactor`.
+    ///
+    /// Dynamic Type still governs what a player reads: the control labels,
+    /// the found list, the meter and the message line all scale. The letter on
+    /// a tile is the tile's face, at 32pt of cap height, and it was never the
+    /// text anyone turned the setting up to read.
+    ///
+    /// The web sizes it from the viewport (`clamp(1.75rem, 16vw, 5rem)`), which
+    /// lands near the same fraction at phone width.
+    private static let glyphFraction: CGFloat = 46.0 / 104.0
 
-    /// An upper bound only, and deliberately generous.
+    /// An upper bound on the tile's height, and **fixed rather than scaled**.
     ///
     /// **Width is the driver and height follows it**, via the 3:4 ratio, from
     /// whatever the fixed grid column gives. An earlier version inverted that:
@@ -1053,77 +1151,62 @@ private struct TileButton: View {
     /// each tile demanded a width the container could not supply four of, and
     /// the rack broke to 3+3+2. That inversion is the thing not to reintroduce.
     ///
-    /// **Lowered from 118 to 104, which means it now bites at phone width.**
-    /// The rack was the tallest furniture on a screen that has to hold
-    /// everything at once, and this is where the vertical points are. On a 390pt
-    /// phone the column gives 81.75pt of width, so the tiles were drawing 109pt
-    /// tall; capped, they draw 104 and the rack gives back 10pt across its two
-    /// rows.
+    /// On a 375pt phone the column is 78pt, so the ratio gives exactly 104 and
+    /// the cap is not what binds. From 390pt up the column gives more and the
+    /// cap holds the tile at 104. So the tile is 104pt tall on every phone this
+    /// app runs on, and 78pt wide on the narrowest, which is the smallest tile
+    /// the layout can produce.
+    ///
+    /// **This used to be a `@ScaledMetric`, and it was the reason large text
+    /// had nowhere to go.** Dynamic Type grew the cap with the text, so at the
+    /// accessibility sizes it stopped clamping anything and a 107pt column drew
+    /// a 148pt tile. Pinning it is the "drop `relativeTo:`" option an earlier
+    /// note here described as its own argument; the argument is that the tester
+    /// who turned the text up needed SHUFFLE and CLEAR readable, and got
+    /// hundred-point letters that pushed both off the screen. See `TypeCase`.
     ///
     /// **92 was tried, measured, and reverted. Do not reach for it again
-    /// without reading this.** It returned 24pt at default size, and the
-    /// arithmetic is what makes it a trap: the cap constrains HEIGHT, and the
-    /// column stays 81.75pt wide whatever the tile does. So a 92pt cap draws a
-    /// 69 x 92 tile in an 81.75pt column and **the leftover 13pt per column
-    /// becomes gap**. On the phone the rack stops reading as a grid of tiles
-    /// and starts reading as tiles floating in space.
+    /// without reading this.** The cap constrains HEIGHT, and the column stays
+    /// as wide as it is whatever the tile does, so a 92pt cap draws a 69 x 92
+    /// tile in an 81.75pt column on a 390pt phone and **the leftover 13pt per
+    /// column becomes gap**. The rack stops reading as a grid of tiles and
+    /// starts reading as tiles floating in space. The 44pt tap floor was never
+    /// the constraint; the leftover width having nowhere to go is.
     ///
-    /// This is the same mechanism the 118-to-104 move already flagged, where a
-    /// 14pt trim cost about 4pt of width and was recorded as a visible change
-    /// nobody asked for. At 24pt it is three times that, which is where it
-    /// crosses from unnoticed to wrong.
-    ///
-    /// **The 44pt tap floor was never the constraint** and is not what stops
-    /// this. A 69 x 92 tile is more than twice the minimum in both directions.
-    /// The constraint is that these are the most identifying objects on the
-    /// screen and the leftover width has nowhere to go.
-    ///
-    /// **This cap is also a DEFAULT-SIZE lever only, and it does not look like
-    /// one.** Measured on a 390pt phone across the 104-to-92 experiment: **24pt
-    /// returned at L, 11 at XXL, and 2 at XXXL.** The reason is `@ScaledMetric`
-    /// on this line. Dynamic Type grows the cap along with everything else, so
-    /// it climbs out of biting range while the tile's natural 3:4 height (fixed
-    /// by the column width, which does not scale) stays put. By XXXL the cap is
-    /// above the height the ratio asks for and clamps nothing at all: at 92,
-    /// `RackShape` still printed a 107.67pt tile there.
-    ///
-    /// So anyone pricing a further trim should expect it to buy points at
-    /// default size and almost nothing at the sizes where the screen is
-    /// tightest, which is the opposite of the intuition, and to pay for them in
-    /// column gap. Both halves point the same way: this is the weakest of the
-    /// levers on this screen. If large text ever needs the room, it is not this
-    /// number. It is either dropping `relativeTo:` so the cap stops scaling,
-    /// which would pin tile size against Dynamic Type and is its own argument,
-    /// or taking the points somewhere else entirely.
-    ///
-    /// **It is still a cap on HEIGHT, which is why it is the safe lever.** The
-    /// tile shrinks inside a column it never asked to widen, so it cannot demand
-    /// width the container has not got, and the column count is not negotiated
-    /// at all: `columnCount` is 4, or 3 at accessibility sizes, and nothing
-    /// about a tile's size can change that. The 3:4 ratio is untouched, which
-    /// matters beyond the silhouette: `.sort` in the web's `index.css` is
-    /// `aspect-ratio: 3 / 4` and that is a number the two versions share.
-    ///
-    /// Still scaled, so Dynamic Type still grows the tiles rather than pinning
-    /// them at a constant the moment the text gets bigger.
-    @ScaledMetric(relativeTo: .largeTitle) private var maxTileHeight: CGFloat = 104
+    /// The 3:4 ratio is untouched, which matters beyond the silhouette: `.sort`
+    /// in the web's `index.css` is `aspect-ratio: 3 / 4` and that is a number
+    /// the two versions share.
+    private static let maxTileHeight: CGFloat = 104
 
     private var face: some View {
         ZStack {
             shape.fill(Cute.tileFace)
             shape.stroke(Cute.tileEdge, lineWidth: 1)
-            Text(letter)
-                .font(CuteFont.display(glyphSize))
-                .foregroundStyle(placed ? Cute.inkFaint : Cute.ink)
-                .lineLimit(1)
-                .minimumScaleFactor(0.4)
-                .padding(4)
         }
         // Taller than wide. This is most of why they read as tiles rather
         // than as buttons.
         .aspectRatio(3.0 / 4.0, contentMode: .fit)
-        .frame(maxHeight: maxTileHeight)
+        .frame(maxHeight: Self.maxTileHeight)
         .frame(minHeight: Cute.minTapTarget)
+        // The letter reads the tile's settled size and takes a fixed fraction
+        // of it.
+        //
+        // A GeometryReader was tried for this once and rightly removed, but it
+        // was the tile's CONTENT then: it consumed all the space it was offered
+        // instead of reporting a size, so the font was chosen for a box the
+        // tile never got. In an overlay it has no say in the layout at all. It
+        // is handed the tile's finished frame and can only read it, which is
+        // exactly the question being asked.
+        .overlay {
+            GeometryReader { tile in
+                Text(letter)
+                    .font(.custom("Fredoka-SemiBold",
+                                  fixedSize: tile.size.height * Self.glyphFraction))
+                    .foregroundStyle(placed ? Cute.inkFaint : Cute.ink)
+                    .lineLimit(1)
+                    .frame(width: tile.size.width, height: tile.size.height)
+            }
+        }
     }
 
     /// Commit on touch down, animation following.
@@ -1229,12 +1312,19 @@ private struct Controls: View {
         // the space between the rows is spare, the height of the rows is not.
         VStack(spacing: 7) {
             HStack(spacing: 10) {
-                PillButton("Shuffle", kind: .utility) { model.shuffleRack() }
-                    // The cap Delete used to carry, for the same reason: the
-                    // web gives Submit `flex: 2` against its neighbour's
-                    // `flex: 1`, and capping the neighbour approximates that
-                    // ratio at phone widths, which is all this targets.
-                    .frame(maxWidth: 116)
+                // At least 116pt wide, and as wide as its label needs.
+                //
+                // This was a 116pt ceiling, the approximation of the web's
+                // `flex: 2` for Submit against `flex: 1` for its neighbour, and
+                // it was only right while the label was small enough to sit
+                // inside it. At AX1 on a 390pt phone SHUFFLE already filled the
+                // pill edge to edge, and at AX2 on an iPhone SE it broke across
+                // two lines as "SHUFFL" and "E". A floor keeps the default
+                // ratio exactly, since the label is well under 116 there, and
+                // lets the pill grow with its word instead of cutting it.
+                PillButton("Shuffle", kind: .utility, hugsLabel: true) {
+                    model.shuffleRack()
+                }
                 PillButton(Vocabulary.submitWord, kind: .primary,
                            disabled: model.composedWord.count < minWordLength) {
                     model.submit()
@@ -1247,6 +1337,25 @@ private struct Controls: View {
                            label: "Delete last letter") { model.removeLast() }
             }
         }
+        // **The labels grow with Dynamic Type up to AX1, and stop there.**
+        //
+        // The same defect as the tiles, one layer over. These scaled without a
+        // bound: the labels, the pill heights and the delete glyph are all
+        // relative to a text style, so at AX5 the block was 324pt tall on an
+        // iPhone SE, and pinned to the bottom of the scrolling layout it was
+        // half the screen and covered the whole rack at rest.
+        //
+        // They stay words. A reader who turned the text up needs to read
+        // SHUFFLE and CLEAR, and an icon would serve VoiceOver while failing
+        // the sighted low-vision reader, who is exactly who this is for. What
+        // stops is the growth past the size where the words are already large.
+        //
+        // AX1 because it is the tester's own size, the one the report came
+        // from, so they see exactly what they chose; and because it is the
+        // largest size at which the fixed layout held on the 390pt phones.
+        // The cap covers the pill heights too, since `@ScaledMetric` reads the
+        // same environment value.
+        .dynamicTypeSize(...DynamicTypeSize.accessibility1)
     }
 }
 
@@ -1257,16 +1366,25 @@ private struct PillButton: View {
     let kind: Kind
     var disabled: Bool = false
     var label: String? = nil
+    /// Sized to the label, with a floor, rather than sharing the row equally.
+    /// See Shuffle in `Controls`.
+    var hugsLabel: Bool = false
     let action: () -> Void
 
     init(_ title: String = "", kind: Kind, disabled: Bool = false,
-         label: String? = nil, action: @escaping () -> Void) {
+         label: String? = nil, hugsLabel: Bool = false,
+         action: @escaping () -> Void) {
         self.title = title
         self.kind = kind
         self.disabled = disabled
         self.label = label
+        self.hugsLabel = hugsLabel
         self.action = action
     }
+
+    /// The narrowest a label-sized pill gets: the width the web's ratio came
+    /// to at phone widths, when this was a ceiling.
+    private static let hugFloor: CGFloat = 116
 
     /// The delete control carries an icon rather than a glyph in a text font.
     /// It is the only icon-only control on the screen and was the least legible
@@ -1326,13 +1444,21 @@ private struct PillButton: View {
                                             relativeTo: .subheadline))
                         .tracking(2.1)
                         .textCase(.uppercase)
+                        // A word is never broken across lines. The cap on the
+                        // controls' text size is what keeps each one fitting;
+                        // this is the backstop if a label ever outgrows it.
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
                 }
             }
             .foregroundStyle(foreground)
-            .frame(maxWidth: .infinity)
+            .padding(.horizontal, hugsLabel ? 16 : 0)
+            .frame(minWidth: hugsLabel ? Self.hugFloor : nil,
+                   maxWidth: hugsLabel ? nil : .infinity)
             .frame(minHeight: height)
             .background(Capsule().fill(fill))
             .overlay(Capsule().stroke(border, lineWidth: 1))
+            .fixedSize(horizontal: hugsLabel, vertical: false)
         }
         .buttonStyle(.plain)
         .disabled(disabled)

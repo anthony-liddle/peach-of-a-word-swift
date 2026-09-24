@@ -2,10 +2,16 @@ import XCTest
 
 /// What shape is the rack in?
 ///
-/// The rack is eight tiles in a fixed number of columns, and there are exactly
-/// two shapes it is allowed to take: 4+4 at normal text sizes, 3+3+2 at
-/// accessibility sizes. The second is a deliberate response to Dynamic Type.
-/// The first is the one that has been lost before.
+/// The rack is eight tiles in four columns, and there is exactly one shape it
+/// is allowed to take: 4+4, at every text size.
+///
+/// **There used to be a second shape, 3+3+2 at the accessibility sizes, and it
+/// was retired on purpose.** It was written as a response to Dynamic Type, and
+/// what it actually did was grow the tiles to 148pt and push every control
+/// below the fold on an iPhone SE. This file's own test for it was already red
+/// on that phone when it was retired: at AX5 the third row sat so far down the
+/// scroll that the lazy grid never built it, and the test read `[3, 3]`. See
+/// `TypeCase.columnCount`.
 ///
 /// It was lost by making the tiles shorter. An earlier version fixed the tile
 /// HEIGHT and let the width follow, so each tile demanded a width the container
@@ -59,8 +65,10 @@ final class RackShape: XCTestCase {
                        "the rack broke out of 4+4 inside the normal size range")
     }
 
-    func testThreeColumnsAtAccessibilitySizes() {
-        XCTAssertEqual(rowShape(at: "UICTContentSizeCategoryAccessibilityXXXL"), [3, 3, 2],
-                       "the accessibility reflow is not 3+3+2")
+    /// The largest size there is. The tiles no longer follow the text setting,
+    /// so nothing about the text should reach the shape.
+    func testStillFourAndFourAtTheLargestAccessibilitySize() {
+        XCTAssertEqual(rowShape(at: "UICTContentSizeCategoryAccessibilityXXXL"), [4, 4],
+                       "the rack left 4+4 at an accessibility size")
     }
 }
