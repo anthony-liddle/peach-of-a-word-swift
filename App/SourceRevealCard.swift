@@ -28,7 +28,7 @@ import SwiftUI
 /// would have carried a `UIHostingController` and forty lines to buy a better
 /// opening height on eleven days, and it would have left the actual complaint
 /// unfixed: at 1,209pt the way out is off screen at any detent, because the
-/// content is taller than the phone. See `RevealActions`, which is the part
+/// content is taller than the phone. See `CardWayOut`, which is the part
 /// that fixes it.
 ///
 /// **The content sections.** A Definition section and an Etymology section,
@@ -82,7 +82,7 @@ struct SourceRevealCard: View {
                 }
                 .scrollBounceBehavior(.basedOnSize)
 
-                RevealActions(onDismiss: onDismiss)
+                CardWayOut(label: Vocabulary.revealClose, onDismiss: onDismiss)
             }
         }
         .onAppear {
@@ -173,7 +173,15 @@ private struct RevealContent: View {
     }
 }
 
-/// The part of the card that does not scroll: the way out, and the credit.
+/// The part of a card that does not scroll: the way out.
+///
+/// **Shared by both cards that open over the board**, this one and
+/// `DefinitionCard`, because the definition card had the same defect this bar
+/// was built to fix and had not been given it. Its button sat at the foot of
+/// the scrolling prose, so at AX5 on an iPhone SE it was never wholly on screen
+/// at rest: at best 77pt of a 115pt button on the shortest gloss, and more
+/// than a screen away on a long one (#68). One construction, so the two ways out
+/// cannot drift apart again.
 ///
 /// **Why this is pinned rather than sitting at the foot of the prose.** Bea
 /// asked to "show all of the etymology and definition plus button no matter the
@@ -196,12 +204,14 @@ private struct RevealContent: View {
 /// and the prose it credits was reduced to a sliver. It sits at the foot of
 /// the scrolling content instead, which keeps it reachable without letting it
 /// crowd out the thing it is crediting.
-private struct RevealActions: View {
+struct CardWayOut: View {
+    /// What the way out says, which depends on where the card was opened.
+    let label: String
     let onDismiss: () -> Void
 
     var body: some View {
         Button(action: onDismiss) {
-            Text(Vocabulary.revealClose)
+            Text(label)
                 .font(CuteFont.body(15, weight: "SemiBold", relativeTo: .subheadline))
                 .tracking(2.1)
                 .textCase(.uppercase)
@@ -219,6 +229,14 @@ private struct RevealActions: View {
                 .background(Capsule().fill(Cute.accent))
         }
         .buttonStyle(PillPressStyle())
+        // **The label grows to AX1 and stops**, which is the rule the play
+        // screen's controls follow and for the same reason. The bar is pinned,
+        // so every point it grows is taken from the prose above it, and the
+        // prose is what a reader at AX5 opened the card to read. Unbounded, the
+        // label ran to two lines of AX5 type in a 115pt pill. It stays words:
+        // the reader who turned the text up still has to read what the way out
+        // says. See `Controls`.
+        .dynamicTypeSize(...DynamicTypeSize.accessibility1)
         .padding(.horizontal, 28)
         .padding(.top, 12)
         .padding(.bottom, 20)

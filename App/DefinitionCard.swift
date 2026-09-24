@@ -157,86 +157,86 @@ struct DefinitionCard: View {
             // is taller than it. Without this the stack compresses and the
             // definition truncates, which on a card whose only job is the
             // definition is the whole card failing.
-            ScrollView {
-                VStack(spacing: 0) {
-                    // Lowercase, as `.reveal__word` sets it. The corpus keys
-                    // are lowercase already; this is belt and braces against a
-                    // future caller passing something else.
-                    Text(word.lowercased())
-                        .font(CuteFont.display(26, relativeTo: .title2))
-                        .foregroundStyle(Cute.ink)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.5)
+            //
+            // **The way out is pinned beneath the scroll, not at its foot.** It
+            // sat at the foot until 2026-09-23, and at AX5 on an iPhone SE that
+            // put it below the edge at rest on every day of a 31-day sweep: at
+            // best 77pt of a 115pt button on the shortest gloss, more than a
+            // screen away on the longest. The card could still be left by dragging it down,
+            // which the sheet never suppressed, but the one exit that says what
+            // it does was the one a player could not see. `CardWayOut` is the
+            // crown card's bar, shared, so both ways out are one construction.
+            VStack(spacing: 0) {
+                ScrollView {
+                    VStack(spacing: 0) {
+                        // Lowercase, as `.reveal__word` sets it. The corpus keys
+                        // are lowercase already; this is belt and braces against a
+                        // future caller passing something else.
+                        Text(word.lowercased())
+                            .font(CuteFont.display(26, relativeTo: .title2))
+                            .foregroundStyle(Cute.ink)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.5)
 
-                    // `.reveal__sep`: 3rem by 2px, centred, tinted by category.
-                    Capsule()
-                        .fill(category.tint)
-                        .frame(width: 48, height: 2)
-                        .padding(.vertical, 16)
+                        // `.reveal__sep`: 3rem by 2px, centred, tinted by category.
+                        Capsule()
+                            .fill(category.tint)
+                            .frame(width: 48, height: 2)
+                            .padding(.vertical, 16)
 
-                    Text(definition ?? Self.noDefinition)
-                        // Identified, so a UI test can ask this element what it
-                        // says instead of enumerating every static text on the
-                        // screen looking for prose. That enumeration is not
-                        // merely inelegant: `allElementsBoundByIndex` over the
-                        // whole tree walks a seeded board's several hundred
-                        // chips per call, and the test that did it took
-                        // **1120 seconds** against 8 for its siblings. Same
-                        // idiom as `FoundSummaryCount`, and for the same
-                        // reason: name the element, do not go looking for it.
-                        .accessibilityIdentifier("DefinitionProse")
-                        .font(CuteFont.body(15, relativeTo: .subheadline))
-                        .foregroundStyle(Cute.ink)
-                        // The miss line is dimmed rather than restyled, which
-                        // is the web's `.reveal__def--none { opacity: 0.85 }`.
-                        // Dimming says "there is nothing here" without making
-                        // the sentence look like an error.
-                        .opacity(definition == nil ? 0.85 : 1)
-                        .multilineTextAlignment(.leading)
-                        // Left-aligned inside a centred card, as the crown
-                        // card's sections are, and for the same reason: this is
-                        // a paragraph rather than an announcement, and centred
-                        // prose is hard to read past two lines.
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        // Without this the text takes one line inside the
-                        // sheet's fixed-height detent and truncates.
-                        .fixedSize(horizontal: false, vertical: true)
-
-                    Button(action: onDismiss) {
-                        Text(closeLabel)
-                            .font(CuteFont.body(15, weight: "SemiBold", relativeTo: .subheadline))
-                            .tracking(2.1)
-                            .textCase(.uppercase)
-                            .foregroundStyle(Cute.paper)
-                            .frame(maxWidth: .infinity)
-                            .frame(minHeight: 52)
-                            .background(Capsule().fill(Cute.accent))
-                    }
-                    .buttonStyle(PillPressStyle())
-                    .padding(.top, 24)
-
-                    // **Gated on there being content to credit, where the web
-                    // prints it either way.** That divergence is taken from
-                    // this app's own precedent rather than invented: the crown
-                    // card gates the same line on `entry != nil`, and
-                    // `Data/ATTRIBUTION.md` records the argument, that
-                    // crediting a source that was not used would be worse than
-                    // saying nothing. On a miss no Wiktionary text is on
-                    // screen, so there is nothing owed and nothing claimed.
-                    if definition != nil {
-                        Text("Definition from Wiktionary, CC BY-SA 4.0.")
-                            .font(CuteFont.body(11, relativeTo: .caption2))
-                            .foregroundStyle(Cute.inkFaint)
-                            .multilineTextAlignment(.center)
+                        Text(definition ?? Self.noDefinition)
+                            // Identified, so a UI test can ask this element what it
+                            // says instead of enumerating every static text on the
+                            // screen looking for prose. That enumeration is not
+                            // merely inelegant: `allElementsBoundByIndex` over the
+                            // whole tree walks a seeded board's several hundred
+                            // chips per call, and the test that did it took
+                            // **1120 seconds** against 8 for its siblings. Same
+                            // idiom as `FoundSummaryCount`, and for the same
+                            // reason: name the element, do not go looking for it.
+                            .accessibilityIdentifier("DefinitionProse")
+                            .font(CuteFont.body(15, relativeTo: .subheadline))
+                            .foregroundStyle(Cute.ink)
+                            // The miss line is dimmed rather than restyled, which
+                            // is the web's `.reveal__def--none { opacity: 0.85 }`.
+                            // Dimming says "there is nothing here" without making
+                            // the sentence look like an error.
+                            .opacity(definition == nil ? 0.85 : 1)
+                            .multilineTextAlignment(.leading)
+                            // Left-aligned inside a centred card, as the crown
+                            // card's sections are, and for the same reason: this is
+                            // a paragraph rather than an announcement, and centred
+                            // prose is hard to read past two lines.
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            // Without this the text takes one line inside the
+                            // sheet's fixed-height detent and truncates.
                             .fixedSize(horizontal: false, vertical: true)
-                            .padding(.top, 16)
+
+                        // **Gated on there being content to credit, where the web
+                        // prints it either way.** That divergence is taken from
+                        // this app's own precedent rather than invented: the crown
+                        // card gates the same line on `entry != nil`, and
+                        // `Data/ATTRIBUTION.md` records the argument, that
+                        // crediting a source that was not used would be worse than
+                        // saying nothing. On a miss no Wiktionary text is on
+                        // screen, so there is nothing owed and nothing claimed.
+                        if definition != nil {
+                            Text("Definition from Wiktionary, CC BY-SA 4.0.")
+                                .font(CuteFont.body(11, relativeTo: .caption2))
+                                .foregroundStyle(Cute.inkFaint)
+                                .multilineTextAlignment(.center)
+                                .fixedSize(horizontal: false, vertical: true)
+                                .padding(.top, 16)
+                        }
                     }
+                    .padding(.horizontal, 28)
+                    .padding(.vertical, 32)
+                    .frame(maxWidth: .infinity)
                 }
-                .padding(.horizontal, 28)
-                .padding(.vertical, 32)
-                .frame(maxWidth: .infinity)
+                .scrollBounceBehavior(.basedOnSize)
+
+                CardWayOut(label: closeLabel, onDismiss: onDismiss)
             }
-            .scrollBounceBehavior(.basedOnSize)
         }
         .accessibilityElement(children: .contain)
     }
