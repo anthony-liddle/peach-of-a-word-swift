@@ -50,9 +50,15 @@ struct ShippedDefinitionsTests {
     /// Pinned here so the corpus itself is the thing counted. If a future
     /// release moves it, this fails and the number gets looked at rather than
     /// inherited.
-    @Test("has the row count orchard v1.6.0 publishes")
+    ///
+    /// **24,895 to 24,896 at v1.7.0, by `tulpa` and nothing else.** It was
+    /// promoted as an addition, so like `spork`, `yeet` and `fae` before it, it
+    /// is a row the generated corpus did not have. The 38 glosses rewritten in
+    /// the same release changed text and not membership, so they move no count
+    /// here at all.
+    @Test("has the row count orchard v1.7.0 publishes")
     func rowCount() {
-        #expect(readDefinitions().count == 24_895)
+        #expect(readDefinitions().count == 24_896)
     }
 
     /// Every crown has a gloss row.
@@ -126,6 +132,19 @@ struct ShippedDefinitionsTests {
     /// That release added three glosses and withdrew one curated override, and
     /// none of the four carries a spaced hyphen, so the class is untouched.
     /// Only `rowCount` above moved.
+    ///
+    /// **96 to 95 at v1.7.0, and this is the pin working rather than a number
+    /// to bump.** One spaced hyphen left the corpus because the gloss carrying
+    /// it stopped existing: `gaen` read
+    /// "verb Past participle of gae (to go - Scots). Gone." and was rewritten to
+    /// "verb. Scots past participle of gae: gone." It was one of the 38 rewritten
+    /// to strip other dictionaries' apparatus, and the spaced hyphen went with
+    /// the apparatus.
+    ///
+    /// So the class shrank by an edit that was not aiming at it, which is
+    /// exactly the event this pin exists to surface. The four named defects are
+    /// untouched: none of `gin`, `ship`, `sector` or `meal` is among the 38, so
+    /// their text comes from the generated corpus, which did not move.
     @Test("the known corpus defects are present and unpatched")
     func knownDefectsAreStillHere() {
         let definitions = readDefinitions()
@@ -135,6 +154,6 @@ struct ShippedDefinitionsTests {
         #expect(definitions["meal"] == "noun. Correct quotes")
 
         let spacedHyphens = definitions.values.filter { $0.contains(" - ") }.count
-        #expect(spacedHyphens == 96)
+        #expect(spacedHyphens == 95)
     }
 }
