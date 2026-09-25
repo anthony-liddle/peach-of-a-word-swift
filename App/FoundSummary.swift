@@ -23,6 +23,9 @@ struct FoundSummary: View {
     /// The glosses, carried through to the rung sheet so a word listed there
     /// can open its definition. Not used by this view itself.
     var definitions: [String: String] = [:]
+    /// Who wrote each gloss, carried with them so every definition
+    /// reachable from this summary credits the right author.
+    let provenance: GlossProvenance
 
     /// The off-page finds bucketed by rung, alphabetical within each.
     ///
@@ -36,12 +39,14 @@ struct FoundSummary: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     init(puzzle: Puzzle, found: [String], standing: TierStanding,
-         boardDate: Date = Date(), definitions: [String: String] = [:]) {
+         boardDate: Date = Date(), definitions: [String: String] = [:],
+         provenance: GlossProvenance) {
         self.puzzle = puzzle
         self.found = found
         self.standing = standing
         self.boardDate = boardDate
         self.definitions = definitions
+        self.provenance = provenance
         let classified = classifyFound(found, in: puzzle)
         self.allWords = classified
         var b: [WordCategory: [FoundWord]] = [.uncommon: [], .rare: [], .mythic: []]
@@ -130,7 +135,8 @@ struct FoundSummary: View {
                 rung: selection.category,
                 name: selection.name,
                 words: buckets[selection.category] ?? [],
-                definitions: definitions
+                definitions: definitions,
+                provenance: provenance
             ) { openRung = nil }
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)

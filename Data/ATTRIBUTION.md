@@ -43,26 +43,48 @@ The full SCOWL readme and the per-source copyrights are at
 
 ## Wiktionary (definitions and etymologies)
 
-Two files in this directory hold Wiktionary text, and both are licensed
-**Creative Commons Attribution-ShareAlike 4.0**.
+Two files in this directory hold Wiktionary-derived text, and that text is
+licensed **Creative Commons Attribution-ShareAlike 4.0**.
 
-`etymology.tsv` holds a short definition and an etymology for 820 words,
-covering every crown the game can deal.
+`etymology.tsv` holds an etymology and a short definition for 799 words,
+covering 615 of the 626 crowns the game can deal. The other eleven have no
+usable English etymology, so a dealt crown really can have no entry.
 
-`definitions.tsv` holds a short definition for 24,892 words: the corpus behind
+`definitions.tsv` holds a short definition for 24,896 words: the corpus behind
 the tappable found-word chips. Every set word on every one of the 626 calendar
 racks has a row in it. That is a presence check and nothing more, and the
 distinction matters for anyone reading the number: it says each of those words
-has an entry, not that each entry is good. Some are not. The corpus is scraped
-from Wiktionary and carries what Wiktionary had.
+has an entry, not that each entry is good. Some are not.
+
+**38 of those rows are not Wiktionary's.** They were written for this project,
+`gloss-provenance.tsv` names every one, and they carry no third-party licence.
+A card showing one of them says "Written for this game." rather than crediting
+Wiktionary for words it did not write. Two of the 38, `eighteen` and
+`fourteen`, also have an etymology row, so the definition is this project's and
+the etymology is Wiktionary's, and the reveal says both.
 
 - Source: <https://en.wiktionary.org/>
 - Licence: <https://creativecommons.org/licenses/by-sa/4.0/>
 
+### How Much Of It Is Wiktionary's Own Words
+
+Measured separately per corpus, because they differ.
+
+**No Wiktionary-derived definition is verbatim.** All 24,858 ship as a
+part-of-speech label joined to one sense chosen out of however many the entry
+offered, which is not a string the entry contains. 13,220 had more than one
+sense, 95,418 in total, and one is kept. 628 are cut short.
+
+**442 of the 799 etymologies differ from the entry's rendered prose. The other
+357 are that prose unchanged**, give or take collapsed whitespace. Calling
+those adapted would be wrong, and the colophon does call them adapted, because
+one line cannot carry 357 of 799 and claiming more modification than occurred is
+the safe direction under share-alike.
+
 Share-alike applies to that text: a derivative of it has to be released under
 the same terms, and the attribution has to be visible to the player rather than
-only in a file like this one. It is. Each reveal card carries the credit
-underneath the content it credits, naming what it actually shows, and the
+only in a file like this one. It is. Each card carries the credit underneath the
+content it credits, naming what it actually shows and who wrote it, and the
 colophon at the foot of the found list carries it for the app as a whole.
 
 A card with nothing to show carries no credit. Crediting a source that was not
@@ -77,6 +99,12 @@ used would be worse than saying nothing. All of that was true, and it was the
 same reasoning `App/Colophon.swift` gave for omitting its Wiktionary line. What
 changed is the content, not the reasoning: the corpus now ships, so the credit
 is owed, and it is given.
+
+**Corrected 2026-09-25.** The counts had gone stale: `etymology.tsv` was given
+as 820 rows "covering every crown the game can deal", and it is 799 covering
+615 of 626; `definitions.tsv` was given as 24,892 rows and it is 24,896. The
+section also said the whole corpus was Wiktionary's, which stopped being true
+when the 38 were rewritten at orchard v1.7.0.
 
 ## Derived files
 

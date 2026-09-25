@@ -48,29 +48,77 @@ the version and its checksums.
 
 ## Wiktionary (definitions and etymologies)
 
-The source-word reveal shows a short definition and an etymology, from the
-English Wiktionary, licensed **CC BY-SA 4.0**. The corpus ships as
-`Data/etymology.tsv`: 820 entries covering all 626 calendar crowns, taken from a
-pinned orchard release. See `tools/update-lexicon.sh` for the version and its
-checksums.
+Both the source-word reveal and the tappable found-word definitions show text
+derived from the English Wiktionary, licensed **CC BY-SA 4.0**. Two corpora
+ship, taken from a pinned orchard release; see `tools/update-lexicon.sh` for the
+version and its checksums.
+
+- `Data/etymology.tsv`: 799 rows of word, etymology and definition, covering
+  615 of the 626 calendar crowns. The other eleven have no usable English
+  etymology and are skipped on purpose, so a dealt crown really can have no
+  entry.
+- `Data/definitions.tsv`: 24,896 rows, behind every tappable found-word chip.
+
+**38 of those 24,896 definitions are not from Wiktionary at all.** They were
+written for this project, and `Data/gloss-provenance.tsv` names every one. Those
+rows carry no third-party licence, and since 2026-09-25 the cards say so per
+word rather than crediting Wiktionary for text it did not write.
+
+Two of the 38, `eighteen` and `fourteen`, are also calendar crowns with an
+etymology, so their row is split: the definition is this project's and the
+etymology is Wiktionary's. The reveal card credits both in one sentence.
+
+### What Was Done To The Wiktionary Text
+
+The two corpora were measured separately, against the caches orchard builds
+from, because they do not behave the same way.
+
+**No Wiktionary-derived definition is verbatim.** All 24,858 ship as a composed
+string, a part-of-speech label joined to one sense, which is not a string the
+entry contains. 13,220 of them had more than one sense to choose from, 95,418
+senses in total, and exactly one is kept. 628 are cut short of the sense they
+came from.
+
+**The etymologies mostly are not modified.** 442 of the 799 differ from the
+entry's rendered prose; the other 357 are that prose unchanged, give or take
+collapsed whitespace, and it would be wrong to call those adapted. Of the 442,
+382 had zero-width or bidirectional marks removed, 174 join two or more
+Etymology sections into one line, and 87 had footnote markers removed.
+
+The colophon says "adapted" over both, which claims more modification than
+occurred for those 357. That is the direction that cannot short-change anyone
+under a share-alike licence, and one line at the foot of a game cannot carry
+357 of 799. The measurement is here instead.
+
+### Where The Attribution Is Visible
 
 That licence is share-alike, so the derivative use is released under the same
 terms and the attribution is visible in the app rather than only in a file like
-this one. Two places carry it: the reveal card, underneath the content, and the
-colophon at the foot of the found list.
+this one. Three places carry it, and each credits only what it shows:
 
-**What this section used to say.** Until 2026-08-14 it read "Nothing in this
-repository is derived from Wiktionary, and no definition text ships in the app",
-and recorded that the card named the word and never defined it as a deliberate
-constraint rather than an omission. It is rewritten rather than deleted because
-the constraint was real and the reason it lifted is worth keeping: etymology has
-no permissive source. Every open etymology dataset is a Wiktionary derivative
-and inherits CC BY-SA, so the choice was this licence or no etymology at all.
-The tappable per-word definitions the web also ships are still not here; that is
-a larger corpus and a separate decision.
+- The **source-word reveal**, underneath the content.
+- The **definition card**, under a tapped found word's gloss.
+- The **colophon**, at the foot of the found list.
 
 - Source: <https://en.wiktionary.org/>
 - Licence: <https://creativecommons.org/licenses/by-sa/4.0/>
+
+### What This Section Used To Say
+
+Until 2026-08-14 it read "Nothing in this repository is derived from Wiktionary,
+and no definition text ships in the app", and recorded that the card named the
+word and never defined it as a deliberate constraint rather than an omission. It
+is rewritten rather than deleted because the constraint was real and the reason
+it lifted is worth keeping: etymology has no permissive source. Every open
+etymology dataset is a Wiktionary derivative and inherits CC BY-SA, so the
+choice was this licence or no etymology at all.
+
+**Corrected 2026-09-25.** It then said `etymology.tsv` held "820 entries
+covering all 626 calendar crowns". It holds 799 and covers 615. It also said
+"the tappable per-word definitions the web also ships are still not here",
+which stopped being true when `definitions.tsv` landed: 24,896 rows ship and a
+card renders them. And it said two places carry the attribution, which was
+written before the definition card existed.
 
 ## Fonts
 

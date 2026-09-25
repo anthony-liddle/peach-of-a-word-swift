@@ -94,7 +94,7 @@ final class GameModel {
 
     /// The gloss behind every tappable found-word chip, keyed by word.
     ///
-    /// Populated from `Data/definitions.tsv`, 24,892 rows. **A whole-file read
+    /// Populated from `Data/definitions.tsv`, 24,896 rows. **A whole-file read
     /// into one dictionary, where the web fetches one of 793 per-rack shards.**
     /// The shards are an HTTP optimisation: a browser downloads 4 KB rather
     /// than 1.5 MB and does it after the board is already playable. An app has
@@ -115,6 +115,18 @@ final class GameModel {
     /// rare gap is the visible one and it is mostly not-words rather than a
     /// sourcing failure, which is the queue's problem rather than this table's.
     private(set) var definitions: [String: String] = [:]
+
+    /// Which of those glosses this project wrote rather than derived from
+    /// Wiktionary, from `Data/gloss-provenance.tsv`.
+    ///
+    /// **Empty is the safe answer and it is also a wrong one.** A build without
+    /// the sidecar credits Wiktionary for all 24,896 rows, including the 38 it
+    /// did not write. That under-claims this project's own words and
+    /// over-credits nobody, which is the direction an attribution failure
+    /// should fall, but it is still a false line on 38 cards. The shipped
+    /// corpus is guarded by `ShippedGlossProvenanceTests` so the file's absence
+    /// fails a test rather than quietly changing what the cards say.
+    private(set) var glossProvenance = GlossProvenance(projectWords: [])
 
     /// The celebration currently on screen, if any.
     ///
@@ -362,6 +374,7 @@ final class GameModel {
             loaded = await Self.loadLexicon()
             sourceEntries = await Self.loadSourceEntries()
             definitions = await Self.loadDefinitions()
+            glossProvenance = await Self.loadGlossProvenance()
         }
 
         // 1 millisecond is 1e15 attoseconds. An earlier version of this scaled
@@ -653,6 +666,22 @@ final class GameModel {
         // on demand too.
         if let word = UserDefaults.standard.string(forKey: "revealCard") {
             moment = .sourceWord(word: word)
+        }
+        // `-definitionCard tulpa` opens the found-word definition card for a
+        // named word, the same favour `-revealCard` does for the crown.
+        //
+        // It exists for the credit line rather than for the layout. Whether a
+        // card says "Written for this game." or credits Wiktionary depends on
+        // the word, and the 38 words where the answer is the interesting one
+        // are scattered across the year: reaching `tulpa` through play means
+        // waiting for a rack that forms it and then finding it. This opens any
+        // word's card with its real gloss and its real provenance.
+        //
+        // Always `.rare`, because the category only picks the card's colour and
+        // the credit line does not read it. Rare is also the rung most of the
+        // odd words actually sit on.
+        if let word = UserDefaults.standard.string(forKey: "definitionCard") {
+            moment = .definition(word: word, category: .rare)
         }
         // `-hapticLadder 1` plays all four rungs in order, spaced far enough
         // apart to be told apart: tile tap, find, source word, completion.
@@ -1535,6 +1564,23 @@ extension GameModel {
         await Task.detached(priority: .userInitiated) {
             guard let data = try? bundledDataDirectory() else { return [:] }
             return readDefinitions(in: data)
+        }.value
+    }
+
+    /// Read the provenance sidecar off the main thread, from the app bundle.
+    ///
+    /// The same shape as `loadDefinitions`, and inside the same clock, though
+    /// it is 500 bytes against that file's 1.5 MB. It is read separately rather
+    /// than folded into the definitions load because the two answer different
+    /// questions: one is what a word means, the other is who wrote that. A
+    /// single load returning both would be the one-parser shape
+    /// `Definitions.swift` argues against, one level up.
+    nonisolated static func loadGlossProvenance() async -> GlossProvenance {
+        await Task.detached(priority: .userInitiated) {
+            guard let data = try? bundledDataDirectory() else {
+                return GlossProvenance(projectWords: [])
+            }
+            return GlossProvenance(projectWords: readGlossProvenance(in: data))
         }.value
     }
 

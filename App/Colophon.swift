@@ -45,6 +45,45 @@ struct Colophon: View {
     /// the completion card, which is why it is not a `GameModel.Moment`.
     @State private var explaining = false
 
+    /// The word-list credit, read twice: on screen and by VoiceOver.
+    ///
+    /// **One string, because there were two and they were the same sentence.**
+    /// The visible block and the accessibility label each spelled these out,
+    /// which is the arrangement where a correction lands in one of them. This
+    /// pass corrected both, so it is also the moment to make that impossible.
+    ///
+    /// **"with a curated patch layer" is not decoration.** The boundary is
+    /// ENABLE union SCOWL 95 and then a patch layer that adds and removes
+    /// words by hand: `tulpa` ships in v1.7.0 and is in neither list. Without
+    /// the clause the line names two sources for a set that has three.
+    private static let wordsCredit =
+        "Words from ENABLE and SCOWL, with a curated patch layer."
+
+    /// The text credit.
+    ///
+    /// **"most" and "adapted" are each carrying a correction.**
+    ///
+    /// This said "Definitions and etymologies from Wiktionary", which claimed
+    /// all 24,896 definitions. 38 of them were written for this project and owe
+    /// Wiktionary nothing, so the line claimed a licence over this project's
+    /// own words. `DefinitionCard` and `SourceRevealCard` now caption those 38
+    /// per word; this is the same correction at the bottom of the screen.
+    ///
+    /// "from" also understated what the pipeline does. No Wiktionary-derived
+    /// definition ships as the entry's own string: every one is a
+    /// part-of-speech label joined to one sense chosen out of however many the
+    /// entry offered, and 628 are cut short of it. "adapted" is the honest verb
+    /// and it is the safe direction to be wrong in under ShareAlike.
+    ///
+    /// It is deliberately coarser than `Data/ATTRIBUTION.md`, which carries the
+    /// measurements, including that 357 of the 799 etymologies are in fact the
+    /// entry's prose unchanged. One line at the foot of a game cannot hold
+    /// 357 of 799, and erring toward claiming more modification than occurred
+    /// is the direction that cannot short-change anyone.
+    private static let textCredit =
+        "Etymologies and most definitions adapted from Wiktionary, "
+        + "CC BY-SA 4.0. A few definitions were written for this game."
+
     var body: some View {
         // Two stacks rather than one, so the dedication can be centred over the
         // credits without moving them.
@@ -58,10 +97,20 @@ struct Colophon: View {
         // for the one line, a different layout for the other three.
         VStack(spacing: 3) {
             VStack(alignment: .leading, spacing: 3) {
-                Text("Words from ENABLE and SCOWL.")
-                Text("Definitions and etymologies from Wiktionary, CC BY-SA 4.0.")
+                Text(Self.wordsCredit)
+                Text(Self.textCredit)
                 Text(Vocabulary.typeCredit)
             }
+            // **Leading, against the `.center` the whole colophon carries.**
+            // That centre is for the dedication, which the comment above says:
+            // the credits keep their leading alignment and the outer stack
+            // centres over them. Until this pass no credit line was long enough
+            // to wrap at default type, so the distinction never showed and the
+            // outer alignment was inherited harmlessly. The Wiktionary line now
+            // wraps, and without this its second line centres under a first
+            // line that is flush left, which reads as a mistake rather than as
+            // a style.
+            .multilineTextAlignment(.leading)
             // The quiet expansion of the colophon, where the web puts it and
             // for the same reason: this is where a curious person already
             // looks, and it stays off the play surface.
@@ -134,8 +183,7 @@ struct Colophon: View {
         // The dedication is spoken too. It is quiet, not secret, and the one
         // person it names is as likely to meet it here as on screen.
         .accessibilityLabel(
-            "Credits. Words from ENABLE and SCOWL. "
-            + "Definitions and etymologies from Wiktionary, CC BY-SA 4.0. "
+            "Credits. " + Self.wordsCredit + " " + Self.textCredit + " "
             + Vocabulary.typeCredit + " " + Vocabulary.dedication
         )
         #if DEBUG
