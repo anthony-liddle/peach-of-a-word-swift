@@ -667,6 +667,22 @@ final class GameModel {
         if let word = UserDefaults.standard.string(forKey: "revealCard") {
             moment = .sourceWord(word: word)
         }
+        // `-definitionCard tulpa` opens the found-word definition card for a
+        // named word, the same favour `-revealCard` does for the crown.
+        //
+        // It exists for the credit line rather than for the layout. Whether a
+        // card says "Written for this game." or credits Wiktionary depends on
+        // the word, and the 38 words where the answer is the interesting one
+        // are scattered across the year: reaching `tulpa` through play means
+        // waiting for a rack that forms it and then finding it. This opens any
+        // word's card with its real gloss and its real provenance.
+        //
+        // Always `.rare`, because the category only picks the card's colour and
+        // the credit line does not read it. Rare is also the rung most of the
+        // odd words actually sit on.
+        if let word = UserDefaults.standard.string(forKey: "definitionCard") {
+            moment = .definition(word: word, category: .rare)
+        }
         // `-hapticLadder 1` plays all four rungs in order, spaced far enough
         // apart to be told apart: tile tap, find, source word, completion.
         //

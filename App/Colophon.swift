@@ -101,6 +101,16 @@ struct Colophon: View {
                 Text(Self.textCredit)
                 Text(Vocabulary.typeCredit)
             }
+            // **Leading, against the `.center` the whole colophon carries.**
+            // That centre is for the dedication, which the comment above says:
+            // the credits keep their leading alignment and the outer stack
+            // centres over them. Until this pass no credit line was long enough
+            // to wrap at default type, so the distinction never showed and the
+            // outer alignment was inherited harmlessly. The Wiktionary line now
+            // wraps, and without this its second line centres under a first
+            // line that is flush left, which reads as a mistake rather than as
+            // a style.
+            .multilineTextAlignment(.leading)
             // The quiet expansion of the colophon, where the web puts it and
             // for the same reason: this is where a curious person already
             // looks, and it stays off the play surface.
