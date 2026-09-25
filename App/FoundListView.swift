@@ -196,17 +196,21 @@ struct FoundListView: View {
     /// one method would trade that for nothing.
     /// The glosses, carried through to the summary's rung sheets.
     var definitions: [String: String] = [:]
+    /// Who wrote them, carried the same way and for the same distance.
+    let provenance: GlossProvenance
     var onSelect: (FoundWord) -> Void = { _ in }
 
     init(puzzle: Puzzle, found: [String], standing: TierStanding,
          boardDate: Date = Date(),
          definitions: [String: String] = [:],
+         provenance: GlossProvenance,
          onSelect: @escaping (FoundWord) -> Void = { _ in }) {
         self.puzzle = puzzle
         self.found = found
         self.standing = standing
         self.boardDate = boardDate
         self.definitions = definitions
+        self.provenance = provenance
         self.onSelect = onSelect
         self.words = classifyFound(found, in: puzzle)
     }
@@ -263,7 +267,8 @@ struct FoundListView: View {
             // The counts, no longer pinned above the scroll. See `ContentView`
             // for the reversal this is.
             FoundSummary(puzzle: puzzle, found: found, standing: standing,
-                         boardDate: boardDate, definitions: definitions)
+                         boardDate: boardDate, definitions: definitions,
+                         provenance: provenance)
 
             if !found.isEmpty {
                 Text("\(counted(words.count, "word")) found")

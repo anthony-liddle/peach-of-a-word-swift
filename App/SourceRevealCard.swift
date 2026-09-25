@@ -61,6 +61,13 @@ struct SourceRevealCard: View {
     let word: String
     /// The definition and etymology, when there are any.
     var entry: SourceEntry?
+    /// Who wrote the definition. The etymology is Wiktionary's in every case;
+    /// the definition is not, for two of the crowns, which is why this card
+    /// needs to be told rather than assuming one author for both.
+    ///
+    /// **Not defaulted, on purpose.** An empty default would compile here and
+    /// credit Wiktionary for words it did not write.
+    let provenance: GlossProvenance
     let onDismiss: () -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -77,7 +84,7 @@ struct SourceRevealCard: View {
             // possible outcome for the one line Bea reacted to.
             VStack(spacing: 0) {
                 ScrollView {
-                    RevealContent(word: word, entry: entry,
+                    RevealContent(word: word, entry: entry, provenance: provenance,
                                   landed: landed || reduceMotion)
                 }
                 .scrollBounceBehavior(.basedOnSize)
@@ -101,6 +108,7 @@ struct SourceRevealCard: View {
 private struct RevealContent: View {
     let word: String
     var entry: SourceEntry?
+    let provenance: GlossProvenance
     /// The peach's landing state. It scales, which does not affect layout.
     var landed: Bool
 
@@ -159,7 +167,24 @@ private struct RevealContent: View {
                     // which scrolling to the end of the thing being attributed
                     // satisfies; it does not have to be permanently on screen
                     // at the cost of the text it credits.
-                    Text("Definition and etymology from Wiktionary, CC BY-SA 4.0.")
+                    // **Two authors are possible on this card and only here.**
+                    // `eighteen` and `fourteen` are crowns whose definition was
+                    // written for this game while their etymology is still
+                    // Wiktionary's, so the line splits the claim rather than
+                    // picking one. It splits inside one sentence: at AX5 a
+                    // second credit row costs more height than the distinction
+                    // is worth, under a card that is already the longest in the
+                    // game.
+                    //
+                    // Gated on the etymology actually being on screen, matching
+                    // the section above it. In the shipped corpus every row has
+                    // one, so this changes nothing today; it means the credit
+                    // follows the content rather than the entry, which is the
+                    // rule the comment above already states.
+                    Text(provenance.credit(
+                        for: word,
+                        includingEtymology: !entry.etymology.isEmpty
+                    ))
                         .font(CuteFont.body(11, relativeTo: .caption2))
                         .foregroundStyle(Cute.inkFaint)
                         .multilineTextAlignment(.center)
@@ -286,7 +311,8 @@ private struct RevealSection: View {
                 definition: "noun. A road designed for fast traffic, with "
                     + "grade-separated junctions and restricted access.",
                 etymology: "From motor + way, first attested in the 1900s."
-            )
+            ),
+            provenance: GlossProvenance(projectWords: [])
         ) {}
         .presentationDetents([.large])
     }
@@ -295,7 +321,32 @@ private struct RevealSection: View {
 /// What ships today, and what a crown with no entry would render.
 #Preview("Source reveal, no content") {
     Color.clear.sheet(isPresented: .constant(true)) {
-        SourceRevealCard(word: "motorway") {}
+        SourceRevealCard(
+            word: "motorway",
+            provenance: GlossProvenance(projectWords: [])
+        ) {}
             .presentationDetents([.large])
+    }
+}
+
+/// The split case: a crown this project wrote the definition for.
+///
+/// `eighteen` and `fourteen` are the only two, and both are live calendar
+/// crowns, so this is a card a player opens on two days of the cycle. The
+/// definition is ours and the etymology is Wiktionary's, and the credit has to
+/// say both in one sentence.
+#Preview("Source reveal, our definition and their etymology") {
+    Color.clear.sheet(isPresented: .constant(true)) {
+        SourceRevealCard(
+            word: "eighteen",
+            entry: SourceEntry(
+                definition: "numeral. The cardinal number occurring after "
+                    + "seventeen and before nineteen.",
+                etymology: "From Middle English eightetene, from Old English "
+                    + "eahtatiene."
+            ),
+            provenance: GlossProvenance(projectWords: ["eighteen"])
+        ) {}
+        .presentationDetents([.large])
     }
 }

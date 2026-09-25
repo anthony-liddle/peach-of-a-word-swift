@@ -1,3 +1,4 @@
+import PeachEngine
 import SwiftUI
 
 /// What a found word says when you tap it.
@@ -97,6 +98,13 @@ struct DefinitionSheet: View {
     let category: WordCategory
     /// The gloss, or nil when the corpus has none for this word.
     var definition: String?
+    /// Who wrote the gloss, which decides what the credit line says.
+    ///
+    /// **Not defaulted, on purpose.** An empty default would compile at every
+    /// call site and silently credit Wiktionary for this project's own 38
+    /// words, which is the exact false line this parameter exists to remove.
+    /// Required, the compiler names any path that forgets it.
+    let provenance: GlossProvenance
     /// Where this was opened from, which names the way out.
     var origin: DefinitionOrigin = .foundList
     let onDismiss: () -> Void
@@ -106,6 +114,7 @@ struct DefinitionSheet: View {
             word: word,
             category: category,
             definition: definition,
+            provenance: provenance,
             closeLabel: origin.closeLabel,
             onDismiss: onDismiss
         )
@@ -119,6 +128,8 @@ struct DefinitionCard: View {
     let category: WordCategory
     /// The gloss, or nil when the corpus has none for this word.
     var definition: String?
+    /// Who wrote the gloss. See `DefinitionSheet` for why it is required.
+    let provenance: GlossProvenance
     /// What the way out says, which depends on where this was opened from.
     /// Resolved by `DefinitionOrigin`, never assembled here.
     var closeLabel: String = Vocabulary.revealClose
@@ -221,7 +232,17 @@ struct DefinitionCard: View {
                         // saying nothing. On a miss no Wiktionary text is on
                         // screen, so there is nothing owed and nothing claimed.
                         if definition != nil {
-                            Text("Definition from Wiktionary, CC BY-SA 4.0.")
+                            // **Whose gloss this is, per word.** This card never
+                            // shows an etymology, so it credits a definition and
+                            // only a definition. For the 38 words written for
+                            // this game that is "Written for this game." with no
+                            // licence: our own words cannot carry someone else's
+                            // terms, and appending CC BY-SA to them would be a
+                            // worse claim than the line this replaces.
+                            Text(provenance.credit(
+                                for: word,
+                                includingEtymology: false
+                            ))
                                 .font(CuteFont.body(11, relativeTo: .caption2))
                                 .foregroundStyle(Cute.inkFaint)
                                 .multilineTextAlignment(.center)
@@ -248,7 +269,8 @@ struct DefinitionCard: View {
             word: "resident",
             category: .set,
             definition: "noun. A person who lives somewhere permanently or on "
-                + "a long-term basis."
+                + "a long-term basis.",
+            provenance: GlossProvenance(projectWords: [])
         ) {}
         .presentationDetents([.medium, .large])
     }
@@ -259,7 +281,8 @@ struct DefinitionCard: View {
         DefinitionCard(
             word: "sentried",
             category: .mythic,
-            definition: "verb. simple past and past participle of sentry"
+            definition: "verb. simple past and past participle of sentry",
+            provenance: GlossProvenance(projectWords: [])
         ) {}
         .presentationDetents([.medium, .large])
     }
@@ -269,7 +292,30 @@ struct DefinitionCard: View {
 /// percent rack-weighted.
 #Preview("Definition, none on hand") {
     Color.clear.sheet(isPresented: .constant(true)) {
-        DefinitionCard(word: "eir", category: .rare) {}
+        DefinitionCard(
+            word: "eir",
+            category: .rare,
+            provenance: GlossProvenance(projectWords: [])
+        ) {}
             .presentationDetents([.medium])
+    }
+}
+
+/// A gloss this project wrote, which carries no third-party licence.
+///
+/// `tulpa` is one of the 38, and the newest: promoted by hand at orchard
+/// v1.7.0, so it is in neither ENABLE nor SCOWL either. Its card is the one
+/// that would read "Definition from Wiktionary, CC BY-SA 4.0." over text
+/// Wiktionary did not write.
+#Preview("Definition, written for this game") {
+    Color.clear.sheet(isPresented: .constant(true)) {
+        DefinitionCard(
+            word: "tulpa",
+            category: .rare,
+            definition: "noun. A being or object brought into existence by "
+                + "concentrated imagination, as in Tibetan mysticism.",
+            provenance: GlossProvenance(projectWords: ["tulpa"])
+        ) {}
+        .presentationDetents([.medium, .large])
     }
 }

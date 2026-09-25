@@ -210,7 +210,11 @@ struct ContentView: View {
                 switch moment {
                 case .sourceWord(let word):
                     let entry = model.sourceEntries[word]
-                    SourceRevealCard(word: word, entry: entry) { model.moment = nil }
+                    SourceRevealCard(
+                        word: word,
+                        entry: entry,
+                        provenance: model.glossProvenance
+                    ) { model.moment = nil }
                         // Large only, and the board is covered whenever this is
                         // up. No crown carrying an entry has ever fitted the
                         // medium detent, and 615 of 626 carry one, so offering
@@ -229,7 +233,8 @@ struct ContentView: View {
                     DefinitionSheet(
                         word: word,
                         category: category,
-                        definition: model.definitions[word]
+                        definition: model.definitions[word],
+                        provenance: model.glossProvenance
                     ) { model.moment = nil }
                 }
             }
@@ -643,7 +648,8 @@ struct ContentView: View {
             if let puzzle = model.puzzle, let standing = model.standing {
                 FoundListView(puzzle: puzzle, found: model.found,
                               standing: standing, boardDate: model.boardDate,
-                              definitions: model.definitions) { word in
+                              definitions: model.definitions,
+                              provenance: model.glossProvenance) { word in
                     model.revealFound(word)
                 }
             }

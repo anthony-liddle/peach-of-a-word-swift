@@ -24,6 +24,10 @@ struct RungSheet: View {
     let words: [FoundWord]
     /// The glosses, so a word here can open its own definition.
     var definitions: [String: String] = [:]
+    /// Who wrote each of those glosses, carried alongside them so a definition
+    /// opened from a rung credits the same author as one opened from the
+    /// found list. See `DefinitionSheet`.
+    let provenance: GlossProvenance
     let onDismiss: () -> Void
 
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
@@ -150,6 +154,7 @@ struct RungSheet: View {
                 word: word.word,
                 category: word.category,
                 definition: definitions[word.word],
+                provenance: provenance,
                 // Named, because the way out of this card lands here rather
                 // than on the board, and the sheet underneath already has a
                 // correct "Back to the basket" of its own.
@@ -166,7 +171,8 @@ struct RungSheet: View {
             name: "Rare",
             words: ["amor", "arty", "tryma", "moray", "matron"].map {
                 FoundWord(word: $0, category: .rare, score: 5)
-            }
+            },
+            provenance: GlossProvenance(projectWords: [])
         ) {}
         .presentationDetents([.medium, .large])
     }
