@@ -38,8 +38,9 @@ SDK. See [CONTRIBUTING.md](CONTRIBUTING.md).
 # XcodeGen is required. The .xcodeproj is generated and is not in the repo.
 brew install xcodegen                   # or: mint install yonaskolb/XcodeGen
 
-# The app.
-xcodegen generate
+# The app. tools/xcodeproj.sh generates the project, and says so when the one
+# you had was stale. Safe to run any time; it is a no-op when nothing moved.
+tools/xcodeproj.sh
 xcodebuild -project PeachOfAWord.xcodeproj -scheme PeachOfAWord \
   -configuration Release \
   -destination 'platform=iOS Simulator,name=iPhone 17 Pro' build
@@ -58,6 +59,16 @@ made the spec and the project two sources of truth for the same thing: change
 project. Xcode Cloud regenerates it on every build through
 `ci_scripts/ci_post_clone.sh`, which left no reason to keep carrying the second
 copy.
+
+**That fixed CI and left a working copy uncovered, which is what
+`tools/xcodeproj.sh` is for.** Nothing regenerates the project on checkout, on
+pull, or on a branch switch, so a local project can disagree with `project.yml`
+for as long as nobody looks. When it bites it does not look like staleness: on
+2026-09-24 the UI tests could not build at all, reporting
+`Build input file cannot be found: UITests/CreditProbe.swift` for a file that
+had been deleted and that `project.yml` had never heard of, while CI was green
+on the same commit. Run the script when a build fails oddly, and after any pull
+that touched `project.yml` or added or deleted a source file.
 
 The consequence for anyone working here: project settings are **not** editable
 through Xcode's UI. Anything set there is discarded by the next

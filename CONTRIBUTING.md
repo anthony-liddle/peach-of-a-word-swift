@@ -9,11 +9,17 @@ not committed, so a fresh clone has no project in it.
 brew install xcodegen                   # or: mint install yonaskolb/XcodeGen
 git clone git@github.com:anthony-liddle/peach-of-a-word-swift.git
 cd peach-of-a-word-swift
-xcodegen generate
+tools/xcodeproj.sh                      # generates the project from project.yml
 open PeachOfAWord.xcodeproj
 ```
 
 Swift 6.0+ and Xcode 16.4 or newer. The package targets macOS 14 and iOS 17.
+
+`tools/xcodeproj.sh` is also the thing to run later, not only at clone time.
+Nothing regenerates the project on a pull or a branch switch, so it can drift
+from `project.yml` silently. The script is a no-op when nothing moved and tells
+you plainly when something did, which is why it replaces a bare
+`xcodegen generate` here rather than sitting beside it.
 
 ## Two Xcodes, on purpose
 
