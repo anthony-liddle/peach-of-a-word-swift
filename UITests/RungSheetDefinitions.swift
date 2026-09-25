@@ -52,14 +52,24 @@ final class RungSheetDefinitions: XCTestCase {
         }
         chip.tap()
 
-        // The card is up. Matched on the gloss's credit line rather than on a
-        // button: both sheets label their way out "Back to the basket", so a
-        // button query cannot tell the definition card from the rung sheet, and
-        // an earlier version of this test asserted the rung sheet survived by
-        // finding the definition card's own button.
-        let credit = app.staticTexts.matching(
-            NSPredicate(format: "label CONTAINS[c] %@", "Wiktionary")).firstMatch
-        XCTAssertTrue(credit.waitForExistence(timeout: 10), "the definition card did not open")
+        // The card is up. Matched on the prose element's identifier rather than
+        // on a button: both sheets label their way out "Back to the basket", so
+        // a button query cannot tell the definition card from the rung sheet,
+        // and an earlier version of this test asserted the rung sheet survived
+        // by finding the definition card's own button.
+        //
+        // **It used to match the credit line containing "Wiktionary", and that
+        // stopped being safe on 2026-09-25.** The credit is now decided per
+        // word: a gloss written for this project reads "Written for this game."
+        // and never names Wiktionary. This test taps whatever chip the rung
+        // happens to yield, so the day it yields one of those 38 words the
+        // assertion fails while the card is on screen exactly as intended. It
+        // was checking provenance and reporting it as "the card did not open".
+        //
+        // `DefinitionProse` is the element the card names for this, and its own
+        // comment says why: name the element, do not go looking for it.
+        let prose = app.staticTexts["DefinitionProse"]
+        XCTAssertTrue(prose.waitForExistence(timeout: 10), "the definition card did not open")
 
         // And it says where it goes back to. From here that is the rung, not
         // the basket: the sheet underneath has its own correct "Back to the
