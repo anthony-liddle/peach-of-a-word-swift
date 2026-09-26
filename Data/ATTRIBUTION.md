@@ -56,10 +56,10 @@ racks has a row in it. That is a presence check and nothing more, and the
 distinction matters for anyone reading the number: it says each of those words
 has an entry, not that each entry is good. Some are not.
 
-**38 of those rows are not Wiktionary's.** They were written for this project,
+**40 of those rows are not Wiktionary's.** They were written for this project,
 `gloss-provenance.tsv` names every one, and they carry no third-party licence.
 A card showing one of them says "Written for this game." rather than crediting
-Wiktionary for words it did not write. Two of the 38, `eighteen` and
+Wiktionary for words it did not write. Two of the 40, `eighteen` and
 `fourteen`, also have an etymology row, so the definition is this project's and
 the etymology is Wiktionary's, and the reveal says both.
 
@@ -70,10 +70,10 @@ the etymology is Wiktionary's, and the reveal says both.
 
 Measured separately per corpus, because they differ.
 
-**No Wiktionary-derived definition is verbatim.** All 24,858 ship as a
+**No Wiktionary-derived definition is verbatim.** All 24,856 ship as a
 part-of-speech label joined to one sense chosen out of however many the entry
-offered, which is not a string the entry contains. 13,220 had more than one
-sense, 95,418 in total, and one is kept. 628 are cut short.
+offered, which is not a string the entry contains. 13,216 had more than one
+sense, 83,750 across them, and one is kept. 628 are cut short.
 
 **442 of the 799 etymologies differ from the entry's rendered prose. The other
 357 are that prose unchanged**, give or take collapsed whitespace. Calling
@@ -105,6 +105,12 @@ as 820 rows "covering every crown the game can deal", and it is 799 covering
 615 of 626; `definitions.tsv` was given as 24,892 rows and it is 24,896. The
 section also said the whole corpus was Wiktionary's, which stopped being true
 when the 38 were rewritten at orchard v1.7.0.
+
+**Corrected 2026-09-26, for orchard v1.8.0.** `fagot` and `sulla` became this
+project's rows in that release, so 38 became 40 and 24,858 became 24,856. The
+multi-sense figures now describe the Wiktionary-derived rows: 13,220 had been
+counted over the whole generated corpus, and 95,418 is the whole sense cache's
+total.
 
 ## Derived files
 
