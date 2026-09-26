@@ -189,8 +189,7 @@ struct Colophon: View {
         #if DEBUG
         // `-openExplainer 1` opens it without a tap, the same hook shape
         // `FoundSummary` uses for `-openRung`. Opening a sheet needs a tap and
-        // simctl cannot tap, so the explainer would otherwise be unscreenshottable
-        // and its nested Safari sheet untestable.
+        // simctl cannot tap, so the explainer would otherwise be unscreenshottable.
         .onAppear {
             if UserDefaults.standard.bool(forKey: "openExplainer") { explaining = true }
         }

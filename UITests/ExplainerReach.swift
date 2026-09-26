@@ -50,4 +50,27 @@ final class ExplainerReach: XCTestCase {
         XCTAssertTrue(close.isHittable,
                       "the explainer at AX5 opened with its way out off screen")
     }
+
+    /// A link leaves the app for the browser; nothing loads inside the app.
+    ///
+    /// These were an in-app Safari view until 2026-09-26, which made the app
+    /// load a third party's page itself, its one network request. The claim
+    /// now is that the app hands the URL to the system and loads nothing, so
+    /// this asserts both halves: Safari comes to the front, and the app never
+    /// showed a web view of its own.
+    func testALinkOpensInSafariNotInTheApp() {
+        let app = launch(size: "UICTContentSizeCategoryL", openExplainer: true)
+        let link = app.descendants(matching: .any).matching(
+            NSPredicate(format: "label BEGINSWITH %@", "Read about ENABLE")).firstMatch
+        XCTAssertTrue(link.waitForExistence(timeout: 10), "no ENABLE link in the explainer")
+        var swipes = 0
+        while !link.isHittable && swipes < 8 { app.swipeUp(); swipes += 1 }
+        link.tap()
+
+        let safari = XCUIApplication(bundleIdentifier: "com.apple.mobilesafari")
+        XCTAssertTrue(safari.wait(for: .runningForeground, timeout: 15),
+                      "the link did not open in Safari")
+        XCTAssertEqual(app.webViews.count, 0,
+                       "the app showed a web view of its own")
+    }
 }

@@ -45,6 +45,16 @@ targets:
     platform: iOS
     sources:
       - path: App
+        # Listed on its own below, so it is not referenced twice.
+        excludes:
+          - PrivacyInfo.xcprivacy
+      # The privacy manifest, which App Store Connect reads from the built
+      # bundle. Named explicitly as a resource rather than left to the App glob,
+      # so whether it ships is decided here and nowhere else. It declares no
+      # tracking and no collected data, and the one required-reason API the app
+      # uses: UserDefaults, read and written only by this app (reason CA92.1).
+      - path: App/PrivacyInfo.xcprivacy
+        buildPhase: resources
       # A folder reference, so the word lists keep their directory structure
       # inside the bundle and land at Bundle.main.resourceURL/Data/.
       - path: Data
