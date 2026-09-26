@@ -1,4 +1,3 @@
-import SafariServices
 import SwiftUI
 
 /// The quiet explainer reachable from the colophon.
@@ -18,10 +17,6 @@ import SwiftUI
 /// fragment of it every time.
 struct HowItWorks: View {
     let onDismiss: () -> Void
-
-    /// The link being read in place, if any. `SFSafariViewController` needs a
-    /// URL rather than a Bool, so this doubles as the presentation flag.
-    @State private var reading: URL?
 
     var body: some View {
         ZStack {
@@ -53,23 +48,32 @@ struct HowItWorks: View {
                         // is the same two destinations at a size a thumb can
                         // hit, and it keeps the paragraph readable as a
                         // sentence.
+                        //
+                        // **A `Link`, so the page opens in the browser, not in
+                        // this app.** These were an in-app Safari view until
+                        // 2026-09-26, which meant a tap here made the app load a
+                        // third party's page itself: the one network request it
+                        // ever made. Handing the URL to the system means the app
+                        // makes none, which is what the privacy page and the App
+                        // Store label say. Coming back is the system's back
+                        // gesture rather than a Done button, the price of that.
                         VStack(alignment: .leading, spacing: 10) {
                             ForEach(Vocabulary.explainerLinks, id: \.name) { link in
-                                Button {
-                                    reading = URL(string: link.url)
-                                } label: {
-                                    HStack(spacing: 6) {
-                                        Text("Read about \(link.name)")
-                                            .font(CuteFont.body(15, weight: "SemiBold",
-                                                                relativeTo: .subheadline))
-                                        Image(systemName: "arrow.up.right")
-                                            .font(.footnote)
+                                if let url = URL(string: link.url) {
+                                    Link(destination: url) {
+                                        HStack(spacing: 6) {
+                                            Text("Read about \(link.name)")
+                                                .font(CuteFont.body(15, weight: "SemiBold",
+                                                                    relativeTo: .subheadline))
+                                            Image(systemName: "arrow.up.right")
+                                                .font(.footnote)
+                                        }
+                                        .foregroundStyle(Cute.accent)
+                                        .frame(minHeight: 44, alignment: .leading)
+                                        .contentShape(Rectangle())
                                     }
-                                    .foregroundStyle(Cute.accent)
-                                    .frame(minHeight: 44, alignment: .leading)
-                                    .contentShape(Rectangle())
+                                    .buttonStyle(.plain)
                                 }
-                                .buttonStyle(.plain)
                             }
                         }
                         .padding(.top, 4)
@@ -104,55 +108,8 @@ struct HowItWorks: View {
                 .background(Cute.pageBackground)
             }
         }
-        // In app, with a Done button that returns here.
-        //
-        // A plain `Link` would hand the reader to Safari and make coming back a
-        // manual act, for a link nobody needs to leave the game for. This is
-        // more machinery, and the machinery is what stops a curiosity becoming
-        // an exit.
-        .sheet(item: $reading) { url in
-            SafariView(url: url)
-                .ignoresSafeArea()
-        }
-        #if DEBUG
-        // `-openExplainerLink 1` presents the first link's reader immediately,
-        // which is the sheet-over-sheet case: this view is already inside a
-        // sheet, and `SFSafariViewController` arrives as a second one.
-        .onAppear {
-            if UserDefaults.standard.bool(forKey: "openExplainerLink") {
-                reading = URL(string: Vocabulary.explainerLinks[0].url)
-            }
-        }
-        #endif
         .accessibilityElement(children: .contain)
     }
-}
-
-/// `SFSafariViewController`, as a SwiftUI view.
-///
-/// Nothing is configured on it. The default gives a Done button, a share
-/// sheet and Reader, which is the whole point of using it over a `Link`: the
-/// reader gets Safari's affordances and this app gets them back afterwards.
-private struct SafariView: UIViewControllerRepresentable {
-    let url: URL
-
-    func makeUIViewController(context: Context) -> SFSafariViewController {
-        SFSafariViewController(url: url)
-    }
-
-    /// Nothing to update. The controller is built for one URL and replaced
-    /// rather than mutated, which is what `.sheet(item:)` does when the URL
-    /// changes.
-    func updateUIViewController(_ controller: SFSafariViewController, context: Context) {}
-}
-
-/// `URL` is not `Identifiable`, and `.sheet(item:)` needs it to be.
-///
-/// Scoped to this file rather than added globally: conforming a Foundation type
-/// to `Identifiable` app-wide is the kind of extension that surprises someone
-/// three files away.
-extension URL: @retroactive Identifiable {
-    public var id: String { absoluteString }
 }
 
 // Named for the type rather than for the heading. Spelling the heading out
