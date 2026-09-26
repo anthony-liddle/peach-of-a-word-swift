@@ -35,10 +35,11 @@ struct ShippedDefinitionsTests {
 
     /// **A row count, not a coverage figure**, and it exists because three
     /// different numbers for this one file are in circulation. orchard's own
-    /// `data-raw/definitions.tsv` has 24,877 rows; `meta.json` records
-    /// `definitionsCovered: 24596`, which counts distinct words carrying a
+    /// `data-raw/definitions.tsv` has 24,877 rows; the web's `meta.json`
+    /// records `definitionsCovered`, which counts distinct words carrying a
     /// gloss in some shipped WEB BUNDLE and is therefore boundary-filtered and
-    /// rack-filtered in ways this file is not; the published corpus at orchard
+    /// rack-filtered in ways this file is not (this app's copy stopped carrying
+    /// it on 2026-09-26, since nothing here read it); the published corpus at orchard
     /// v1.6.0 has 24,895 rows, because `pack:release` merges the 18 curated
     /// glosses that are additions over the generated corpus.
     ///

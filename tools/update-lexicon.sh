@@ -229,35 +229,27 @@ done
 # is the test that was inverted rather than deleted precisely so it would keep
 # having an opinion about this file.
 #
-# Only the six list counts change. sourcePool and definitionsCovered are carried
-# through untouched rather than invented, and the reason has now narrowed to
-# nothing: this app ships both of the things they count. sourcePool counts the
-# 793 crown candidates, and this app ships etymology for 820 words including all
-# 626 the calendar can deal. definitionsCovered counts the definition corpus,
-# which as of this change ships here too.
+# Only the six list counts change, and definitionsCovered is dropped.
 #
-# **definitionsCovered was 24833 against a corpus of 24,892 rows, and it is now
-# 24,596.** The old note here said the stale figure was "the web's to move".
-# The web moved it, at orchard v1.4.0, when 392 denials shrank the per-rack
-# bundles, and this copy was never told, so the two files disagreed for three
-# releases with nothing asserting they should not. Resynced at v1.6.0.
+# **definitionsCovered is no longer shipped here, from 2026-09-26.** It counts
+# distinct words carrying a gloss in some WEB BUNDLE: boundary-filtered and
+# rack-filtered across the 793 source-pool racks the web bundles per rack. This
+# app ships neither, and nothing in it read the field: SmokeTests decodes the
+# six list counts only, and the app reads nothing in meta.json at runtime. It
+# was carried through and resynced by hand to the web's value at v1.6.0, v1.7.0
+# and v1.8.0 only because the web's metaParity held the two files
+# byte-identical. That test now compares the attribution strings alone, which
+# is what the two games genuinely share, so the hand step and the field are
+# gone together. Computing it here instead was rejected: it would be a second
+# implementation of the web's bundling for a number nothing here reads.
 #
-# Read the number for what it is. definitionsCovered counts distinct words
-# carrying a gloss in some shipped WEB BUNDLE, not rows in this repository's
-# definitions.tsv, which has 24,895. It is boundary-filtered and rack-filtered
-# and this app ships neither filter, so the gap is not drift: 24,596 is the
-# right answer to a question about the other consumer. The count in this file
-# is not a number to reason from about this app, and the corpus itself is the
-# thing to count.
+# sourcePool is still carried through untouched. It counts the 793 crown
+# candidates; nothing here reads it either, and it is left for its own pass.
 #
-# peach-of-a-word now carries src/data/metaParity.test.ts, which fails when the
-# two copies diverge on any byte. That is what was missing, not care.
-#
-# No key is added for that coverage, deliberately. meta.json has to stay
-# byte-identical with the web's serialiseMeta output, so a new key here is a
-# change to the other repository as well, and nothing reads it: the coverage
-# claim is asserted by ShippedSourceEntriesTests against the corpus itself,
-# which cannot go stale the way a recorded number can.
+# No key is added for this app's own definition coverage, deliberately: the
+# coverage claim is asserted by ShippedSourceEntriesTests and
+# ShippedDefinitionsTests against the corpus itself, which cannot go stale the
+# way a recorded number can.
 say "recomputing meta.json list counts"
 python3 - "$DATA_DIR" <<'PYEOF'
 import json, sys, pathlib
@@ -276,9 +268,13 @@ meta["counts"].update({
     "beyond70": count("beyond-size-70.txt"),
     "beyond95": count("beyond-size-95.txt"),
 })
-# No trailing newline: the web's serialiseMeta writes
-# JSON.stringify(meta, null, 2) and nothing after it, and these two files
-# must stay byte-identical.
+# Not shipped here. It counts the web's per-rack bundles, which this app does
+# not ship, and nothing in the app read it. Popped rather than trusted absent,
+# so an old meta.json copied in cannot bring it back.
+meta["counts"].pop("definitionsCovered", None)
+# No trailing newline, matching the web's serialiseMeta. Only the attribution
+# strings are held equal across the two files now (the web's metaParity), but
+# one format for both costs nothing.
 meta_path.write_text(json.dumps(meta, indent=2))
 print(f"  meta.json rewritten: {enable + additions:,} boundary words")
 PYEOF
