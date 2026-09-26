@@ -37,9 +37,9 @@ struct RungSheet: View {
     /// **A second sheet over this one, rather than replacing it.** Bea was
     /// browsing a rung when she wanted a definition, and a definition is an
     /// aside inside that: replacing this sheet would answer the question and
-    /// lose her place in the list she was reading. The idiom is established
-    /// here, since `SFSafariViewController` presents over the explainer the
-    /// same way.
+    /// lose her place in the list she was reading. (This used to cite the
+    /// explainer's in-app Safari view as the same idiom; those links open in the
+    /// browser now, so this sheet is the example of it.)
     @State private var openWord: FoundWord?
 
     private var title: some View {
