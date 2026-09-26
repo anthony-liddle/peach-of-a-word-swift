@@ -82,9 +82,13 @@ struct ShippedGlossProvenanceTests {
     /// this project's own words rather than text with another dictionary's
     /// apparatus in it. Pinned so a release that changes the number gets looked
     /// at rather than inherited.
-    @Test("names the 38 words whose gloss is this project's own")
-    func namesTheThirtyEight() {
-        #expect(readGlossProvenance().count == 38)
+    ///
+    /// **40 at orchard v1.8.0**: fagot and sulla, whose shipped glosses had
+    /// been a denied spelling and a slur sense, were given curated rows
+    /// carrying only their ordinary sense.
+    @Test("names the 40 words whose gloss is this project's own")
+    func namesTheForty() {
+        #expect(readGlossProvenance().count == 40)
     }
 
     /// Every named word has to be IN the corpus, or the sidecar is crediting
