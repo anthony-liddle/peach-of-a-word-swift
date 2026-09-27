@@ -1099,8 +1099,9 @@ final class GameModel {
         // unbounded, and each day it walks costs a puzzle build. Held to the
         // most recent days, so the launch that does this costs what it was
         // measured at; the streak accounts for every day beyond, which is what
-        // it was always going to do for days with no words at all.
-        let days = Array(storage.daysWithProgress().prefix(GameStorage.backFillWalkDayCount))
+        // it was always going to do for days with no words at all. Days after
+        // today are left out; see `backFillWalkDays`.
+        let days = storage.backFillWalkDays(todayIndex: Self.todayStorageIndex)
         var puzzles: [Int: Puzzle] = [:]
         await withTaskGroup(of: (Int, Puzzle?).self) { group in
             var next = 0

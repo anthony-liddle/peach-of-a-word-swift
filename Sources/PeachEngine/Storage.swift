@@ -225,11 +225,23 @@ public final class GameStorage {
     ///
     /// **Unbounded now, where it used to be held to fourteen by the prune.** The
     /// back-fill walks this to rebuild outcomes from play, and each day it walks
-    /// costs a puzzle build, so the caller caps it. See `backFillWalkLimit`.
+    /// costs a puzzle build, so `backFillWalkDays` caps it.
     public func daysWithProgress() -> [Int] {
         Set(read().days.keys).union(readArchive().days.keys)
             .compactMap(Int.init)
             .sorted(by: >)
+    }
+
+    /// The days the one time back-fill rebuilds from their own words: the
+    /// `backFillWalkLimit` newest days with words, up to and including today.
+    ///
+    /// **Never a day after today.** No day's words are dated in the future by
+    /// play. Only a clock moved forward and back again writes them, and when it
+    /// has, those days used to fill the window ahead of every real one, so a
+    /// recent basket day fell out of the walk and was written as merely
+    /// cleared, permanently. A future day has no history to rebuild.
+    public func backFillWalkDays(todayIndex: Int) -> [Int] {
+        Array(daysWithProgress().filter { $0 <= todayIndex }.prefix(Self.backFillWalkLimit))
     }
 
     /// Every day's words, both stores merged, with the live board winning.

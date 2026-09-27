@@ -230,4 +230,43 @@ struct ArchiveProgressTests {
         #expect(old?.reached == DayOutcome.cleared, "a day beyond the cap has no outcome")
         #expect(old?.fromStreak == true, "a day beyond the cap did not credit the streak")
     }
+
+    /// A clock moved forward and back leaves words dated after today. The
+    /// back-fill walked the newest fourteen days with words, future ones
+    /// included, so those filled the window and the real basket days before
+    /// today were never rebuilt: written as merely cleared, permanently.
+    ///
+    /// The classifier answers only for the days the walk chose, because that is
+    /// all the app builds puzzles for.
+    @Test("days after today do not push real days out of the back-fill")
+    func futureDaysDoNotFillTheWalk() {
+        let storage = GameStorage(store: InMemoryStore())
+        let today = Self.today
+        let baskets = [today - 1, today - 4, today - 9]
+        for back in 1...13 {
+            storage.saveDayProgress(dayIndex: today - back, sourceWord: "w",
+                                    found: ["real"], fromArchive: true)
+        }
+        // More future days than the walk holds.
+        let future = (today + 1)...(today + GameStorage.backFillWalkDayCount + 6)
+        for day in future {
+            storage.saveDayProgress(dayIndex: day, sourceWord: "w",
+                                    found: ["future"], fromArchive: false)
+        }
+        storage.adoptStreak(count: 13, lastClearedDayIndex: today - 1, todayIndex: today)
+
+        let walk = storage.backFillWalkDays(todayIndex: today)
+        #expect(walk.allSatisfy { $0 <= today }, "the walk chose a day after today")
+        storage.backFillOutcomes(firstPlayableDayIndex: Self.firstPlayable) { day, _, _ in
+            guard walk.contains(day) else { return nil }
+            return baskets.contains(day) ? DayOutcome.basket : DayOutcome.cleared
+        }
+
+        for day in baskets {
+            #expect(storage.outcome(dayIndex: day)?.reached == DayOutcome.basket,
+                    "a basket day \(today - day) back was not rebuilt from its words")
+        }
+        #expect(future.allSatisfy { storage.outcome(dayIndex: $0) == nil },
+                "a day after today was given an outcome")
+    }
 }
