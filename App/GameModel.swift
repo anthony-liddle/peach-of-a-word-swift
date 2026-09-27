@@ -423,6 +423,21 @@ final class GameModel {
                 phase = .failed("the daily calendar is empty")
                 return
             }
+            #if DEBUG
+            // **Every seed and `-resetProgress` start from a phone that has
+            // never been played**, before anything reads the store, so what a
+            // test sees cannot depend on what ran before it. Each used to clear
+            // only what it wrote: `-resetProgress` today's words, `showcase`
+            // the outcome map, and `bea` nothing at all (#73). A `bea` run left
+            // an 87-day streak on every later launch and 26 words on the board
+            // LayoutBudget's archive probe opens. Here rather than in each
+            // seed, because the board and the streak on screen are read from
+            // the store just below and would otherwise show what was erased.
+            if UserDefaults.standard.bool(forKey: "resetProgress")
+                || UserDefaults.standard.string(forKey: "seedArchive") != nil {
+                storage.seeding.eraseAll()
+            }
+            #endif
             // Before the board is adopted, so a day left in the daily blob by
             // a session that ended yesterday is already where it belongs when
             // the back-fill goes looking for it.
@@ -627,9 +642,11 @@ final class GameModel {
                 submit()
             }
         }
-        // `-resetProgress 1` wipes today's saved words so the board starts
-        // empty and the source word can be found for real. The celebration only
-        // fires on a genuine find, so replaying it needs the day cleared first.
+        // `-resetProgress 1` starts from a phone that has never been played:
+        // the load path erases the whole store before the board is read, so
+        // the board is empty and the source word can be found for real. By
+        // the time this runs the board is already empty; clearing it here is
+        // what the flag did before that erase existed, and costs one save.
         if UserDefaults.standard.bool(forKey: "resetProgress") {
             found.removeAll()
             // Otherwise a day that was already complete keeps `completionSeen`
@@ -1099,8 +1116,9 @@ final class GameModel {
         // unbounded, and each day it walks costs a puzzle build. Held to the
         // most recent days, so the launch that does this costs what it was
         // measured at; the streak accounts for every day beyond, which is what
-        // it was always going to do for days with no words at all.
-        let days = Array(storage.daysWithProgress().prefix(GameStorage.backFillWalkDayCount))
+        // it was always going to do for days with no words at all. Days after
+        // today are left out; see `backFillWalkDays`.
+        let days = storage.backFillWalkDays(todayIndex: Self.todayStorageIndex)
         var puzzles: [Int: Puzzle] = [:]
         await withTaskGroup(of: (Int, Puzzle?).self) { group in
             var next = 0
@@ -1300,12 +1318,8 @@ final class GameModel {
         let count = 70 + (last - Self.snapshotLastCleared)
         guard last - count + 1 >= first else { return }
 
-        // A phone that has never been played, whatever this simulator already
-        // holds. Without this the seed wrote on top of earlier runs' words, and
-        // words dated after today could fill the back-fill's fourteen-day walk
-        // so that no basket day was rebuilt (#73). `-resetProgress` clears only
-        // today, which is not enough.
-        storage.seeding.eraseAll()
+        // The store is already empty: the load path erases it for any
+        // `-seedArchive` before this runs (#73).
 
         // No outcomes, and the expansion not yet run. Armed explicitly rather
         // than through `adoptStreak`, which re-arms only when it takes: run
