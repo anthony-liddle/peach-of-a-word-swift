@@ -948,11 +948,12 @@ extension GameStorage {
         public func rearmBackFill() { storage.rearmBackFill() }
 
         /// Erase every stored day's words, the streak and every outcome, so a
-        /// seed starts from a phone that has never been played.
+        /// seed or `-resetProgress` starts from a phone that has never been
+        /// played. The app calls it before the store is first read.
         ///
         /// **A seed that models a first open has to own the whole store.** The
         /// `bea` seed wrote its inputs on top of whatever the simulator already
-        /// held, and `-resetProgress` clears only today. On 2026-09-23 a sweep
+        /// held, and `-resetProgress` then cleared only today. On 2026-09-23 a sweep
         /// of positive `-dayOffset` launches left about thirty days of words
         /// dated after today; the back-fill walks the fourteen newest days with
         /// words, so those filled the walk, none of the seed's basket days was
