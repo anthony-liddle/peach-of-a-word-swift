@@ -934,6 +934,26 @@ extension GameStorage {
         /// Put the archive back to never expanded. See
         /// `GameStorage.rearmBackFill`.
         public func rearmBackFill() { storage.rearmBackFill() }
+
+        /// Erase every stored day's words, the streak and every outcome, so a
+        /// seed starts from a phone that has never been played.
+        ///
+        /// **A seed that models a first open has to own the whole store.** The
+        /// `bea` seed wrote its inputs on top of whatever the simulator already
+        /// held, and `-resetProgress` clears only today. On 2026-09-23 a sweep
+        /// of positive `-dayOffset` launches left about thirty days of words
+        /// dated after today; the back-fill walks the fourteen newest days with
+        /// words, so those filled the walk, none of the seed's basket days was
+        /// ever rebuilt, and the test failed from then on (issue #73).
+        public func eraseAll() { storage.eraseAllForSeeding() }
+    }
+
+    /// See `Seeding.eraseAll`. Removes the three blobs outright rather than
+    /// writing empty ones, which is what a fresh install reads as.
+    func eraseAllForSeeding() {
+        for key in [Self.storageKey, Self.archiveKey, Self.outcomesKey] {
+            store.set(nil, forKey: key)
+        }
     }
 }
 #endif
