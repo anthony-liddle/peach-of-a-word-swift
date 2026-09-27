@@ -2,6 +2,10 @@ import Foundation
 import Testing
 @testable import PeachEngine
 
+// `Seeding` is DEBUG only, like the seeds that call it, so this suite is too.
+// Without the gate `swift test -c release` does not build.
+#if DEBUG
+
 /// The seeds' way back to a phone that has never been played.
 ///
 /// Issue #73: the `bea` seed wrote its inputs on top of whatever the simulator
@@ -38,3 +42,4 @@ struct SeedingTests {
         #expect(!storage.hasBackFilledOutcomes(), "the back-fill still reads as spent")
     }
 }
+#endif
