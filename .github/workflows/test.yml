@@ -225,6 +225,78 @@ jobs:
           path: .build/ui-tests.xcresult
           retention-days: 7
 
+  # The UI tests that touch the day, with the simulator in a zone whose date is
+  # not UTC's.
+  #
+  # **Every other job runs in UTC, and in UTC this whole class is invisible.**
+  # A day computed from UTC and one computed from the local calendar are the
+  # same number there, so a mix of the two passes everywhere above. `dayIndex`
+  # is the one place a day is computed and it uses the phone's zone; this is
+  # what notices the day that stops being true. Shown red on 2026-09-27 against
+  # a planted day index computed from UTC, while the `ui-tests` job stayed green
+  # on the same commit.
+  #
+  # No `swift test` here: no engine test reads the ambient zone, since
+  # `dayIndex` takes its zone as an argument, so a shifted `TZ` would test
+  # nothing.
+  ui-tests-off-utc:
+    runs-on: macos-26
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Generate the Xcode project
+        run: ./ci_scripts/ci_post_clone.sh
+
+      # Built before the zone is chosen, so the tests start seconds after the
+      # check below rather than a build later.
+      - name: Build the UI tests
+        run: |
+          set -euo pipefail
+          UDID=$(xcrun simctl list devices available \
+            | awk -F'[()]' '/^ *iPhone/ {print $2; exit}')
+          [ -n "$UDID" ] || { echo "no iPhone simulator on this runner" >&2; exit 1; }
+          echo "UDID=$UDID" >> "$GITHUB_ENV"
+          xcodebuild build-for-testing \
+            -project PeachOfAWord.xcodeproj \
+            -scheme PeachOfAWordUITests \
+            -destination "id=$UDID" \
+            -derivedDataPath "$RUNNER_TEMP/dd"
+
+      # Twelve hours behind UTC is the previous date until 12:00 UTC; fourteen
+      # ahead is the next date from 10:00 UTC. Switching at 11:00 leaves an hour
+      # either side, and the check fails the job rather than letting it run
+      # blind on the one minute before 00:00 UTC when neither holds.
+      #
+      # `launchctl setenv` inside the simulator, because a job-level `TZ` does
+      # not reach a simulator process. Both the app and the test runner inherit
+      # it, including apps XCUITest launches.
+      - name: UI tests that touch the day, off UTC
+        run: |
+          set -euo pipefail
+          if [ "$(date -u +%H)" -lt 11 ]; then ZONE=Etc/GMT+12; else ZONE=Pacific/Kiritimati; fi
+          echo "UTC $(date -u '+%F %H:%M'), $ZONE $(TZ=$ZONE date '+%F %H:%M')"
+          [ "$(date -u +%F)" != "$(TZ=$ZONE date +%F)" ] \
+            || { echo "the local date is UTC's; this run would prove nothing" >&2; exit 1; }
+          xcrun simctl boot "$UDID" || true
+          xcrun simctl spawn "$UDID" launchctl setenv TZ "$ZONE"
+          XCTESTRUN=$(ls "$RUNNER_TEMP"/dd/Build/Products/*.xctestrun | head -1)
+          xcodebuild test-without-building \
+            -xctestrun "$XCTESTRUN" \
+            -destination "id=$UDID" \
+            -only-testing:PeachOfAWordUITests/TodayIsTheLocalDate \
+            -only-testing:PeachOfAWordUITests/DayRollsOverOnForeground \
+            -only-testing:PeachOfAWordUITests/ArchiveBeaFirstOpen \
+            -resultBundlePath .build/ui-tests-off-utc.xcresult
+
+      - name: Keep the result bundle
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ui-test-results-off-utc
+          path: .build/ui-tests-off-utc.xcresult
+          retention-days: 7
+
   # The same build against an older SDK, and the only thing that can detect the
   # problem it exists for.
   #
