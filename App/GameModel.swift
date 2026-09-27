@@ -1300,6 +1300,13 @@ final class GameModel {
         let count = 70 + (last - Self.snapshotLastCleared)
         guard last - count + 1 >= first else { return }
 
+        // A phone that has never been played, whatever this simulator already
+        // holds. Without this the seed wrote on top of earlier runs' words, and
+        // words dated after today could fill the back-fill's fourteen-day walk
+        // so that no basket day was rebuilt (#73). `-resetProgress` clears only
+        // today, which is not enough.
+        storage.seeding.eraseAll()
+
         // No outcomes, and the expansion not yet run. Armed explicitly rather
         // than through `adoptStreak`, which re-arms only when it takes: run
         // twice, it refuses a count that does not beat the live one, and the
