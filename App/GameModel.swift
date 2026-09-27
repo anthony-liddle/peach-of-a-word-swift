@@ -1546,7 +1546,7 @@ extension GameModel {
     /// The storage index for right now. Keyed off `storageEpoch`, which never
     /// moves, so a calendar regeneration cannot renumber a stored day.
     nonisolated static var todayStorageIndex: Int {
-        dayIndex(now, epoch: storageEpoch, timeZone: .current)
+        dayIndex(now, epoch: storageEpoch, timeZone: TimeZone(identifier: "UTC")!)
     }
 
     /// Read the reveal corpus off the main thread, from the app bundle.
