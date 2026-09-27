@@ -200,6 +200,17 @@ struct ContentView: View {
                 )
             case .ready:
                 game
+                #if DEBUG
+                // `-exposeToday 1` prints the two day indices the app computed,
+                // so `TodayIsTheLocalDate` can hold them to the phone's own date.
+                // Opt in, so no other test's layout ever carries it.
+                if UserDefaults.standard.bool(forKey: "exposeToday") {
+                    Text("\(GameModel.todayStorageIndex) \(GameModel.todayDailyIndex)")
+                        .font(.caption2)
+                        .accessibilityIdentifier("DebugToday")
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                }
+                #endif
             }
         }
         // `.task` runs when the view appears and is cancelled automatically if
