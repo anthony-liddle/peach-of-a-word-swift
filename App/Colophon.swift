@@ -80,6 +80,10 @@ struct Colophon: View {
     /// entry's prose unchanged. One line at the foot of a game cannot hold
     /// 357 of 799, and erring toward claiming more modification than occurred
     /// is the direction that cannot short-change anyone.
+    /// The page the App Store record links to, so both routes land on one
+    /// policy.
+    private static let privacyPolicy = URL(string: "https://peachofaword.com/privacy")!
+
     private static let textCredit =
         "Etymologies and most definitions adapted from Wiktionary, "
         + "CC BY-SA 4.0. A few definitions were written for this game."
@@ -131,6 +135,28 @@ struct Colophon: View {
             .padding(.top, 8)
             .accessibilityHint("Opens an explanation of how words are chosen")
 
+            // **Apple asks for the privacy policy inside the app** (review
+            // guideline 5.1.1(i)), not only on the App Store record, and until
+            // this line the app linked it nowhere. Beside the explainer and
+            // before the dedication, which is where the web's `Game.tsx` puts
+            // its own.
+            //
+            // A `Link`, so the URL goes to the system and opens in Safari, the
+            // same handoff the explainer's links have made since #78: the app
+            // itself loads no page, which is what the policy it links to says.
+            // One line at the default size, as the trigger above is.
+            Link(destination: Self.privacyPolicy) {
+                Text(Vocabulary.privacyLink)
+                    .font(CuteFont.body(11, relativeTo: .caption2))
+                    .foregroundStyle(Cute.inkSoft)
+                    .underline()
+                    .frame(minHeight: 44)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(Vocabulary.privacyLinkSpoken)
+            .accessibilityHint("Opens in Safari")
+
             // **Centred, and only this line.** Bea's reason is the whole brief:
             // "it made it feel more intentional". Left-aligned it reads as the
             // next item in the list above it; centred it reads as placed.
@@ -142,7 +168,7 @@ struct Colophon: View {
             // two surfaces therefore agree on this line and differ on the three
             // above it, which is deliberate rather than drift.
             //
-            // **Last, below the link, which is parity rather than a new
+            // **Last, below the links, which is parity rather than a new
             // decision.** `Game.tsx` already puts `colophon__dedication`
             // after both the explainer trigger and the privacy link. The
             // app had it above the trigger, so it read as one more item in

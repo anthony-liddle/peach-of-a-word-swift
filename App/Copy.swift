@@ -86,6 +86,17 @@ enum Vocabulary {
     /// The colophon's quiet way in.
     static let explainerTrigger = "How the words work"
 
+    // MARK: - Privacy
+
+    /// The colophon's link to the privacy policy, beside the explainer's.
+    ///
+    /// The web's says only "Privacy". This one carries the container because
+    /// the policy's whole answer fits in it: progress and streaks live on the
+    /// phone, with no account and nothing sent anywhere. VoiceOver reads
+    /// `privacyLinkSpoken` instead, which names the thing plainly.
+    static let privacyLink = "Privacy: your \(container) stays on your phone"
+    static let privacyLinkSpoken = "Privacy policy"
+
     /// The explainer body, ported from the web's `HowItWorks.tsx`.
     ///
     /// **Substituted rather than copied, and the noun is the reason.** The web's
