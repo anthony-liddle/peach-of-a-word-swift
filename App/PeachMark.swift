@@ -1,3 +1,4 @@
+import PeachEngine
 import SwiftUI
 
 /// The peach. The game's identifying mark, and the thing the name comes from.
@@ -23,6 +24,10 @@ struct PeachMark: View {
     /// peach, which is what a 13pt mark needs to do.
     var showsFace: Bool = true
 
+    /// What the peach is wearing, if anything. Drawn over the peach in the same
+    /// 100x100 box, so a costume never changes its footprint. See `Costume`.
+    var costume: Costume? = nil
+
     var body: some View {
         GeometryReader { geo in
             let scale = min(geo.size.width, geo.size.height) / Self.designSize
@@ -30,7 +35,8 @@ struct PeachMark: View {
                 leaf.fill(Color(hex: 0x8FD3B6))
                 body_.fill(Color(hex: 0xFFC27A))
                 highlight.fill(Color(hex: 0xFFD79B).opacity(0.7))
-                if showsFace { face }
+                if showsFace && !(costume?.replacesFace ?? false) { face }
+                if let costume { CostumeLayer(costume: costume, showsFace: showsFace) }
             }
             .frame(width: Self.designSize, height: Self.designSize)
             .scaleEffect(scale, anchor: .topLeading)
@@ -120,4 +126,54 @@ struct PeachMark: View {
     }
     .padding()
     .background(Cute.paper)
+}
+
+/// A costume's parts, drawn in the peach's 100x100 space from the same path data
+/// the web draws. Parsed once per part; a part that fails to parse is skipped,
+/// which `CostumeTests` makes impossible for the shipped table.
+private struct CostumeLayer: View {
+    let costume: Costume
+    let showsFace: Bool
+
+    var body: some View {
+        ZStack {
+            ForEach(Array(costume.parts.enumerated()), id: \.offset) { _, part in
+                if showsFace || !part.faceOnly, let path = Self.path(part.d) {
+                    ZStack {
+                        if let fill = part.fill { path.fill(Color(css: fill)) }
+                        if let stroke = part.stroke {
+                            path.stroke(Color(css: stroke), style: StrokeStyle(
+                                lineWidth: part.strokeWidth ?? 1, lineCap: .round, lineJoin: .round
+                            ))
+                        }
+                    }
+                    .opacity(part.opacity ?? 1)
+                }
+            }
+        }
+    }
+
+    static func path(_ d: String) -> Path? {
+        guard let commands = try? costumeCommands(d) else { return nil }
+        return Path { p in
+            for command in commands {
+                switch command {
+                case let .move(x, y): p.move(to: CGPoint(x: x, y: y))
+                case let .line(x, y): p.addLine(to: CGPoint(x: x, y: y))
+                case let .curve(c1, c2, to):
+                    p.addCurve(to: CGPoint(x: to.0, y: to.1),
+                               control1: CGPoint(x: c1.0, y: c1.1),
+                               control2: CGPoint(x: c2.0, y: c2.1))
+                case .close: p.closeSubpath()
+                }
+            }
+        }
+    }
+}
+
+private extension Color {
+    /// `#RRGGBB`, as the costume table writes colours to match the web's.
+    init(css: String) {
+        self.init(hex: UInt32(css.dropFirst(), radix: 16) ?? 0)
+    }
 }
