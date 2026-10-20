@@ -32,6 +32,20 @@ final class ArchiveBeaFirstOpen: XCTestCase {
             .split(separator: " ").last.map(String.init) ?? "")
     }
 
+    /// `-archiveMonth`'s key for the month holding the day `daysAgo` before
+    /// today, written as `ArchiveSheet.monthKey` writes it. A key the sheet does
+    /// not know opens the current month without complaint.
+    ///
+    /// On the phone's calendar rather than UTC's: the runner shares the
+    /// simulator with the app, and `ui-tests-off-utc` runs this class in a zone
+    /// whose date is not UTC's.
+    private func monthKey(daysAgo: Int) -> String {
+        let calendar = Calendar.current
+        let day = calendar.date(byAdding: .day, value: -daysAgo, to: Date())!
+        let parts = calendar.dateComponents([.year, .month], from: day)
+        return String(format: "%04d-%02d", parts.year!, parts.month!)
+    }
+
     /// **The claim the whole seed exists to check.** The run starts on 2 July
     /// and runs through yesterday, so every day in between is either expanded or
     /// rebuilt, and none of them may read as a day that was never played.
@@ -41,8 +55,19 @@ final class ArchiveBeaFirstOpen: XCTestCase {
     /// the app first opens, and "Still on the tree" is the true thing to say
     /// about it. An earlier version of this test asserted over today as well and
     /// failed on exactly that.
+    ///
+    /// The run's first three months are fixed by the snapshot, and every day in
+    /// them is expanded. The rebuilt days are the thirteen behind today
+    /// (`GameModel.seededDayCount`), so their months are worked out from today.
+    /// Naming only July to September stopped checking the rebuild once those
+    /// days moved into October, and nothing failed to say so.
     func testNoDayInTheRunReadsAsStillOnTheTree() {
-        for month in ["2026-07", "2026-08", "2026-09"] {
+        var months = ["2026-07", "2026-08", "2026-09"]
+        for daysAgo in [13, 1] {
+            let rebuilt = monthKey(daysAgo: daysAgo)
+            if !months.contains(rebuilt) { months.append(rebuilt) }
+        }
+        for month in months {
             let app = open(month: month)
             for label in dayLabels(app) {
                 guard let day = dayNumber(label) else { continue }
@@ -70,11 +95,18 @@ final class ArchiveBeaFirstOpen: XCTestCase {
     }
 
     /// **The point of reading the found words at all.** A day the streak alone
-    /// establishes can only ever say `cleared`. A basket in September can only
-    /// have come from the words still in the blob, so if the rebuild is not
-    /// running, there is no heart anywhere in the month.
+    /// establishes can only ever say `cleared`. A basket can only have come from
+    /// the words still in the blob, so if the rebuild is not running, there is no
+    /// heart anywhere in the month.
+    ///
+    /// Yesterday's month, because the seed fills the basket on yesterday's board
+    /// and on the boards four and nine days ago. This used to name September,
+    /// which held one of those only until 9 October and failed on every run
+    /// after. A launch that crosses midnight moves the baskets a day later, to
+    /// today and three and eight days ago, and one of those is still in
+    /// yesterday's month.
     func testARecentDayKeepsTheBasketTheRunCannotExpress() {
-        let app = open(month: "2026-09")
+        let app = open(month: monthKey(daysAgo: 1))
         let baskets = dayLabels(app).filter { $0.contains("full") }
         XCTAssertFalse(baskets.isEmpty,
                        "no day was rebuilt from its words, so every basket was lost")

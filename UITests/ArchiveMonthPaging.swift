@@ -34,6 +34,21 @@ final class ArchiveMonthPaging: XCTestCase {
         return (0..<all.count).map { all.element(boundBy: $0) }
     }
 
+    /// The month before today's: its `-archiveMonth` key, written as
+    /// `ArchiveSheet.monthKey` writes it, and the word its title starts with,
+    /// formatted as `ArchiveSheet.monthName` formats it. A key the sheet does not
+    /// know opens the current month without complaint, which the title catches.
+    private func lastMonth() -> (key: String, word: String) {
+        let calendar = Calendar.current
+        let date = calendar.date(byAdding: .month, value: -1, to: Date())!
+        let parts = calendar.dateComponents([.year, .month], from: date)
+        let formatter = DateFormatter()
+        formatter.calendar = calendar
+        formatter.setLocalizedDateFormatFromTemplate("MMMM y")
+        return (String(format: "%04d-%02d", parts.year!, parts.month!),
+                monthWord(formatter.string(from: date)))
+    }
+
     // MARK: The bounds
 
     /// June 2026 holds the first playable board, so there is nothing before it.
@@ -83,14 +98,19 @@ final class ArchiveMonthPaging: XCTestCase {
 
     // MARK: What a page is for
 
+    /// Last month, worked out from today, because the seed's run is: its seventy
+    /// days end nine days before today, so they always reach into the month
+    /// before this one, and a launch that crosses midnight moves them only a day.
+    /// This used to name July, which the run left on 18 October.
     func testADayOnAPastMonthStillOpensThatBoard() {
-        let app = openArchive(month: "2026-07")
-        XCTAssertEqual(monthWord(title(app)), "july", "did not open on July")
+        let month = lastMonth()
+        let app = openArchive(month: month.key)
+        XCTAssertEqual(monthWord(title(app)), month.word, "did not open on \(month.key)")
         let playable = app.buttons
             .matching(NSPredicate(format: "label CONTAINS %@", "Finished"))
             .element(boundBy: 0)
         guard playable.waitForExistence(timeout: 10) else {
-            return XCTFail("July drew no playable day")
+            return XCTFail("\(month.key) drew no playable day")
         }
         playable.tap()
         XCTAssertTrue(app.staticTexts["ArchiveDateRow"].waitForExistence(timeout: 20),
