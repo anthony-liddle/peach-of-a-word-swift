@@ -119,9 +119,18 @@ extension ArchiveGridMetrics {
     /// imported the value would pass whatever the app changed it to.
     private static let ringOutset: CGFloat = 3
 
-    private func assertRingIsWhole(_ size: String, file: StaticString = #filePath,
-                                   line: UInt = #line) {
-        let app = openArchive(size)
+    /// What the card's scaling adds to that outset, as this test measures it.
+    ///
+    /// Below the accessibility sizes the sheet is a fitted card the system draws
+    /// scaled, by 0.9597 on this generation of phone (`ArchiveChevronScale`).
+    /// The ring and the room left for it scale together, so the ring is whole,
+    /// but `ringOutset` is in unscaled points and reads 0.12pt larger than the
+    /// ring is drawn. A quarter point covers that, and nothing a player could see.
+    private static let scaleSlack: CGFloat = 0.25
+
+    private func assertRingIsWhole(_ size: String, dayOffset: String,
+                                   file: StaticString = #filePath, line: UInt = #line) {
+        let app = openArchive(size, dayOffset: dayOffset)
         // **Not scoped to a phone, and it was for a while.**
         //
         // This guard was narrowed to the SE 3 when it failed on a 390pt phone at
@@ -196,21 +205,35 @@ extension ArchiveGridMetrics {
         }
 
         XCTAssertLessThanOrEqual(
-            overshootBottom, 0,
+            overshootBottom, Self.scaleSlack,
             "the today ring is clipped by \(overshootBottom)pt at the bottom",
             file: file, line: line)
         XCTAssertLessThanOrEqual(
-            overshootTop, 0,
+            overshootTop, Self.scaleSlack,
             "the today ring is clipped by \(overshootTop)pt at the top",
             file: file, line: line)
     }
 
+    /// On the 1st and on the month's last day, because those are the two edges.
+    ///
+    /// **Pinned, because unpinned it measured whichever row today fell in.**
+    /// The 1st is always in the grid's first row and the last day in its last,
+    /// and the ring is drawn outside the cell, so those are the only days it
+    /// can meet the viewport's top or bottom. Run on whatever day CI happened to
+    /// pick, this passed through the middle of every month and found the ring
+    /// clipped by 3pt at the top only on the first week's days, which is how it
+    /// was found: by moving the clock to 1 and 2 November 2026.
     func testTodayRingIsWholeOnOpenAtDefaultSize() {
-        assertRingIsWhole("UICTContentSizeCategoryL")
+        assertRingIsWhole("UICTContentSizeCategoryL",
+                          dayOffset: TestClock.dayOffset(toNextDayOfMonth: 1))
+        assertRingIsWhole("UICTContentSizeCategoryL", dayOffset: TestClock.monthEndDayOffset)
     }
 
     func testTodayRingIsWholeOnOpenAtAccessibilitySize() {
-        assertRingIsWhole("UICTContentSizeCategoryAccessibilityXXXL")
+        assertRingIsWhole("UICTContentSizeCategoryAccessibilityXXXL",
+                          dayOffset: TestClock.dayOffset(toNextDayOfMonth: 1))
+        assertRingIsWhole("UICTContentSizeCategoryAccessibilityXXXL",
+                          dayOffset: TestClock.monthEndDayOffset)
     }
 
     /// The smallest viewport the sheet is known to survive.
@@ -219,8 +242,13 @@ extension ArchiveGridMetrics {
     /// no longer do so. What it still does is squeeze the grid to 41.5pt, under
     /// one 44pt cell, which is where the assertion above stops asking for a
     /// whole ring and asks for a centred one.
+    ///
+    /// On a 15th, because what it asks for there is a centred ring, and a day in
+    /// the first or last row cannot be centred: the grid does not scroll past
+    /// its own ends.
     func testTodayRingIsWholeWithTheHeaderGrown() {
         headerPad = 50.4
-        assertRingIsWhole("UICTContentSizeCategoryAccessibilityXXXL")
+        assertRingIsWhole("UICTContentSizeCategoryAccessibilityXXXL",
+                          dayOffset: TestClock.midMonthDayOffset)
     }
 }

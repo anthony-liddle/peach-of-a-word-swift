@@ -33,12 +33,25 @@ enum TestClock {
     /// **Forward, never back.** Foundation reads `-dayOffset -3` as a key with
     /// no value and the app stays on today, so after the 15th this is the next
     /// month's 15th rather than this month's.
-    static var midMonthDayOffset: String {
+    static var midMonthDayOffset: String { dayOffset(toNextDayOfMonth: 15) }
+
+    /// The `-dayOffset` that puts the app on the next `day` of a month, on or
+    /// after today. Forward, never back, for the reason above.
+    static func dayOffset(toNextDayOfMonth day: Int) -> String {
         let cal = Calendar.current
         let today = cal.startOfDay(for: now)
-        let next = cal.nextDate(after: today, matching: DateComponents(day: 15),
+        let next = cal.nextDate(after: today, matching: DateComponents(day: day),
                                 matchingPolicy: .nextTime)!
-        let target = cal.component(.day, from: today) == 15 ? today : next
+        let target = cal.component(.day, from: today) == day ? today : next
         return String(cal.dateComponents([.day], from: today, to: target).day!)
+    }
+
+    /// The `-dayOffset` that puts the app on the last day of this month, which
+    /// is never before today: the day whose cell is in the grid's last row.
+    static var monthEndDayOffset: String {
+        let cal = Calendar.current
+        let today = cal.startOfDay(for: now)
+        let days = cal.range(of: .day, in: .month, for: today)!.count
+        return String(days - cal.component(.day, from: today))
     }
 }

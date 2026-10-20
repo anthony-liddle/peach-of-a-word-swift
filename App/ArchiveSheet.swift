@@ -474,6 +474,9 @@ struct ArchiveSheet: View {
                                 .padding(.top, 24)
                         }
                     }
+                    // Room for the today ring above the first row; see the
+                    // negative padding on the scroll view below.
+                    .padding(.top, ArchiveCellFace.ringOutset)
                     .padding(.bottom, 16)
                 }
                 // The grid alone scrolls, and the month's name does not go with
@@ -510,6 +513,16 @@ struct ArchiveSheet: View {
                 // scrolls rather than clips.
                 .frame(maxHeight: dynamicTypeSize.isAccessibilitySize
                        ? nil : reservedGridHeight(cell: cell))
+                // **The ring's room above the first row, taken back from the
+                // gap above the grid.** The ring is drawn 3pt outside its cell
+                // and the scroll view clips at its own top edge, so a today in
+                // the first row lost the top 3pt of its ring. Measured on 1 and
+                // 2 November 2026, the first week's days, and never mid-month,
+                // which is where the guard had always happened to run. The
+                // content now starts 3pt down and the scroll view 3pt up, out
+                // of the 10pt gap under the weekday row, so the first row stays
+                // where it was and the sheet's height does not move.
+                .padding(.top, -ArchiveCellFace.ringOutset)
                 // **No bottom content margin for the today ring, and that is a
                 // measurement rather than an omission.** The old scroll put
                 // today's bottom edge exactly on the viewport's, so the ring,
@@ -519,6 +532,12 @@ struct ArchiveSheet: View {
                 // 390pt phone at AX5, and -21.00 both ways on an SE 3. The one
                 // case that clips has 41.5pt of viewport for a 50pt ring, which
                 // no margin can help.
+                //
+                // **That held for the bottom and not the top.** A today in the
+                // first row cannot be centred, and below the accessibility sizes
+                // the grid does not scroll at all, so its ring met the top edge;
+                // those measurements were all taken mid-month. The top margin
+                // above is the fix.
                 .task {
                     // The current month opens with today in view. Every other
                     // month opens at the top, which is its first week.
@@ -680,8 +699,11 @@ struct ArchiveSheet: View {
     ///
     /// Six is the most rows a month can need: 31 days starting on the last day
     /// of the week spans six.
+    /// Six rows, the gaps between them, the bottom margin, and the ring's room
+    /// above the first row, which the scroll view takes back from the gap above
+    /// it, so this grows by the ring and the sheet does not.
     private func reservedGridHeight(cell: CGFloat) -> CGFloat {
-        cell * 6 + Self.gap * 5 + 16
+        cell * 6 + Self.gap * 5 + 16 + ArchiveCellFace.ringOutset
     }
 
     private func monthName(_ date: Date) -> String {
