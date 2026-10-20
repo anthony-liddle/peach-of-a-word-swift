@@ -1,3 +1,4 @@
+import PeachEngine
 import SwiftUI
 
 /// The crown card. The peak of the game.
@@ -18,6 +19,7 @@ struct CompletionCard: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var landed = false
     @State private var showConfetti = true
+    @Environment(\.peachCostume) private var costume
 
     var body: some View {
         ZStack {
@@ -27,17 +29,10 @@ struct CompletionCard: View {
                 VStack(spacing: 18) {
                     // The peach ornament, larger than the source card's, and
                     // wearing the crown that gives the card its name.
-                    ZStack(alignment: .top) {
-                        PeachMark()
-                            .frame(width: 112, height: 112)
-                            .padding(.top, 16)
-                        Crown()
-                            .fill(Cute.crown)
-                            .frame(width: 46, height: 26)
-                            .offset(y: -2)
-                    }
-                    .scaleEffect(landed || reduceMotion ? 1 : 0.4)
-                    .opacity(landed || reduceMotion ? 1 : 0)
+                    CompletionOrnament(costume: costume)
+                        .sayingWhatThePeachWears(costume)
+                        .scaleEffect(landed || reduceMotion ? 1 : 0.4)
+                        .opacity(landed || reduceMotion ? 1 : 0)
 
                     VStack(spacing: 8) {
                         // The cute skin for the completion crown, from the web's
@@ -106,6 +101,25 @@ struct CompletionCard: View {
             withAnimation(Feel.bounce.delay(0.05)) { landed = true }
         }
         .accessibilityElement(children: .contain)
+    }
+}
+
+/// The card's peach, wearing the crown that gives the card its name, and a
+/// costume if it has one. Its own view so the costume gallery shows the crown
+/// and the costume together, the way the card draws them.
+struct CompletionOrnament: View {
+    var costume: Costume? = nil
+
+    var body: some View {
+        ZStack(alignment: .top) {
+            PeachMark(costume: costume)
+                .frame(width: 112, height: 112)
+                .padding(.top, 16)
+            Crown()
+                .fill(Cute.crown)
+                .frame(width: 46, height: 26)
+                .offset(y: -2)
+        }
     }
 }
 

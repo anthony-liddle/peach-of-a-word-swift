@@ -1,3 +1,4 @@
+import PeachEngine
 import SwiftUI
 
 /// Confetti, for completion only.
@@ -10,6 +11,8 @@ import SwiftUI
 /// Peaches, hearts, stars and sparkles, in the cute palette, which is the same
 /// vocabulary the rarity marks use.
 struct Confetti: View {
+    /// On a costume day, the peaches in the burst wear it.
+    @Environment(\.peachCostume) private var costume
     var pieceCount: Int = 42
     /// Called when the last piece has fallen, so the host can tear it down
     /// rather than leaving a view animating forever.
@@ -83,7 +86,7 @@ struct Confetti: View {
     @ViewBuilder
     private func shape(_ piece: Piece) -> some View {
         switch piece.kind {
-        case 0: PeachMark(showsFace: false)
+        case 0: PeachMark(showsFace: false, costume: costume)
         case 1: Text("\u{2665}").foregroundStyle(Cute.accent)      // heart
         case 2: Text("\u{2605}").foregroundStyle(Cute.discovery)   // star
         default: Text("\u{2726}").foregroundStyle(Cute.crown)      // sparkle

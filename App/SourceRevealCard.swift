@@ -111,13 +111,15 @@ private struct RevealContent: View {
     let provenance: GlossProvenance
     /// The peach's landing state. It scales, which does not affect layout.
     var landed: Bool
+    @Environment(\.peachCostume) private var costume
 
     var body: some View {
         VStack(spacing: 18) {
-                PeachMark()
+                PeachMark(costume: costume)
                     .frame(width: 96, height: 96)
                     .scaleEffect(landed ? 1 : 0.4)
                     .opacity(landed ? 1 : 0)
+                    .sayingWhatThePeachWears(costume)
 
                 VStack(spacing: 8) {
                     // The line Bea reacted to, added in web PR #76 after her
