@@ -103,10 +103,11 @@ struct TierMeterView: View {
                     } else if let next = standing.next {
                         Text("Next: \(Vocabulary.tierNames[next.index]) at \(Int((next.threshold * 100).rounded()))%")
                     } else {
-                        // "Top rank" is enough. The explanation that the full
+                        // "Top rung" is enough. The explanation that the full
                         // set is the peak does not need to live here
                         // permanently; the completion card says it properly.
-                        Text(Vocabulary.ladderPeak)
+                        // "Basket full" only once it is.
+                        Text(completed ? Vocabulary.basketFull : Vocabulary.ladderPeak)
                     }
                 }
                 Spacer(minLength: 4)

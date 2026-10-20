@@ -748,7 +748,7 @@ final class GameModel {
                 Feel.completion()
             }
         }
-        // `-seedBoard almost` or `-seedBoard 24`.
+        // `-seedBoard almost`, `-seedBoard full` or `-seedBoard 24`.
         if let spec = UserDefaults.standard.string(forKey: "seedBoard") {
             seedBoard(spec)
         }
@@ -818,6 +818,10 @@ final class GameModel {
                 .dropLast()
                 .map { $0 }
             picks += stride(puzzle.uncommonWords, keeping: 4)
+        } else if spec == "full" {
+            // Every set word: the basket really is full. It lands complete, so
+            // the celebration is marked seen below rather than played.
+            picks = puzzle.commonWords.sorted()
         } else if spec == "almost" {
             // All but one set word: the meter sits just under the crown.
             picks = puzzle.commonWords.sorted().dropLast().map { $0 }
