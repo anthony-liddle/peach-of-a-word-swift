@@ -1,3 +1,5 @@
+import Foundation
+
 /// What the peach can wear: the web's `src/ui/costumes.ts`, the same table.
 ///
 /// **One drawing for two apps.** Each part is SVG path data in the peach's own
@@ -237,4 +239,54 @@ public func canonicalCostumeTable() -> String {
 /// A number as JavaScript prints it: no ".0" on a whole one.
 private func jsNumber(_ n: Double) -> String {
     n.rounded() == n ? String(Int(n)) : String(n)
+}
+
+// MARK: - The days the peach dresses up
+
+/// A day the peach dresses up, and what it wears.
+public struct CostumeDay: Sendable, Equatable {
+    public let month: Int  // 1 to 12
+    public let day: Int
+    public let costume: Costume
+    /// What the day is, for whoever reads this table. Never shown.
+    public let occasion: String
+}
+
+/// The days the peach dresses up. Other occasions may follow; each is a row.
+/// The web's `COSTUME_DAYS` holds the same rows.
+///
+/// The costume goes by the board's date, not today's: today's board on the day
+/// wears it, and so does that day's board replayed later from the calendar,
+/// while any other day's board does not, even if it is played on the day.
+public let costumeDays: [CostumeDay] = [
+    CostumeDay(month: 10, day: 31, costume: .ghost, occasion: "Halloween"),
+]
+
+/// The costume for a calendar date, or nil.
+public func costume(month: Int, day: Int) -> Costume? {
+    costumeDays.first { $0.month == month && $0.day == day }?.costume
+}
+
+/// The costume for a board, by the board's own day.
+///
+/// - `storageDay` is the board's day as progress is keyed: days since
+///   `storageEpoch`. A board with none never dresses.
+/// - `preview`, `YYYY-MM-DD`, stands in for the board's date. The app passes
+///   it from a Debug launch argument only; a malformed one is ignored.
+public func boardCostume(storageDay: Int?, preview: String? = nil) -> Costume? {
+    if let preview {
+        let parts = preview.split(separator: "-").compactMap { Int($0) }
+        if parts.count == 3, preview.count == 10 {
+            return costume(month: parts[1], day: parts[2])
+        }
+    }
+    guard let storageDay else { return nil }
+    var utc = Foundation.Calendar(identifier: .gregorian)
+    utc.timeZone = TimeZone(identifier: "UTC")!
+    guard let epoch = utc.date(from: DateComponents(
+              year: storageEpoch.year, month: storageEpoch.month, day: storageEpoch.day)),
+          let date = utc.date(byAdding: .day, value: storageDay, to: epoch)
+    else { return nil }
+    let parts = utc.dateComponents([.month, .day], from: date)
+    return costume(month: parts.month ?? 0, day: parts.day ?? 0)
 }

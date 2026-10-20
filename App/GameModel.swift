@@ -217,6 +217,24 @@ final class GameModel {
     /// screen, which says which day is being played.
     private(set) var isArchiveBoard = false
 
+    /// What the peach wears on this board, by the board's own day, never
+    /// today's: a past board opened from the calendar wears its own day's, and
+    /// today's board kept open past midnight keeps yesterday's. See
+    /// `costumeDays`, and `-costumeDate` below.
+    var costume: Costume? {
+        boardCostume(storageDay: storageDayIndex, preview: Self.costumePreview)
+    }
+
+    /// `-costumeDate YYYY-MM-DD` stands in for the board's date, to preview any
+    /// day's costume. Debug only, like every launch hook.
+    nonisolated static var costumePreview: String? {
+        #if DEBUG
+        UserDefaults.standard.string(forKey: "costumeDate")
+        #else
+        nil
+        #endif
+    }
+
     /// The word lists, held for the life of the app. See `Lexicon`.
     private var lexicon: Lexicon?
 
@@ -621,7 +639,14 @@ final class GameModel {
         // row could only be reasoned about. Same argument as `-revealCard`.
         let back = UserDefaults.standard.integer(forKey: "archiveDay")
         if back > 0 {
-            Task { await self.openArchiveDay(storageDay: Self.todayStorageIndex - back) }
+            Task {
+                await self.openArchiveDay(storageDay: Self.todayStorageIndex - back)
+                // Opening a day closes any card, so `-revealCard` opens again
+                // over the past board, which is the board it is asked about.
+                if let word = UserDefaults.standard.string(forKey: "revealCard") {
+                    self.moment = .sourceWord(word: word)
+                }
+            }
         }
         // `-guesses a,b,c` goes through the typed path, so arbitrary strings
         // (including ones the rack cannot spell) can still be tested.

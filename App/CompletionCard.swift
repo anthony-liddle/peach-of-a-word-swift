@@ -19,6 +19,7 @@ struct CompletionCard: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var landed = false
     @State private var showConfetti = true
+    @Environment(\.peachCostume) private var costume
 
     var body: some View {
         ZStack {
@@ -28,7 +29,8 @@ struct CompletionCard: View {
                 VStack(spacing: 18) {
                     // The peach ornament, larger than the source card's, and
                     // wearing the crown that gives the card its name.
-                    CompletionOrnament()
+                    CompletionOrnament(costume: costume)
+                        .sayingWhatThePeachWears(costume)
                         .scaleEffect(landed || reduceMotion ? 1 : 0.4)
                         .opacity(landed || reduceMotion ? 1 : 0)
 

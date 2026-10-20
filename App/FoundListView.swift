@@ -63,6 +63,7 @@ struct FlowLayout: Layout {
 
 /// One found word: its mark, the word, and what it was worth.
 struct WordChip: View {
+    @Environment(\.peachCostume) private var costume
     let found: FoundWord
     /// What tapping this chip does. Defaulted to nothing so a preview or a
     /// future read-only surface can render a chip without inventing an action.
@@ -175,6 +176,7 @@ struct WordChip: View {
         .accessibilityElement(children: .combine)
         .accessibilityLabel(
             "\(found.word), \(found.category.spokenName), "
+            + (found.category == .source ? costume.map { "the peach \($0.spoken), " } ?? "" : "")
             + counted(found.score, "point")
         )
         .accessibilityHint("Shows the definition")

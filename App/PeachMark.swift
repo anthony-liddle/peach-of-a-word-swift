@@ -177,3 +177,34 @@ private extension Color {
         self.init(hex: UInt32(css.dropFirst(), radix: 16) ?? 0)
     }
 }
+
+// MARK: - The costume on screen
+
+private struct PeachCostumeKey: EnvironmentKey {
+    static let defaultValue: Costume? = nil
+}
+
+extension EnvironmentValues {
+    /// What the peach wears on the board on screen, set once from the model at
+    /// the root. Read where the costume belongs: the source word's mark, the
+    /// reveal and completion cards, and the confetti. `PeachMark` itself does
+    /// not read it, so the splash and the decorations stay plain.
+    var peachCostume: Costume? {
+        get { self[PeachCostumeKey.self] }
+        set { self[PeachCostumeKey.self] = newValue }
+    }
+}
+
+extension View {
+    /// Tells VoiceOver what the peach is wearing, on its day. The peach is
+    /// decorative on every other day, and stays hidden then.
+    @ViewBuilder
+    func sayingWhatThePeachWears(_ costume: Costume?) -> some View {
+        if let costume {
+            accessibilityElement(children: .ignore)
+                .accessibilityLabel("The peach is \(costume.spoken).")
+        } else {
+            self
+        }
+    }
+}
