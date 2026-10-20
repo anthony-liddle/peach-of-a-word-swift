@@ -310,6 +310,11 @@ final class GameModel {
         // sequence reachable, which is the same argument as `-revealCard` and
         // `-holdLoading`.
         if hasResumed { offset += UserDefaults.standard.integer(forKey: "dayOffsetOnResume") }
+        // `PEACH_DAY_OFFSET`, set inside the simulator with `launchctl setenv`,
+        // moves every launch in a test run at once, and the test runner reads
+        // the same variable (UITests/TestClock.swift). That is how the UI suite
+        // is run a year ahead without each test passing `-dayOffset`.
+        offset += Int(ProcessInfo.processInfo.environment["PEACH_DAY_OFFSET"] ?? "") ?? 0
         if offset != 0 {
             return Foundation.Calendar.current.date(byAdding: .day, value: offset, to: Date()) ?? Date()
         }

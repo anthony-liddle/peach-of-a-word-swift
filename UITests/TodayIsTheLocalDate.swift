@@ -33,11 +33,11 @@ final class TodayIsTheLocalDate: XCTestCase {
         app.launchArguments = ["-resetProgress", "1", "-exposeToday", "1"]
         // Read on both sides of the launch, so a midnight crossing during it
         // cannot fail the test.
-        let before = expected(at: Date())
+        let before = expected(at: TestClock.now)
         app.launch()
         let probe = app.staticTexts["DebugToday"]
         XCTAssertTrue(probe.waitForExistence(timeout: 30), "the app never exposed its day")
-        let after = expected(at: Date())
+        let after = expected(at: TestClock.now)
 
         let zone = TimeZone.current.identifier
         XCTAssertTrue([before, after].contains(probe.label),

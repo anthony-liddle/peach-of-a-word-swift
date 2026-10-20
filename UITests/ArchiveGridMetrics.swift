@@ -31,12 +31,14 @@ final class ArchiveGridMetrics: XCTestCase {
         headerPad > 0 ? ["-headerPad", String(headerPad)] : []
     }
 
-    private func openArchive(_ size: String) -> XCUIApplication {
+    /// `dayOffset` moves the app to a chosen day of the month, through
+    /// `TestClock`, for a test whose answer depends on where today falls.
+    private func openArchive(_ size: String, dayOffset: String? = nil) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = [
             "-resetProgress", "1", "-seedArchive", "showcase", "-openArchive", "1",
             "-UIPreferredContentSizeCategoryName", size,
-        ] + headerPadArguments
+        ] + headerPadArguments + (dayOffset.map { ["-dayOffset", $0] } ?? [])
         app.launch()
         XCTAssertTrue(app.buttons["Back to the basket"].waitForExistence(timeout: 30),
                       "the archive sheet never opened")
@@ -55,7 +57,9 @@ final class ArchiveGridMetrics: XCTestCase {
     /// A grid cell is a tap target, and `Cute.minTapTarget` is 44.
     private func assertTapTarget(_ size: String, file: StaticString = #filePath,
                                  line: UInt = #line) {
-        let app = openArchive(size)
+        // A 15th, so the current month always has a finished day before today.
+        // On the 1st it has none; see `TestClock.midMonthDayOffset`.
+        let app = openArchive(size, dayOffset: TestClock.midMonthDayOffset)
         let cell = playableCell(app)
         XCTAssertTrue(cell.waitForExistence(timeout: 10), "no playable day cell",
                       file: file, line: line)
