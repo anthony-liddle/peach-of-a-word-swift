@@ -55,7 +55,9 @@ struct DailySequencePinTests {
         ("2026-06-24", "validity"),
         ("2026-07-02", "struggle"),  // the run starts
         ("2026-09-09", "workshop"),  // the run ends
+        ("2026-10-31", "skeleton"),  // traded with 17 May 2027; see CalendarTradeTests
         ("2027-01-01", "proclaim"),
+        ("2027-05-17", "genetics"),  // the other half of the trade
         ("2028-03-09", "speeding"),  // near the end of the first cycle
         ("2030-12-31", "catholic"),  // well into the reshuffled cycles
     ])
