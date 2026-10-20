@@ -210,6 +210,15 @@ struct ContentView: View {
                         .accessibilityIdentifier("DebugToday")
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                 }
+                // `-exposeFeel 1` lists the find beats played since launch, so
+                // `OneBeatPerFind` can count the patterns one submit started.
+                if UserDefaults.standard.bool(forKey: "exposeFeel") {
+                    Text(model.feltBeats.isEmpty
+                         ? "none" : model.feltBeats.map(\.rawValue).joined(separator: ","))
+                        .font(.caption2)
+                        .accessibilityIdentifier("DebugFeel")
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                }
                 #endif
             }
         }

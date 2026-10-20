@@ -190,6 +190,12 @@ final class GameModel {
     /// day must not replay the peak.
     private var completionSeen = false
 
+    #if DEBUG
+    /// Every find beat played since launch, oldest first, so `-exposeFeel 1`
+    /// can show a test how many patterns one submit started.
+    private(set) var feltBeats: [FindBeat] = []
+    #endif
+
     /// The persisted streak, as of the day this session loaded.
     private(set) var streak: Int = 0
 
@@ -752,6 +758,15 @@ final class GameModel {
         if let spec = UserDefaults.standard.string(forKey: "seedBoard") {
             seedBoard(spec)
         }
+        // `-findSource 1` finds the board's source word through the tile path,
+        // after any seed, so a test can watch the submit that finds it without
+        // knowing the day's word. `-tapWords` runs before the seed and needs
+        // the word spelled out.
+        if UserDefaults.standard.bool(forKey: "findSource"), let source = puzzle?.sourceWord {
+            clear()
+            for letter in source { addLetter(String(letter)) }
+            submit()
+        }
         // `-tapTiles 4,1,6` places those rack POSITIONS, exercising `addTile`
         // itself rather than the letter lookup, and leaves the result on the
         // stick without submitting. Positions, not ids, so a caller does not
@@ -818,6 +833,10 @@ final class GameModel {
                 .dropLast()
                 .map { $0 }
             picks += stride(puzzle.uncommonWords, keeping: 4)
+        } else if spec == "source-last" {
+            // Every set word but the source word, so finding it completes the
+            // basket: the one submit that is both beats at once.
+            picks = puzzle.commonWords.sorted().filter { $0 != puzzle.sourceWord }
         } else if spec == "full" {
             // Every set word: the basket really is full. It lands complete, so
             // the celebration is marked seen below rather than played.
@@ -1008,7 +1027,10 @@ final class GameModel {
     /// same split the web version arrived at after a per-tap synchronous write
     /// caused input lag: key persistence on durable state, never on the
     /// keystroke path.
-    private func foundDidChange() {
+    ///
+    /// `known` is the standing a find already computed to choose its beat, so
+    /// the peak is judged once per find; seeding and resetting pass none.
+    private func foundDidChange(known: TierStanding? = nil) {
         guard let puzzle, let day = storageDayIndex else { return }
         saveCount += 1
         // The same fact `recordDailyCleared` needs, and for a related reason:
@@ -1017,15 +1039,18 @@ final class GameModel {
         storage.saveDayProgress(dayIndex: day, sourceWord: puzzle.sourceWord,
                                 found: found, fromArchive: isArchiveBoard)
 
-        let standing = computeTier(found: Set(found), puzzle: puzzle)
+        let standing = known ?? computeTier(found: Set(found), puzzle: puzzle)
         let today = Self.todayStorageIndex
 
         // The peak. Checked here rather than in `resolve` so it sees the board
         // after the find has landed, and so seeding reaches it too.
-        if isComplete(standing) && !completionSeen {
+        //
+        // No haptic here. A find chose its one beat in `resolve`, already
+        // knowing whether it reached the peak; playing completion's here as
+        // well is what started two patterns on the same submit.
+        if reachesPeak(standing) {
             completionSeen = true
             moment = .completion(setTotal: standing.setTotal, score: standing.score)
-            Feel.completion()
         }
 
         // The archive's whole substance: what this board reached, kept.
@@ -1440,17 +1465,23 @@ final class GameModel {
         switch result {
         case .valid(let word, let score, let rung, let isSourceWord):
             found.insert(word, at: 0)
+            // One beat per find, chosen once it is known whether this find
+            // reaches the peak: completion over the source word over an
+            // ordinary find, the precedence the cards and the web's sounds
+            // already have. Played before the save, where the find's haptic
+            // always was. Pass 2's sound goes beside it, in `feel`.
+            let standing = puzzle.map { computeTier(found: Set(found), puzzle: $0) }
+            feel(findBeat(isSourceWord: isSourceWord,
+                          completesBasket: standing.map(reachesPeak) ?? false))
             if isSourceWord {
                 feedback = .sourceFound
                 moment = .sourceWord(word: word)
-                Feel.sourceWord()
             } else {
                 feedback = .accepted(word: word, points: score, rung: rung)
-                Feel.find()
             }
             // May replace the peach moment with the completion one, which is
             // the intended precedence.
-            foundDidChange()
+            foundDidChange(known: standing)
         case .tooShort:
             // The rule without the scolding. "Too short." said nothing the
             // rest of the sentence did not, and cost 204pt of width at AX5 to
@@ -1475,6 +1506,25 @@ final class GameModel {
         case .alreadyFound:
             feedback = .rejected("Already found.")
             Feel.reject()
+        }
+    }
+
+    /// Whether a find that leaves the board standing like this is the one that
+    /// reaches the peak: complete, and not celebrated yet.
+    private func reachesPeak(_ standing: TierStanding) -> Bool {
+        isComplete(standing) && !completionSeen
+    }
+
+    /// Play one find beat. Every accepted find's haptic goes through here, and
+    /// pass 2's sound goes beside it.
+    private func feel(_ beat: FindBeat) {
+        #if DEBUG
+        feltBeats.append(beat)
+        #endif
+        switch beat {
+        case .find: Feel.find()
+        case .sourceWord: Feel.sourceWord()
+        case .completion: Feel.completion()
         }
     }
 }
