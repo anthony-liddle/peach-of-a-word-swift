@@ -154,6 +154,9 @@ func buildGroups(_ words: [FoundWord], in puzzle: Puzzle) -> [LengthGroup] {
 /// `PeachMark`.
 struct RarityMark: View {
     let category: WordCategory
+    /// What the source word's peach is wearing, if anything.
+    var costume: Costume? = nil
+    @Environment(\.peachCostume) private var worn
     @ScaledMetric(relativeTo: .body) private var size: CGFloat = 13
 
     var body: some View {
@@ -162,7 +165,7 @@ struct RarityMark: View {
             case .source:
                 // The face turns to mud at mark size, so the silhouette carries
                 // it here. The card shows the full peach.
-                PeachMark(showsFace: false).frame(width: size, height: size)
+                PeachMark(showsFace: false, costume: costume ?? worn).frame(width: size, height: size)
             case .set:
                 Text("\u{2665}")      // heart
             case .uncommon:

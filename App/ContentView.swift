@@ -216,6 +216,9 @@ struct ContentView: View {
         // `.task` runs when the view appears and is cancelled automatically if
         // it disappears. It is the SwiftUI answer to useEffect with an empty
         // dependency array, minus the cleanup function.
+        // What the peach wears on this board, for the source word's mark and
+        // the confetti; the card sheet takes it again below.
+        .environment(\.peachCostume, model.costume)
         .sheet(item: $model.moment) { moment in
             Group {
                 switch moment {
@@ -262,6 +265,7 @@ struct ContentView: View {
             // unchanged and carry the pair explicitly, so that this comment
             // still describes what they do.
             .presentationDragIndicator(.visible)
+            .environment(\.peachCostume, model.costume)
         }
         // The feedback line, spoken.
         //

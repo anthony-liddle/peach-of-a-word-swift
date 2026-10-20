@@ -28,7 +28,17 @@ struct PeachMinimalApp: App {
 
     var body: some Scene {
         WindowGroup {
+            #if DEBUG
+            // `-costumeGallery 1`: every costume at every size, in place of the
+            // game. See `CostumeGallery`.
+            if UserDefaults.standard.bool(forKey: "costumeGallery") {
+                CostumeGallery()
+            } else {
+                ContentView()
+            }
+            #else
             ContentView()
+            #endif
         }
     }
 }
