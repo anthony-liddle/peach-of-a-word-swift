@@ -94,7 +94,7 @@ final class GameModel {
 
     /// The gloss behind every tappable found-word chip, keyed by word.
     ///
-    /// Populated from `Data/definitions.tsv`, 24,896 rows. **A whole-file read
+    /// Populated from `Data/definitions.tsv`, 24,573 rows. **A whole-file read
     /// into one dictionary, where the web fetches one of 793 per-rack shards.**
     /// The shards are an HTTP optimisation: a browser downloads 4 KB rather
     /// than 1.5 MB and does it after the board is already playable. An app has
@@ -120,7 +120,7 @@ final class GameModel {
     /// Wiktionary, from `Data/gloss-provenance.tsv`.
     ///
     /// **Empty is the safe answer and it is also a wrong one.** A build without
-    /// the sidecar credits Wiktionary for all 24,896 rows, including the 38 it
+    /// the sidecar credits Wiktionary for all 24,573 rows, including the 38 it
     /// did not write. That under-claims this project's own words and
     /// over-credits nobody, which is the direction an attribution failure
     /// should fall, but it is still a false line on 38 cards. The shipped

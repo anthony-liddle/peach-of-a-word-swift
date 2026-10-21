@@ -57,9 +57,14 @@ struct ShippedDefinitionsTests {
     /// is a row the generated corpus did not have. The 38 glosses rewritten in
     /// the same release changed text and not membership, so they move no count
     /// here at all.
-    @Test("has the row count orchard v1.7.0 publishes")
+    ///
+    /// **24,896 to 24,573 at v1.9.0, by the 323 rows for words this app
+    /// refuses.** 68 were slurs on orchard's deny list and 255 were sweep
+    /// denials. None could be shown, since a refused word is never found, but
+    /// the file is bundled whole. No accepted word lost or changed its gloss.
+    @Test("has the row count orchard v1.9.0 publishes")
     func rowCount() {
-        #expect(readDefinitions().count == 24_896)
+        #expect(readDefinitions().count == 24_573)
     }
 
     /// Every crown has a gloss row.
