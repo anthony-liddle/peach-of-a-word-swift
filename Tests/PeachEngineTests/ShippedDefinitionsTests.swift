@@ -62,7 +62,11 @@ struct ShippedDefinitionsTests {
     /// refuses.** 68 were slurs on orchard's deny list and 255 were sweep
     /// denials. None could be shown, since a refused word is never found, but
     /// the file is bundled whole. No accepted word lost or changed its gloss.
-    @Test("has the row count orchard v1.9.0 publishes")
+    ///
+    /// **Unmoved at v1.9.1, measured rather than assumed.** `thousand`'s row
+    /// was rewritten to the numeral its reveal carries, by a curated row that
+    /// overrides a generated one, as `sel`'s did, so the count stays put.
+    @Test("has the row count orchard v1.9.1 publishes")
     func rowCount() {
         #expect(readDefinitions().count == 24_573)
     }
