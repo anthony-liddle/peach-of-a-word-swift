@@ -1348,6 +1348,24 @@ final class GameModel {
         return true
     }
 
+    /// "A day at random": a past board, one not finished if any is left.
+    ///
+    /// Drawn by `randomPastDay`, which never gives today or a day to come, and
+    /// opened through `openArchiveDay`, the archive's one gate. A walk of every
+    /// stored outcome, which is fine on a tap and is why it is not on the
+    /// title's launch path.
+    @discardableResult
+    func openRandomPastDay() async -> Bool {
+        var generator = SystemRandomNumberGenerator()
+        guard let day = randomPastDay(
+            firstPlayableDayIndex: Self.firstPlayableStorageIndex,
+            todayIndex: Self.todayStorageIndex,
+            outcomes: storage.allOutcomes(),
+            using: &generator
+        ) else { return false }
+        return await openArchiveDay(storageDay: day)
+    }
+
     /// Go back to the live daily.
     func returnToToday() async {
         await openArchiveDay(storageDay: Self.todayStorageIndex)

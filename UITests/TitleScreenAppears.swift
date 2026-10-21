@@ -59,5 +59,14 @@ final class TitleScreenAppears: XCTestCase {
         past.tap()
         XCTAssertTrue(app.staticTexts["ArchiveDateRow"].waitForExistence(timeout: 10),
                       "a past day on the week did not open that day's board")
+
+        // And from there back to the title, and a day at random: a past board.
+        app.buttons["BoardHome"].tap()
+        let random = app.buttons["TitleRandomDay"]
+        XCTAssertTrue(random.waitForExistence(timeout: 10), "the way back did not open the title")
+        random.tap()
+        XCTAssertTrue(app.staticTexts["ArchiveDateRow"].waitForExistence(timeout: 10),
+                      "a day at random did not open a past board")
+        XCTAssertFalse(app.buttons["TitlePlay"].exists, "the title stayed up over the board")
     }
 }

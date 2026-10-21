@@ -9,6 +9,8 @@ struct TitleActions {
     let pastDays: () -> Void
     /// A day from the week, by storage day index.
     let openDay: (Int) -> Void
+    /// A past day, chosen for the player.
+    let randomDay: () -> Void
 }
 
 /// The title screen: the peach and the name, then today and the last seven
@@ -115,6 +117,9 @@ struct TitleScreen: View {
     @ViewBuilder private func pills(fills: Bool) -> some View {
         TitlePill(title: Vocabulary.archiveTitle, systemImage: "calendar",
                   identifier: "TitlePastDays", fills: fills, action: actions.pastDays)
+        TitlePill(title: Vocabulary.titleRandomDay, systemImage: "dice",
+                  identifier: "TitleRandomDay", disabled: !ready, fills: fills,
+                  hint: Vocabulary.titleRandomDayHint, action: actions.randomDay)
     }
 }
 
@@ -255,6 +260,7 @@ struct TitlePill: View {
     /// Full width in a stack; hugging its label in a row, so a row is only
     /// chosen when every label fits on one line.
     var fills: Bool = true
+    var hint: String? = nil
     let action: () -> Void
     @ScaledMetric(relativeTo: .body) private var height: CGFloat = 46
 
@@ -284,6 +290,7 @@ struct TitlePill: View {
         .buttonStyle(PillPressStyle())
         .disabled(disabled)
         .accessibilityLabel(title)
+        .accessibilityHint(hint ?? "")
         .accessibilityIdentifier(identifier)
     }
 }

@@ -333,6 +333,10 @@ enum Vocabulary {
     /// reveal card's way out says the same thing for the same place.
     static let titleBasketFull = revealClose
 
+    /// The title's way to a past board it chooses.
+    static let titleRandomDay = "A day at random"
+    static let titleRandomDayHint = "Opens a past board, one not finished if there is one"
+
     /// The way back to the title, the peach in the board's top row, spoken.
     static let homeLabel = "Home"
     static let homeHint = "Opens the title screen"

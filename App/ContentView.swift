@@ -471,6 +471,9 @@ struct ContentView: View {
             pastDays: { openArchive() },
             openDay: { day in
                 Task { if await model.openArchiveDay(storageDay: day) { leaveTitle() } }
+            },
+            randomDay: {
+                Task { if await model.openRandomPastDay() { leaveTitle() } }
             }
         )
     }
