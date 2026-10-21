@@ -47,3 +47,25 @@ public enum Cue: Hashable, Sendable {
         min(max(length, foundLengths.lowerBound), foundLengths.upperBound)
     }
 }
+
+/// The one cue a submit plays, with the web's precedence (`useGame.ts`
+/// `submit`): any rejection plays `invalid`; a find that completes the basket
+/// plays `edition`, over the source word's cue and over its own; otherwise the
+/// source word plays `source`, and any other find its length and rung.
+///
+/// **Built on `findBeat`, not beside it,** so the haptic and the sound read one
+/// rule and cannot disagree about which beat a find was. `completesBasket` is
+/// the same fact the beat takes: whether this find reached the peak, as
+/// `resolve()` works it out.
+public func cue(for result: GuessResult, completesBasket: Bool) -> Cue {
+    switch result {
+    case .valid(let word, _, let rung, let isSourceWord):
+        switch findBeat(isSourceWord: isSourceWord, completesBasket: completesBasket) {
+        case .completion: .edition
+        case .sourceWord: .source
+        case .find: .found(length: word.count, rung: rung)
+        }
+    case .tooShort, .notAWord, .alreadyFound:
+        .invalid
+    }
+}
