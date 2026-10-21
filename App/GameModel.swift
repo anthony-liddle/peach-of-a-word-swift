@@ -194,7 +194,16 @@ final class GameModel {
     /// Every find beat played since launch, oldest first, so `-exposeFeel 1`
     /// can show a test how many patterns one submit started.
     private(set) var feltBeats: [FindBeat] = []
+
+    /// Every cue asked for since launch, oldest first, so `-exposeSound 1` can
+    /// show a test which moments asked for one. Asked, not heard: a cue asked
+    /// for before the cues load is listed and plays nothing, and a simulator
+    /// with no audio output lists the same as a phone.
+    private(set) var askedCues: [Cue] = []
     #endif
+
+    /// The game's sounds. Loaded at launch, beside the word lists; see `load`.
+    private let sounds = Sounds()
 
     /// The persisted streak, as of the day this session loaded.
     private(set) var streak: Int = 0
@@ -391,6 +400,10 @@ final class GameModel {
     }
 
     func load() async {
+        // The cues load beside the word lists rather than inside the clock
+        // below, and the board never waits for them. A find before they are
+        // ready is silent, not late; see `Sounds.play`.
+        Task { await sounds.load() }
         let clock = ContinuousClock()
         var loaded: Result<Lexicon, Error>?
         // The corpus read is inside the measurement deliberately: it is part of
@@ -954,6 +967,9 @@ final class GameModel {
         )
         #endif
         Feel.tilePress()
+        // Here and not in the refusal above: a used tile is refused with a
+        // haptic and a shake, and no sound, as the web disables used tiles.
+        sound(.tick)
     }
 
     /// Place the first unused tile bearing this letter, in rack order.
@@ -961,6 +977,10 @@ final class GameModel {
     /// The keyboard path in the web version, kept here for the tap-driven test
     /// hook. "First unused in rack order" is what makes typing `oo` consume two
     /// different tiles rather than failing on the second.
+    ///
+    /// No haptic and no `tick`, where the web's keyboard path ticks: nothing a
+    /// player touches reaches this, only launch hooks, and a hook that finds a
+    /// word letter by letter should not play eight ticks before its find.
     func addLetter(_ letter: String) {
         guard let id = rackOrder.first(where: { id in
             tiles.first { $0.id == id }?.letter == letter && !composing.contains(id)
@@ -1474,10 +1494,9 @@ final class GameModel {
             // reaches the peak: completion over the source word over an
             // ordinary find, the precedence the cards and the web's sounds
             // already have. Played before the save, where the find's haptic
-            // always was. Pass 2's sound goes beside it, in `feel`.
+            // always was, and its cue beside it, in `feel`.
             let standing = puzzle.map { computeTier(found: Set(found), puzzle: $0) }
-            feel(findBeat(isSourceWord: isSourceWord,
-                          completesBasket: standing.map(reachesPeak) ?? false))
+            feel(result, completesBasket: standing.map(reachesPeak) ?? false)
             if isSourceWord {
                 feedback = .sourceFound
                 moment = .sourceWord(word: word)
@@ -1499,6 +1518,7 @@ final class GameModel {
             // which is 0.83 to 0.81, and buys the slot one voice.
             feedback = .rejected("Three letters or more.")
             Feel.reject()
+            sound(cue(for: result, completesBasket: false))
         case .notAWord:
             // Shortened to fit the message line's reserved height. The web has
             // no cute value to copy: `themeCopy.ts` deliberately leaves the
@@ -1508,9 +1528,11 @@ final class GameModel {
             // information, a third of the width.
             feedback = .rejected("Not from these letters.")
             Feel.reject()
+            sound(cue(for: result, completesBasket: false))
         case .alreadyFound:
             feedback = .rejected("Already found.")
             Feel.reject()
+            sound(cue(for: result, completesBasket: false))
         }
     }
 
@@ -1520,9 +1542,15 @@ final class GameModel {
         isComplete(standing) && !completionSeen
     }
 
-    /// Play one find beat. Every accepted find's haptic goes through here, and
-    /// pass 2's sound goes beside it.
-    private func feel(_ beat: FindBeat) {
+    /// Play one accepted find: its haptic beat, and its cue beside it. Every
+    /// accepted find goes through here.
+    ///
+    /// The beat and the cue are chosen from the same two facts by the same
+    /// rule, `findBeat`, which `cue(for:completesBasket:)` is built on, so a
+    /// find cannot feel like one moment and sound like another.
+    private func feel(_ result: GuessResult, completesBasket: Bool) {
+        guard case .valid(_, _, _, let isSourceWord) = result else { return }
+        let beat = findBeat(isSourceWord: isSourceWord, completesBasket: completesBasket)
         #if DEBUG
         feltBeats.append(beat)
         #endif
@@ -1531,6 +1559,15 @@ final class GameModel {
         case .sourceWord: Feel.sourceWord()
         case .completion: Feel.completion()
         }
+        sound(cue(for: result, completesBasket: completesBasket))
+    }
+
+    /// Ask for a cue. Every sound the game makes goes through here.
+    private func sound(_ cue: Cue) {
+        #if DEBUG
+        askedCues.append(cue)
+        #endif
+        sounds.play(cue)
     }
 }
 

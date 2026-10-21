@@ -1,1 +1,1 @@
-New in this build: at the top rank, the line under the bar says Top rung, and says Basket full only once the basket really is full. Finding the eight letter word when it is the last one left now gives one buzz, not two at once.
+New in this build: sound. A tile ticks as it lands, a find plays a note, higher for longer words, and the eight letter word and a full basket have their own. The Ring/Silent switch silences it, and music from another app keeps playing underneath. Do a find's buzz and its sound feel like one moment or two?
