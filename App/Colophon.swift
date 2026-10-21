@@ -82,7 +82,7 @@ struct Colophon: View {
     /// is the direction that cannot short-change anyone.
     /// The page the App Store record links to, so both routes land on one
     /// policy.
-    private static let privacyPolicy = URL(string: "https://peachofaword.com/privacy")!
+    static let privacyPolicy = URL(string: "https://peachofaword.com/privacy")!
 
     private static let textCredit =
         "Etymologies and most definitions adapted from Wiktionary, "

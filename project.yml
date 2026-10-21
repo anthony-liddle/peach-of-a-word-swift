@@ -112,6 +112,12 @@ targets:
         # UserDefaults, and the only cryptography anywhere near it is whatever
         # the OS does underneath, which is exempt by definition.
         ITSAppUsesNonExemptEncryption: false
+        # Light only. Cute draws its own colours and has no dark appearance,
+        # but a system switch, a navigation bar and a page indicator follow the
+        # phone's, and so did the blank launch screen. Settings brings the
+        # first two onto a screen, so the whole app is held light here rather
+        # than view by view.
+        UIUserInterfaceStyle: Light
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
         # Bundled fonts must be declared here or they are copied into the app

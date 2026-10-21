@@ -121,6 +121,9 @@ struct ContentView: View {
     /// raises it too.
     @State private var titleShown: Bool
 
+    /// Whether the settings sheet is up, from the title's link.
+    @State private var settingsShown = false
+
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     #if DEBUG
@@ -354,6 +357,14 @@ struct ContentView: View {
             .presentationDetents(archiveDetents(presentation.height))
             .presentationDragIndicator(.visible)
         }
+        // Settings, from the title's link. Large, since the licences behind it
+        // are pages of text and medium would open on a fragment.
+        .sheet(isPresented: $settingsShown) {
+            SettingsSheet(onSound: { model.soundSwitched(on: $0) },
+                          onClose: { settingsShown = false })
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+        }
         // The width the archive will get, read from the screen it will cover.
         .background {
             GeometryReader { screen in
@@ -474,7 +485,8 @@ struct ContentView: View {
             },
             randomDay: {
                 Task { if await model.openRandomPastDay() { leaveTitle() } }
-            }
+            },
+            settings: { settingsShown = true }
         )
     }
 

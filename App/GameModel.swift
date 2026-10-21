@@ -201,10 +201,11 @@ final class GameModel {
     /// can show a test how many patterns one submit started.
     private(set) var feltBeats: [FindBeat] = []
 
-    /// Every cue asked for since launch, oldest first, so `-exposeSound 1` can
-    /// show a test which moments asked for one. Asked, not heard: a cue asked
-    /// for before the cues load is listed and plays nothing, and a simulator
-    /// with no audio output lists the same as a phone.
+    /// Every cue handed to the player since launch, oldest first, so
+    /// `-exposeSound 1` can show a test which moments asked for one. Asked, not
+    /// heard: a cue asked for before the cues load is listed and plays nothing,
+    /// and a simulator with no audio output lists the same as a phone. With
+    /// sound off nothing is handed over, so nothing is listed.
     private(set) var askedCues: [Cue] = []
     #endif
 
@@ -409,7 +410,7 @@ final class GameModel {
         // The cues load beside the word lists rather than inside the clock
         // below, and the board never waits for them. A find before they are
         // ready is silent, not late; see `Sounds.play`.
-        Task { await sounds.load() }
+        if SoundSetting.isOn { Task { await sounds.load() } }
         let clock = ContinuousClock()
         var loaded: Result<Lexicon, Error>?
         // The corpus read is inside the measurement deliberately: it is part of
@@ -1618,10 +1619,19 @@ final class GameModel {
 
     /// Ask for a cue. Every sound the game makes goes through here.
     private func sound(_ cue: Cue) {
+        // Off means no cue reaches the player at all, not a muted one: the
+        // engine stays stopped, and `askedCues` records only what was handed
+        // over, so `SoundSwitch` can hold the switch to nothing.
+        guard SoundSetting.isOn else { return }
         #if DEBUG
         askedCues.append(cue)
         #endif
         sounds.play(cue)
+    }
+
+    /// The sound switch, turned in settings.
+    func soundSwitched(on: Bool) {
+        sounds.setOn(on)
     }
 }
 

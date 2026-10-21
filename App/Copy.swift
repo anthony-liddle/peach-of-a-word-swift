@@ -347,6 +347,43 @@ enum Vocabulary {
         "\(rank) \u{00B7} \(found) of \(total) words"
     }
 
+    // MARK: - Settings
+
+    static let settingsTitle = "Settings"
+    static let close = "Close"
+
+    /// The sound switch's name, and the line under it.
+    ///
+    /// **The line is held to every cue the game plays,** not only to finds: a
+    /// tile ticks as it lands, a find plays a note, and a word that is not one
+    /// plays its own. The Ring/Silent sentence is the review notes' claim in
+    /// the review notes' words.
+    static let soundSwitch = "Sound"
+    static let soundNote = "A tick for each letter, a note for each word, a sound for a miss. "
+        + "The Ring/Silent switch silences them too."
+
+    static let licencesTitle = "Licences"
+    static let licencesNote = "The sound library, the word lists, the definitions and the typefaces."
+
+    /// What each notice covers, a sentence each, above its text.
+    ///
+    /// **Written for a player, not for the repository.** `Data/ATTRIBUTION.md`
+    /// opens with its own history and stays the repository's record; the
+    /// screen says what each notice is for and then shows it.
+    static let licenceSoundscape =
+        "Soundscape, the library that plays the game's sounds, is under the MIT licence."
+    static let licenceChromium = "Parts of Soundscape follow the design of Chromium's audio code, "
+        + "and carry its seven notices: Chromium's own, four of Google's, Intel's, and Sun's "
+        + "for the maths library fdlibm."
+    static let licenceWordLists = "The words come from ENABLE, which is in the public domain, "
+        + "and SCOWL, whose notice follows."
+    static let licenceWiktionary =
+        "The definitions and etymologies are adapted from Wiktionary, under CC BY-SA 4.0."
+    static let licenceFredoka =
+        "Fredoka, the face of the tiles and the headings, is under the SIL Open Font License."
+    static let licenceNunito =
+        "Nunito, the face of everything else, is under the SIL Open Font License."
+
     // MARK: - The ladder
 
     /// The six named ranks, cute skin. The engine owns the ladder structure and

@@ -11,6 +11,8 @@ struct TitleActions {
     let openDay: (Int) -> Void
     /// A past day, chosen for the player.
     let randomDay: () -> Void
+    /// The settings sheet.
+    let settings: () -> Void
 }
 
 /// The title screen: the peach and the name, then today and the last seven
@@ -90,9 +92,15 @@ struct TitleScreen: View {
                     TitleStateLine(text: stateLine, crowned: complete)
                 }
             } extras: {
-                ViewThatFits(in: .horizontal) {
-                    HStack(spacing: 8) { pills(fills: false) }
-                    VStack(spacing: 8) { pills(fills: true) }
+                VStack(spacing: 8) {
+                    ViewThatFits(in: .horizontal) {
+                        HStack(spacing: 8) { pills(fills: false) }
+                        VStack(spacing: 8) { pills(fills: true) }
+                    }
+                    ViewThatFits(in: .horizontal) {
+                        HStack(spacing: 18) { links }
+                        VStack(spacing: 0) { links }
+                    }
                 }
             }
         }
@@ -120,6 +128,34 @@ struct TitleScreen: View {
         TitlePill(title: Vocabulary.titleRandomDay, systemImage: "dice",
                   identifier: "TitleRandomDay", disabled: !ready, fills: fills,
                   hint: Vocabulary.titleRandomDayHint, action: actions.randomDay)
+    }
+
+    /// The quiet ways out: underlined links, below the pills.
+    @ViewBuilder private var links: some View {
+        TitleLink(title: Vocabulary.settingsTitle, identifier: "TitleSettings",
+                  action: actions.settings)
+    }
+}
+
+/// A link on the title: underlined text in a 44pt target.
+struct TitleLink: View {
+    let title: String
+    let identifier: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Text(title)
+                .font(CuteFont.body(15, weight: "SemiBold", relativeTo: .subheadline))
+                .foregroundStyle(Cute.accentDeep)
+                .underline()
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(minHeight: Cute.minTapTarget)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier(identifier)
     }
 }
 
