@@ -308,7 +308,7 @@ final class GameModel {
     /// once on a device; see docs/REPORT.md.
     nonisolated static var now: Date {
         #if DEBUG
-        var offset = UserDefaults.standard.integer(forKey: "dayOffset")
+        var offset = launchDayOffset
         // `-dayOffsetOnResume 1` moves the clock forward the first time the app
         // is foregrounded, and not before.
         //
@@ -318,7 +318,7 @@ final class GameModel {
         // the path never runs. This is the smallest thing that makes the real
         // sequence reachable, which is the same argument as `-revealCard` and
         // `-holdLoading`.
-        if hasResumed { offset += UserDefaults.standard.integer(forKey: "dayOffsetOnResume") }
+        if hasResumed { offset += launchDayOffsetOnResume }
         // `PEACH_DAY_OFFSET`, set inside the simulator with `launchctl setenv`,
         // moves every launch in a test run at once, and the test runner reads
         // the same variable (UITests/TestClock.swift). That is how the UI suite
@@ -332,6 +332,22 @@ final class GameModel {
     }
 
     #if DEBUG
+    /// `-dayOffset N` and `-dayOffsetOnResume N`, negatives included.
+    ///
+    /// **Read from the launch arguments, not from `UserDefaults`.** Its argument
+    /// domain drops a pair whose value begins with "-", so `-dayOffset -26` set
+    /// nothing and `now` stayed on today: a past day asked for, today's board
+    /// shown, and no sign of the difference. `launchInteger` reads the arguments
+    /// themselves. `UserDefaults` stays as the fallback for any other way a
+    /// value was set. `TodayIsTheLocalDate` holds the negative.
+    nonisolated private static let launchDayOffset =
+        launchInteger("dayOffset", in: ProcessInfo.processInfo.arguments)
+        ?? UserDefaults.standard.integer(forKey: "dayOffset")
+
+    nonisolated private static let launchDayOffsetOnResume =
+        launchInteger("dayOffsetOnResume", in: ProcessInfo.processInfo.arguments)
+        ?? UserDefaults.standard.integer(forKey: "dayOffsetOnResume")
+
     /// Set the first time the app is foregrounded after launch. See `now`.
     ///
     /// `nonisolated(unsafe)` for the same reason `UserDefaultsStore.diagnostic`

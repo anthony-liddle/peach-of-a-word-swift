@@ -43,4 +43,25 @@ final class TodayIsTheLocalDate: XCTestCase {
         XCTAssertTrue([before, after].contains(probe.label),
                       "the app's day indices are \(probe.label); the local date in \(zone) gives \(after)")
     }
+
+    /// `-dayOffset` moves the day back as well as forward.
+    ///
+    /// **A negative value used to vanish.** Foundation's argument domain drops
+    /// a `-key value` pair whose value begins with "-", so `-dayOffset -26`
+    /// set nothing and the app quietly showed today's board. The App Store
+    /// screenshots shoot past days this way, so a silent fallback to today is
+    /// the one outcome this has to rule out.
+    func testANegativeDayOffsetMovesTheDayBack() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-resetProgress", "1", "-exposeToday", "1", "-dayOffset", "-26"]
+        let back = { Calendar.current.date(byAdding: .day, value: -26, to: TestClock.now)! }
+        let before = expected(at: back())
+        app.launch()
+        let probe = app.staticTexts["DebugToday"]
+        XCTAssertTrue(probe.waitForExistence(timeout: 30), "the app never exposed its day")
+        let after = expected(at: back())
+        XCTAssertTrue([before, after].contains(probe.label),
+                      "with -dayOffset -26 the app's day indices are \(probe.label), "
+                      + "where 26 days back gives \(after)")
+    }
 }
