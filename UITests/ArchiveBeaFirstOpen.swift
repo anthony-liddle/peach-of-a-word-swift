@@ -41,7 +41,7 @@ final class ArchiveBeaFirstOpen: XCTestCase {
     /// whose date is not UTC's.
     private func monthKey(daysAgo: Int) -> String {
         let calendar = Calendar.current
-        let day = calendar.date(byAdding: .day, value: -daysAgo, to: Date())!
+        let day = calendar.date(byAdding: .day, value: -daysAgo, to: TestClock.now)!
         let parts = calendar.dateComponents([.year, .month], from: day)
         return String(format: "%04d-%02d", parts.year!, parts.month!)
     }

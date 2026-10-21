@@ -246,6 +246,7 @@ struct AppVocabularyTests {
         "No words picked yet. The basket is empty.",
         "Back to the basket",
         "Basket full",
+        "Top rung",
         // The one that was outright letterpress, from themeCopy.test.ts:136.
         "Every common word these letters can grow, picked.",
         // The one that was missing entirely.

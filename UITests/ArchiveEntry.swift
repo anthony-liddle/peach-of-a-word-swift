@@ -12,6 +12,10 @@ final class ArchiveEntry: XCTestCase {
         app.launchArguments = [
             "-resetProgress", "1",
             "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryL",
+            // A 15th, so the current month always holds a past day and a future
+            // one. On the 1st it has no past day and on its last day no future
+            // one; see `TestClock.midMonthDayOffset`.
+            "-dayOffset", TestClock.midMonthDayOffset,
         ]
         app.launch()
         XCTAssertTrue(app.staticTexts["FoundSummaryCount"].waitForExistence(timeout: 30),
@@ -103,6 +107,10 @@ extension ArchiveEntry {
         let app = XCUIApplication()
         app.launchArguments = [
             "-resetProgress", "1", "-seedArchive", "showcase", "-openArchive", "1",
+            // A 15th, so the seed's caught-up days, three and four days back,
+            // are in the month the sheet opens on. On the 1st to the 3rd they
+            // are in the month before; see `TestClock.midMonthDayOffset`.
+            "-dayOffset", TestClock.midMonthDayOffset,
         ]
         app.launch()
         XCTAssertTrue(app.buttons["Back to the basket"].waitForExistence(timeout: 30),

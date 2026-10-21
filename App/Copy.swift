@@ -224,7 +224,21 @@ enum Vocabulary {
     ///
     /// The row competes with the percentage and the streak, both of which grow
     /// too, so the budget is smaller than the caption alone suggests.
-    static let ladderPeak = "\(containerCapitalized) full"
+    ///
+    /// **"Basket full" was untrue at the top of the ladder, so it is "Top rung"
+    /// now.** The ladder tops out long before the basket does: on one board
+    /// measured on 2026-09-27, at 16 of 36 basket words. "Basket full" there
+    /// made a claim about the basket that the bar does not measure. The app
+    /// already calls the ranks rungs, and "Top rung" is shorter than the string
+    /// that fitted, so the budget above still holds. The web's sentence is true
+    /// in both states because it names the peak rather than claiming it; this
+    /// one cannot carry that much, so it says where the bar is and leaves the
+    /// peak to `basketFull` and the completion card.
+    static let ladderPeak = "Top rung"
+
+    /// The same caption once the basket really is full: every set word found.
+    /// True only then, so shown only then.
+    static let basketFull = "\(containerCapitalized) full"
 
     // MARK: - The archive
 

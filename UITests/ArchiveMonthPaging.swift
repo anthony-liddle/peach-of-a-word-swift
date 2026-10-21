@@ -40,7 +40,7 @@ final class ArchiveMonthPaging: XCTestCase {
     /// know opens the current month without complaint, which the title catches.
     private func lastMonth() -> (key: String, word: String) {
         let calendar = Calendar.current
-        let date = calendar.date(byAdding: .month, value: -1, to: Date())!
+        let date = calendar.date(byAdding: .month, value: -1, to: TestClock.now)!
         let parts = calendar.dateComponents([.year, .month], from: date)
         let formatter = DateFormatter()
         formatter.calendar = calendar

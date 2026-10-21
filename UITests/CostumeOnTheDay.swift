@@ -10,12 +10,35 @@ import XCTest
 final class CostumeOnTheDay: XCTestCase {
     private static let spoken = "The peach is in a ghost sheet."
 
-    /// The `-dayOffset` that makes the app's today the given local date.
-    private func offset(to year: Int, _ month: Int, _ day: Int) -> String {
+    /// The next 31 October on or after today, in whichever year that falls.
+    ///
+    /// **Not 31 October 2026, because the offset to a past date is negative,
+    /// and Foundation drops a negative `-dayOffset`.** It reads `-dayOffset -1`
+    /// as a key with no value, so the app stays on today without a word. Aimed
+    /// at 2026 from 1 November on, these ran on the wrong day: two failed, and
+    /// the one that asserts the costume is absent passed without checking
+    /// anything. The costume goes by month and day in any year, so the next
+    /// 31 October is as good a board as the first, and the offset to it is
+    /// never negative.
+    private var nextHalloween: Date {
         let cal = Calendar.current
-        let today = cal.startOfDay(for: Date())
-        let target = cal.date(from: DateComponents(year: year, month: month, day: day))!
-        return String(cal.dateComponents([.day], from: today, to: target).day!)
+        let today = cal.startOfDay(for: TestClock.now)
+        let year = cal.component(.year, from: today)
+        let thisYear = cal.date(from: DateComponents(year: year, month: 10, day: 31))!
+        return thisYear >= today
+            ? thisYear : cal.date(from: DateComponents(year: year + 1, month: 10, day: 31))!
+    }
+
+    /// The `-dayOffset` that makes the app's today `date`, which must not be
+    /// in the past; see `nextHalloween`.
+    private func offset(to date: Date, plus days: Int = 0) -> String {
+        let cal = Calendar.current
+        let target = cal.date(byAdding: .day, value: days, to: date)!
+        let offset = cal.dateComponents([.day], from: cal.startOfDay(for: TestClock.now),
+                                        to: target).day!
+        XCTAssertGreaterThanOrEqual(offset, 0,
+                                    "a negative -dayOffset is dropped, so the app would stay on today")
+        return String(offset)
     }
 
     private func reveal(_ extra: [String]) -> XCUIApplication {
@@ -39,13 +62,13 @@ final class CostumeOnTheDay: XCTestCase {
     }
 
     func testTodaysBoardOnTheDayWearsIt() {
-        let app = reveal(["-dayOffset", offset(to: 2026, 10, 31)])
+        let app = reveal(["-dayOffset", offset(to: nextHalloween)])
         waitForTheCard(app)
         XCTAssertTrue(peachSaysCostume(app, timeout: 5), "31 October's board did not dress the peach")
     }
 
     func testTheDaysBoardReplayedLaterWearsIt() {
-        let app = reveal(["-dayOffset", offset(to: 2026, 11, 5), "-archiveDay", "5"])
+        let app = reveal(["-dayOffset", offset(to: nextHalloween, plus: 5), "-archiveDay", "5"])
         XCTAssertTrue(app.buttons["Back to today"].waitForExistence(timeout: 30),
                       "the past board never opened")
         waitForTheCard(app)
@@ -54,7 +77,7 @@ final class CostumeOnTheDay: XCTestCase {
     }
 
     func testAnotherDaysBoardOnTheDayDoesNot() {
-        let app = reveal(["-dayOffset", offset(to: 2026, 10, 31), "-archiveDay", "1"])
+        let app = reveal(["-dayOffset", offset(to: nextHalloween), "-archiveDay", "1"])
         XCTAssertTrue(app.buttons["Back to today"].waitForExistence(timeout: 30),
                       "the past board never opened")
         waitForTheCard(app)
