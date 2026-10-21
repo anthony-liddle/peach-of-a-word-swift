@@ -317,6 +317,28 @@ enum Vocabulary {
     /// that never existed, because its absence reads as a decision.
     static let dedication = "for Bea"
 
+    // MARK: - The title screen
+
+    /// The title's button on a day not yet started.
+    static let titlePlay = "Play"
+
+    /// The title's button once today's board has words.
+    static let titleContinue = "Continue"
+
+    /// The title's button once today's basket is full.
+    ///
+    /// **"Continue" would not be true of it.** A full basket has nothing left
+    /// to continue toward; the board stays playable for the words past it, and
+    /// this says where the button goes rather than promising work left. The
+    /// reveal card's way out says the same thing for the same place.
+    static let titleBasketFull = revealClose
+
+    /// The title's line under the button once the board is known: the rank, and
+    /// the basket as the share block counts it.
+    static func titleStanding(rank: String, found: Int, total: Int) -> String {
+        "\(rank) \u{00B7} \(found) of \(total) words"
+    }
+
     // MARK: - The ladder
 
     /// The six named ranks, cute skin. The engine owns the ladder structure and

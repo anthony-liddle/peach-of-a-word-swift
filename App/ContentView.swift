@@ -116,11 +116,22 @@ struct ContentView: View {
     /// activation, since it compares the day and does nothing when it matches.
     @State private var wentAway = false
 
+    /// Whether the title screen is up. Decided at launch by `TitleSchedule`,
+    /// and again on every return to the foreground; the way back on the board
+    /// raises it too.
+    @State private var titleShown: Bool
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     /// `storage` is injectable so a preview does not scribble on the real
     /// UserDefaults every time the canvas re-renders.
     init(debugSeed: String? = nil, storage: GameStorage = .appDefault) {
         self.debugSeed = debugSeed
         _model = State(initialValue: GameModel(storage: storage))
+        #if DEBUG
+        TitleSchedule.resetForFreshInstall()
+        #endif
+        _titleShown = State(initialValue: TitleSchedule.claim(today: GameModel.todayStorageIndex))
     }
 
     /// One month's worth of sheet, or the large detent when a month cannot fit.
@@ -169,29 +180,13 @@ struct ContentView: View {
 
             switch model.phase {
             case .loading:
-                // The kicker lives here now. It came off the play screen
-                // because an app does not need to announce what it is every
-                // session, but a splash is exactly where that line belongs, and
-                // it is also where the dictionary load hides.
-                VStack(spacing: 18) {
-                    PeachMark().frame(width: 72, height: 72)
-                    wordmark
-                    Text(Vocabulary.mastheadSubline)
-                        .font(CuteFont.body(12, weight: "SemiBold", relativeTo: .caption))
-                        .tracking(4.4)
-                        .textCase(.uppercase)
-                        .foregroundStyle(Cute.accentDeep)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 32)
-                    ProgressView().tint(Cute.accent)
-                    // The loading line, which the app never had: a bare spinner
-                    // where the web says what is happening. The subline in the
-                    // continuous present, so the splash is the app doing the
-                    // thing it is about to invite you to do.
-                    Text(Vocabulary.loadingLine)
-                        .font(CuteFont.body(14, relativeTo: .subheadline))
-                        .foregroundStyle(Cute.inkFaint)
-                }
+                // **The splash is the title's own top now.** When the title is
+                // up it is the whole of what shows while the lists load; when a
+                // launch opens on the board, the peach, the name and the line
+                // show alone with the spinner, so the app has one loading look,
+                // not two. The loading line stays: a bare spinner says nothing
+                // about what is happening.
+                if !titleShown { LoadingTop() }
             case .failed(let message):
                 ContentUnavailableView(
                     "Could not start",
@@ -199,7 +194,10 @@ struct ContentView: View {
                     description: Text(message)
                 )
             case .ready:
-                game
+                // Not drawn while the title covers it, so nothing beneath the
+                // title can be reached by touch or by VoiceOver. The model
+                // loads from the root's `.task`, not from this view.
+                if !titleShown { game }
                 #if DEBUG
                 // `-exposeToday 1` prints the two day indices the app computed,
                 // so `TodayIsTheLocalDate` can hold them to the phone's own date.
@@ -230,6 +228,14 @@ struct ContentView: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
                 }
                 #endif
+            }
+
+            // The title screen, over everything but a failed start, which has
+            // to be read rather than hidden behind a Play that never wakes.
+            if titleShown, !model.failedToStart {
+                TitleScreen(model: model, actions: titleActions)
+                    .transition(.opacity)
+                    .zIndex(1)
             }
         }
         // `.task` runs when the view appears and is cancelled automatically if
@@ -315,6 +321,9 @@ struct ContentView: View {
                     canPlay: model.canPlayArchive,
                     onPick: { day in
                         archivePresentation = nil
+                        // Past days lives on the title, so a day picked there
+                        // opens on the board and the title steps aside.
+                        leaveTitle()
                         Task { await model.openArchiveDay(storageDay: day) }
                     },
                     onClose: { archivePresentation = nil }
@@ -379,7 +388,13 @@ struct ContentView: View {
             // working rollover.
             if wentAway { GameModel.hasResumed = true }
             #endif
-            Task { await model.rollOverIfNewDay() }
+            Task {
+                await model.rollOverIfNewDay()
+                // A new day's first open, when the app was resumed across
+                // midnight rather than launched. At launch the schedule has
+                // already been asked, so this finds nothing due.
+                if TitleSchedule.claim(today: GameModel.todayStorageIndex) { showTitle() }
+            }
         }
         .task {
             #if DEBUG
@@ -422,40 +437,42 @@ struct ContentView: View {
         }
     }
 
-    /// The name of the game, and the only place in the app it appears.
+    /// What the title screen can do to the board.
     ///
-    /// **Transcribed from the masthead rather than approximated**, because the
-    /// masthead is gone: it came off the play screen in the chrome reclaim, on
-    /// the argument that an app is already open, already named on the home
-    /// screen, already the thing that was tapped. That argument is about the
-    /// play screen and it does not reach here. A splash is exactly where an app
-    /// announces itself, once per session, and it was announcing everything
-    /// except its name.
-    ///
-    /// "Peach" keeps the pink oblique, which is the identifying mark and the
-    /// half of the wordmark that is not just words. `displayOblique` shears
-    /// Fredoka by hand through CoreText because Fredoka has no italic face and
-    /// `.italic()` therefore selects nothing; see `CuteFont`.
-    ///
-    /// The two halves are concatenated with `+` rather than set in an `HStack`.
-    /// That is not a style preference: `Text + Text` is one text run, so it
-    /// wraps, scales and truncates as a single unit, and the space before "of"
-    /// belongs to the run rather than to a stack's spacing. An `HStack` would
-    /// let the two halves scale independently.
-    private var wordmark: some View {
-        (Text("Peach").font(CuteFont.displayOblique(22, relativeTo: .title3))
-            .foregroundColor(Cute.accent)
-         + Text(" of a Word").font(CuteFont.display(22, relativeTo: .title3))
-            .foregroundColor(Cute.ink))
-            .lineLimit(1)
-            .minimumScaleFactor(0.7)
-            // The gutter the masthead used to inherit from its container.
-            // Transcribing the view verbatim dropped it, because the play
-            // screen padded the whole column by 18 and this splash pads
-            // nothing: at AX5 the name rendered in full and touched both
-            // bezels. Worth catching, since "exactly as the masthead had it"
-            // turns out to include the box the masthead was in.
-            .padding(.horizontal, 18)
+    /// Every past board opens through `openArchiveDay`, the archive's one gate.
+    private var titleActions: TitleActions {
+        TitleActions(
+            play: {
+                // The title shows today, so Play goes there, from a past board
+                // left open as well as from today's.
+                if model.isArchiveBoard {
+                    Task {
+                        await model.returnToToday()
+                        leaveTitle()
+                    }
+                } else {
+                    leaveTitle()
+                }
+            },
+            pastDays: { openArchive() },
+            openDay: { day in
+                Task { if await model.openArchiveDay(storageDay: day) { leaveTitle() } }
+            }
+        )
+    }
+
+    /// The title steps aside: a crossfade, and a cut under Reduce Motion.
+    private func leaveTitle() {
+        if reduceMotion { titleShown = false } else {
+            withAnimation(.easeOut(duration: 0.25)) { titleShown = false }
+        }
+    }
+
+    /// The title comes back: the same crossfade, and the same cut.
+    private func showTitle() {
+        if reduceMotion { titleShown = true } else {
+            withAnimation(.easeOut(duration: 0.25)) { titleShown = true }
+        }
     }
 
     /// **A screen, not a page.**

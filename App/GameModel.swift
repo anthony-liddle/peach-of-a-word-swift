@@ -56,6 +56,12 @@ final class GameModel {
     }
 
     private(set) var phase: Phase = .loading
+
+    /// Whether the load failed, which the title must not cover.
+    var failedToStart: Bool {
+        if case .failed = phase { return true }
+        return false
+    }
     private(set) var puzzle: Puzzle?
     /// Newest first, so the list reads as a history of what you just found.
     private(set) var found: [String] = []
@@ -1237,6 +1243,36 @@ final class GameModel {
     /// decodes the whole map, and doing that inside a `ForEach` over ninety rows
     /// is the kind of thing that is free at seventy-nine days and is not at four
     /// hundred.
+    /// The title screen's week: the seven days ending today, marked as the
+    /// calendar marks them.
+    ///
+    /// **Seven outcome reads, not `archiveDays()`.** That walks every day in
+    /// history and is kept off the launch path on purpose, and the title is the
+    /// launch path. Read fresh each time the title is drawn, so coming back from
+    /// the board shows today as it now stands.
+    func titleWeek() -> [ArchiveDay] {
+        let today = Self.todayStorageIndex
+        let first = max(Self.firstPlayableStorageIndex, today - 6)
+        return (first...today).map { day in
+            ArchiveDay(day: day, date: Self.date(forStorageDay: day),
+                       mark: dayMark(for: day, outcome: storage.outcome(dayIndex: day),
+                                     todayIndex: today),
+                       isToday: day == today)
+        }
+    }
+
+    /// Whether today's board has words, from the board once it is today's and
+    /// from the store before then, so the title can say so while the lists load.
+    var todayStarted: Bool {
+        if puzzle != nil, !isArchiveBoard { return !found.isEmpty }
+        return storage.daysWithProgress().contains(Self.todayStorageIndex)
+    }
+
+    /// The streak, from the store, so the title has it before the board does.
+    var storedStreak: Int {
+        storage.currentStreak(todayIndex: Self.todayStorageIndex)
+    }
+
     func archiveDays() -> [ArchiveDay] {
         #if DEBUG
         // **A walk of the whole archive, counted so it can be kept off the
