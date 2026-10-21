@@ -147,6 +147,7 @@ private struct SettingsRow: View {
 /// The pinned way out, as the explainer's: below the fold is no place for it.
 struct SheetCloseButton: View {
     var title: String = Vocabulary.close
+    var identifier: String = "SheetClose"
     let action: () -> Void
 
     var body: some View {
@@ -167,7 +168,9 @@ struct SheetCloseButton: View {
         .padding(.top, 12)
         .padding(.bottom, 20)
         .background(Cute.pageBackground)
-        .accessibilityIdentifier("SheetClose")
+        // Spoken as written, not as the capitals drawn.
+        .accessibilityLabel(title)
+        .accessibilityIdentifier(identifier)
     }
 }
 

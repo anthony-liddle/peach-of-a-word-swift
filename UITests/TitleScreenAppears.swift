@@ -36,6 +36,10 @@ final class TitleScreenAppears: XCTestCase {
         XCTAssertEqual(play.label, "Play", "a fresh install's button is not Play")
         XCTAssertFalse(tile(app).exists, "the board is reachable beneath the title")
         play.tap()
+        // A fresh install meets How to play first; `HowToPlayOnce` holds that.
+        let done = app.buttons["HowToPlayDone"]
+        XCTAssertTrue(done.waitForExistence(timeout: 10), "a fresh install's Play did not open How to play")
+        done.tap()
         XCTAssertTrue(tile(app).waitForExistence(timeout: 10), "Play did not open the board")
         app.terminate()
 

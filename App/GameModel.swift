@@ -1264,9 +1264,22 @@ final class GameModel {
 
     /// Whether today's board has words, from the board once it is today's and
     /// from the store before then, so the title can say so while the lists load.
+    ///
+    /// **The stored outcome, not the stored day.** An outcome is recorded only
+    /// once a day has a word, where a day's entry can be saved empty: the Debug
+    /// reset writes one, and "any stored day" then read as started.
     var todayStarted: Bool {
         if puzzle != nil, !isArchiveBoard { return !found.isEmpty }
-        return storage.daysWithProgress().contains(Self.todayStorageIndex)
+        return storage.outcome(dayIndex: Self.todayStorageIndex) != nil
+    }
+
+    /// Whether this phone has played at all: words on the board, any day's
+    /// outcome, or a streak. Asked at the tap on Play, after any seed, so How
+    /// to play is shown unasked only to a phone that has never played. Every
+    /// day played since the archive shipped has an outcome, and the back-fill
+    /// gave the days before it theirs.
+    var hasAnyProgress: Bool {
+        !found.isEmpty || !storage.allOutcomes().isEmpty || storedStreak > 0
     }
 
     /// The streak, from the store, so the title has it before the board does.

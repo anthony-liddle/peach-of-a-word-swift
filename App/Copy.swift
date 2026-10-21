@@ -347,6 +347,28 @@ enum Vocabulary {
         "\(rank) \u{00B7} \(found) of \(total) words"
     }
 
+    // MARK: - How to play
+
+    static let howToPlayTitle = "How to play"
+
+    /// What a player needs before the first tile, in the game's own words.
+    ///
+    /// **Every line checked against the game on 2026-10-21.** Two of the
+    /// design pass's mocked lines were not true of every board: "One word
+    /// uses all eight letters" fails on the 222 of 626 boards whose letters
+    /// also spell another eight-letter word, and "read where it came from"
+    /// fails on the 11 crowns with no etymology. The last line says what is
+    /// true of all of them.
+    static let howToPlayPick = "Tap letters to make a word of three letters or more, then pick it."
+    static var howToPlayClimb: String {
+        "Every word climbs the ladder, from \(tierNames[0]) to \(tierNames[tierNames.count - 1]). "
+            + "Longer and rarer words climb faster."
+    }
+    static let howToPlayBasket = "The \(container) is every common word the letters can spell. "
+        + "Rarer finds are Uncommon, Rare or Mythic."
+    static let howToPlayPeach = "All eight letters come from one word, the peach of a word. "
+        + "Find it to open its card: what it means and, most days, where it came from."
+
     // MARK: - Settings
 
     static let settingsTitle = "Settings"

@@ -124,6 +124,14 @@ struct ContentView: View {
     /// Whether the settings sheet is up, from the title's link.
     @State private var settingsShown = false
 
+    /// How to play, if it is up, and why: a first run goes on to the board.
+    private enum HowToPlayShown: Identifiable {
+        case firstRun, fromLink
+        var id: Self { self }
+    }
+
+    @State private var howToPlay: HowToPlayShown?
+
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     #if DEBUG
@@ -365,6 +373,15 @@ struct ContentView: View {
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
         }
+        // How to play: from Play on a first run, or from the title's link.
+        .sheet(item: $howToPlay) { shown in
+            HowToPlayCard(firstRun: shown == .firstRun) {
+                howToPlay = nil
+                if shown == .firstRun { goToToday() }
+            }
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
+        }
         // The width the archive will get, read from the screen it will cover.
         .background {
             GeometryReader { screen in
@@ -468,15 +485,14 @@ struct ContentView: View {
     private var titleActions: TitleActions {
         TitleActions(
             play: {
-                // The title shows today, so Play goes there, from a past board
-                // left open as well as from today's.
-                if model.isArchiveBoard {
-                    Task {
-                        await model.returnToToday()
-                        leaveTitle()
-                    }
+                // A phone that has never played sees How to play first, once,
+                // and its button goes on to the board. Judged here, at the tap,
+                // from the store.
+                if !HowToPlayFirstRun.seen, !model.hasAnyProgress {
+                    HowToPlayFirstRun.markSeen()
+                    howToPlay = .firstRun
                 } else {
-                    leaveTitle()
+                    goToToday()
                 }
             },
             pastDays: { openArchive() },
@@ -486,8 +502,22 @@ struct ContentView: View {
             randomDay: {
                 Task { if await model.openRandomPastDay() { leaveTitle() } }
             },
+            howToPlay: { howToPlay = .fromLink },
             settings: { settingsShown = true }
         )
+    }
+
+    /// The title shows today, so Play goes there, from a past board left open
+    /// as well as from today's.
+    private func goToToday() {
+        if model.isArchiveBoard {
+            Task {
+                await model.returnToToday()
+                leaveTitle()
+            }
+        } else {
+            leaveTitle()
+        }
     }
 
     /// The title steps aside: a crossfade, and a cut under Reduce Motion.

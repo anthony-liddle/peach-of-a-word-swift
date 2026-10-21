@@ -50,7 +50,9 @@ enum TitleSchedule {
     /// game's own store and not these.
     static func resetForFreshInstall(defaults: UserDefaults = .standard) {
         guard defaults.bool(forKey: "resetProgress") else { return }
-        for key in [lastShownKey, SoundSetting.key] { defaults.removeObject(forKey: key) }
+        for key in [lastShownKey, SoundSetting.key, HowToPlayFirstRun.key] {
+            defaults.removeObject(forKey: key)
+        }
     }
     #endif
 }

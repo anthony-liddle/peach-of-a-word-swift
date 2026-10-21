@@ -11,6 +11,8 @@ struct TitleActions {
     let openDay: (Int) -> Void
     /// A past day, chosen for the player.
     let randomDay: () -> Void
+    /// How to play, from the link: it ends with Close.
+    let howToPlay: () -> Void
     /// The settings sheet.
     let settings: () -> Void
 }
@@ -132,6 +134,8 @@ struct TitleScreen: View {
 
     /// The quiet ways out: underlined links, below the pills.
     @ViewBuilder private var links: some View {
+        TitleLink(title: Vocabulary.howToPlayTitle, identifier: "TitleHowToPlay",
+                  action: actions.howToPlay)
         TitleLink(title: Vocabulary.settingsTitle, identifier: "TitleSettings",
                   action: actions.settings)
     }
