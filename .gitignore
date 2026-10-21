@@ -14,7 +14,27 @@ xcuserdata/
 #
 # This supersedes the two narrower rules that lived here, and PeachMinimal's,
 # all of which this covers.
-*.xcodeproj/
+#
+# **Except one file: Package.resolved.** Xcode Cloud does not resolve packages
+# itself. It reads the pins from
+# PeachOfAWord.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
+# and nowhere else, and fails the build when that file is missing. So it is
+# tracked where Xcode writes it, rather than kept somewhere else and copied in:
+# a local resolve then rewrites the tracked file and shows in `git status`,
+# where a copy would drift without a word. XcodeGen 2.46.0 leaves the file in
+# place when it regenerates the project around it.
+#
+# Git cannot re-include a file under an excluded directory, so each level is
+# opened by its own pair of lines: ignore everything in it, then un-ignore the
+# one child on the way down.
+*.xcodeproj/*
+!*.xcodeproj/project.xcworkspace/
+*.xcodeproj/project.xcworkspace/*
+!*.xcodeproj/project.xcworkspace/xcshareddata/
+*.xcodeproj/project.xcworkspace/xcshareddata/*
+!*.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/
+*.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/*
+!*.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
 # Archives have been written into .build/ so far, which covered these by
 # accident rather than by intent. An xcarchive is a signed copy of the whole
 # app and has no business in the history.

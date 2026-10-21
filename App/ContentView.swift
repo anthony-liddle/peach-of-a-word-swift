@@ -219,6 +219,16 @@ struct ContentView: View {
                         .accessibilityIdentifier("DebugFeel")
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                 }
+                // `-exposeSound 1` lists the cues asked for since launch, so
+                // `CueAtEachMoment` can hold each moment to its cue, or to none.
+                // The opposite corner from `DebugFeel`, so both can be shown.
+                if UserDefaults.standard.bool(forKey: "exposeSound") {
+                    Text(model.askedCues.isEmpty
+                         ? "none" : model.askedCues.map(\.name).joined(separator: ","))
+                        .font(.caption2)
+                        .accessibilityIdentifier("DebugSound")
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+                }
                 #endif
             }
         }

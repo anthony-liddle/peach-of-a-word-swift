@@ -137,6 +137,21 @@ and copyright notice travel with them, so the full licence for each is committed
 alongside: [`App/Fonts/OFL-Fredoka.txt`](App/Fonts/OFL-Fredoka.txt) and
 [`App/Fonts/OFL-Nunito.txt`](App/Fonts/OFL-Nunito.txt).
 
+## Soundscape (sound)
+
+The app plays its sounds with Soundscape, Anthony Liddle's own Swift package,
+pinned to one version in `project.yml`. It is MIT licensed, and parts of its
+renderer follow Chromium's Web Audio code and port Chromium's copy of fdlibm,
+so it carries seven more notices: Chromium's own, four of Google's, Intel's and
+Sun's. The package's README says an app that ships it must carry all of them as
+well as the MIT licence.
+
+Both texts ship in the bundle, byte for byte as the package has them at that
+version: `Data/Soundscape-LICENSE.txt` and
+`Data/Soundscape-LICENSE-CHROMIUM.txt`. Nothing in the app shows them yet; a
+Licences screen will. Until then, carrying them is what discharges the notices
+that ask for a binary to reproduce them.
+
 ## In the app
 
 There is a colophon in the game itself, at the foot of the found list: "Words

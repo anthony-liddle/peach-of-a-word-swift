@@ -185,6 +185,13 @@ convenient: `Package.swift` has no third-party dependencies, and there is no
 `URLSession`, networking or analytics API anywhere in `App/` or
 `Sources/PeachEngine/`.
 
+**Since 2026-10-21 the app target has one package, Soundscape,** Anthony
+Liddle's own, for its sounds (`project.yml`). The answer stands: read at its
+pinned 0.2.0, its sources use no networking and no cryptography, and none of
+the required-reason APIs, so neither this answer nor the privacy manifest
+moves. "No third-party dependencies" is still true of `Package.swift`, and is
+no longer the whole app's story.
+
 ## Privacy policy: <https://peachofaword.com/privacy>
 
 Hosted on the game's own domain rather than a portfolio site, because that is

@@ -8,13 +8,19 @@ import XCTest
 /// card for the completion card, and the web's sounds play completion alone.
 /// `-exposeFeel 1` lists every find beat played since launch, so this counts
 /// what one submit started.
+///
+/// The cue goes beside the beat, chosen by the same rule, so the same launches
+/// hold the sound to it: `-exposeSound 1` lists the cues asked for. The source
+/// word is found through `addLetter`, which asks for no tick, so the submit's
+/// cue is the only one.
 final class OneBeatPerFind: XCTestCase {
     /// Launch on `seed`, find the source word through the tile path, close the
-    /// card it opens, and return the beats the probe recorded.
-    private func beatsAfterFindingTheSource(seed: String) -> String {
+    /// card it opens, and return the beats and the cues the probes recorded.
+    private func afterFindingTheSource(seed: String) -> (beats: String, cues: String) {
         let app = XCUIApplication()
         app.launchArguments = [
-            "-resetProgress", "1", "-seedBoard", seed, "-findSource", "1", "-exposeFeel", "1",
+            "-resetProgress", "1", "-seedBoard", seed, "-findSource", "1",
+            "-exposeFeel", "1", "-exposeSound", "1",
         ]
         app.launch()
         // The peach card's way out, or the completion card's.
@@ -23,22 +29,30 @@ final class OneBeatPerFind: XCTestCase {
         )).firstMatch
         XCTAssertTrue(close.waitForExistence(timeout: 30), "finding the source word opened no card")
         close.tap()
-        let probe = app.staticTexts["DebugFeel"]
-        XCTAssertTrue(probe.waitForExistence(timeout: 10), "the app never exposed its beats")
-        return probe.label
+        let beats = app.staticTexts["DebugFeel"]
+        XCTAssertTrue(beats.waitForExistence(timeout: 10), "the app never exposed its beats")
+        let cues = app.staticTexts["DebugSound"]
+        XCTAssertTrue(cues.waitForExistence(timeout: 10), "the app never exposed its cues")
+        return (beats.label, cues.label)
     }
 
     /// `source-last` is every set word but the source word, so finding it
     /// completes the basket.
     func testTheSourceWordThatCompletesTheBasketPlaysOnlyCompletion() {
-        XCTAssertEqual(beatsAfterFindingTheSource(seed: "source-last"), "completion",
+        let found = afterFindingTheSource(seed: "source-last")
+        XCTAssertEqual(found.beats, "completion",
                        "the submit that completed the basket played more than completion's pattern")
+        XCTAssertEqual(found.cues, "edition",
+                       "the submit that completed the basket asked for more than the edition cue")
     }
 
     /// `hierarchy` leaves one other set word unfound, so the source word does
     /// not complete the basket and keeps its own beat.
     func testTheSourceWordAlonePlaysTheSourceWord() {
-        XCTAssertEqual(beatsAfterFindingTheSource(seed: "hierarchy"), "sourceWord",
+        let found = afterFindingTheSource(seed: "hierarchy")
+        XCTAssertEqual(found.beats, "sourceWord",
                        "the source word on its own did not play its own pattern")
+        XCTAssertEqual(found.cues, "source",
+                       "the source word on its own did not ask for its own cue")
     }
 }

@@ -13,10 +13,12 @@
 #
 #   1. Regenerates PeachOfAWord.xcodeproj from project.yml.
 #   2. Sets the build number from CI_BUILD_NUMBER.
+#   3. Checks the committed package pins are where Xcode Cloud reads them.
 #
 # Step 1 is not an optimisation. The .xcodeproj is not in the repository, so a
 # fresh clone has no project to build and this script is the only thing that
-# creates one. It was committed for a while, which made it a second source of
+# creates one. The one file of it that is committed, Package.resolved, is the
+# reason for step 3. It was committed for a while, which made it a second source of
 # truth: change project.yml, forget to regenerate, and Cloud builds the stale
 # project without complaining. Regenerating here is what made dropping it safe.
 #
@@ -160,6 +162,17 @@ if [ -n "$EXPECTED_BUILD_NUMBER" ]; then
     || fail "generated project does not carry build number $EXPECTED_BUILD_NUMBER"
   say "build number $EXPECTED_BUILD_NUMBER confirmed in the generated project"
 fi
+
+# The package pins. Xcode Cloud does not resolve packages itself: it builds
+# from this file, and without it fails in package resolution, after this script
+# has reported success. It is the one tracked file inside the generated project
+# (see .gitignore), so a clone already has it and XcodeGen leaves it alone.
+# Checked here so its absence fails with its own name.
+RESOLVED="PeachOfAWord.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved"
+[ -f "$RESOLVED" ] || fail "no $RESOLVED. Xcode Cloud builds from the committed
+  package pins and resolves none itself. Open the project, let Xcode resolve,
+  and commit the file it writes."
+say "package pins: $(grep -o '"location" : "[^"]*"' "$RESOLVED" | cut -d'"' -f4 | tr '\n' ' ')"
 
 # One quirk worth knowing if this project is ever diffed against a locally
 # generated one: XcodeGen names the local package group after the checkout
