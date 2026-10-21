@@ -78,6 +78,14 @@ jobs:
       # pull request could not work anyway, and this is checking that the app
       # compiles, not that it can be shipped. Xcode Cloud covers the signed
       # device build.
+      #
+      # **Automatic package resolution is off, in every job here, because it
+      # is off on Xcode Cloud.** Cloud builds from the committed
+      # Package.resolved and nothing else. Left on, xcodebuild would quietly
+      # resolve a missing or stale pin and every check would pass, while the
+      # build that delivers to TestFlight failed. Off, a pull request fails the
+      # way Cloud would. The packages land in a known place so the step below
+      # can read them.
       - name: Build the app
         run: |
           xcodebuild \
@@ -85,7 +93,22 @@ jobs:
             -scheme PeachOfAWord \
             -configuration Release \
             -destination 'generic/platform=iOS Simulator' \
+            -disableAutomaticPackageResolution \
+            -clonedSourcePackagesDirPath "$RUNNER_TEMP/packages" \
             build
+
+      # The licence texts the app carries for Soundscape, against the package
+      # the build just resolved, byte for byte. A unit test pins their hashes
+      # at 0.2.0 and runs everywhere, Xcode Cloud included; this is what ties
+      # them to whatever Package.resolved actually pins, so moving the package
+      # without taking its licences fails here.
+      - name: Soundscape's files, against the resolved package
+        run: |
+          set -euo pipefail
+          PKG="$RUNNER_TEMP/packages/checkouts/soundscape"
+          cmp Data/Soundscape-LICENSE.txt "$PKG/LICENSE"
+          cmp Data/Soundscape-LICENSE-CHROMIUM.txt "$PKG/LICENSE-CHROMIUM"
+          echo "both licence texts match $(git -C "$PKG" describe --tags --exact-match 2>/dev/null || git -C "$PKG" rev-parse HEAD)"
 
   # The unit tests, run the way Xcode Cloud runs them: without the checkout.
   #
@@ -138,6 +161,7 @@ jobs:
             -project PeachOfAWord.xcodeproj \
             -scheme PeachOfAWord \
             -destination 'platform=iOS Simulator,name=iPhone 17' \
+            -disableAutomaticPackageResolution \
             -derivedDataPath "$RUNNER_TEMP/dd"
 
       # The whole point. Every directory a test reads from the source tree goes
@@ -213,6 +237,7 @@ jobs:
             -project PeachOfAWord.xcodeproj \
             -scheme PeachOfAWordUITests \
             -destination "id=$UDID" \
+            -disableAutomaticPackageResolution \
             -resultBundlePath .build/ui-tests.xcresult
 
       # The result bundle carries the failure detail and any screenshots, which
@@ -261,6 +286,7 @@ jobs:
             -project PeachOfAWord.xcodeproj \
             -scheme PeachOfAWordUITests \
             -destination "id=$UDID" \
+            -disableAutomaticPackageResolution \
             -derivedDataPath "$RUNNER_TEMP/dd"
 
       # Twelve hours behind UTC is the previous date until 12:00 UTC; fourteen
@@ -336,4 +362,5 @@ jobs:
             -scheme PeachOfAWord \
             -configuration Release \
             -destination 'generic/platform=iOS Simulator' \
+            -disableAutomaticPackageResolution \
             build

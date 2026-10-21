@@ -15,6 +15,12 @@ every copy of the lists rather than staying behind in the repository. SCOWL asks
 for exactly that. See the root `ATTRIBUTION.md` for the fuller record, and
 `tools/update-lexicon.sh` for the pinned release and its checksums.
 
+**Two files beside it are not word lists, from 2026-10-21.**
+`Soundscape-LICENSE.txt` and `Soundscape-LICENSE-CHROMIUM.txt` are the licences
+of the library the app plays its sounds with. They sit here for the reason this
+file does: `Data/` travels inside the app, and their notices ask to travel with
+every copy of it. See Soundscape, the last section.
+
 ## ENABLE (`enable.txt`)
 
 ENABLE (Enhanced North American Benchmark LExicon). **Public domain.** No
@@ -117,3 +123,20 @@ total.
 `daily-calendar.json` and `meta.json` are derived from the lists above rather
 than taken from any upstream source. The calendar is an ordering of eligible
 source words; `meta.json` records counts and this attribution.
+
+## Soundscape (`Soundscape-LICENSE.txt`, `Soundscape-LICENSE-CHROMIUM.txt`)
+
+The app's sounds are played by Soundscape, Anthony Liddle's own Swift package,
+at the version `project.yml` pins. It is MIT licensed: `Soundscape-LICENSE.txt`.
+
+Its oscillator, filter, delay and waveshaper follow the design of Chromium's Web
+Audio code, and the math functions they call port Chromium's copy of fdlibm. So
+seven notices apply besides MIT, all in `Soundscape-LICENSE-CHROMIUM.txt`:
+Chromium's own, four of Google's, Intel's, and Sun's for fdlibm. The BSD-style
+ones ask that a binary reproduce them "in the documentation and/or other
+materials provided with the distribution", and fdlibm's that it be preserved.
+
+Both files are the package's own, byte for byte, so they say exactly what the
+package says. A test pins their hashes, and CI compares them with the package it
+resolves. Until a Licences screen in the app shows them, the bundle carries them
+here.
