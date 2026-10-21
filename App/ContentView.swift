@@ -123,6 +123,12 @@ struct ContentView: View {
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
+    #if DEBUG
+    /// The meter's height, and its copy's with no way back. See `TopRowProbe`.
+    @State private var topRowReal: CGFloat = 0
+    @State private var topRowBare: CGFloat = 0
+    #endif
+
     /// `storage` is injectable so a preview does not scribble on the real
     /// UserDefaults every time the canvas re-renders.
     init(debugSeed: String? = nil, storage: GameStorage = .appDefault) {
@@ -226,6 +232,14 @@ struct ContentView: View {
                         .font(.caption2)
                         .accessibilityIdentifier("DebugSound")
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+                }
+                // `-exposeTopRow 1` prints the meter's height beside its copy's,
+                // so `TopRowCostsNothing` can hold the way back to no cost.
+                if TopRowProbe.isOn {
+                    Text(String(format: "real=%.2f bare=%.2f", topRowReal, topRowBare))
+                        .font(.caption2)
+                        .accessibilityIdentifier("DebugTopRow")
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
                 }
                 #endif
             }
@@ -683,13 +697,14 @@ struct ContentView: View {
                     streak: model.streak,
                     // Nil for the live daily, so the caption keeps the streak.
                     archiveDate: model.isArchiveBoard ? model.boardDate : nil,
-                    onOpenArchive: {
-                        #if DEBUG
-                        #endif
-                        openArchive()
-                    },
+                    onHome: { showTitle() },
                     onReturnToToday: { Task { await model.returnToToday() } }
                 )
+                #if DEBUG
+                .modifier(TopRowProbe(standing: standing, streak: model.streak,
+                                      archiveDate: model.isArchiveBoard ? model.boardDate : nil,
+                                      real: $topRowReal, bare: $topRowBare))
+                #endif
             }
         }
     }

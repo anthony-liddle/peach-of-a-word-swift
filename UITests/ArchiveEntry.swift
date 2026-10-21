@@ -2,10 +2,11 @@ import XCTest
 
 /// The way in to the archive, and one past board opened through it.
 ///
-/// The entry point could not be checked any other way. It is a 44pt target drawn
-/// as an overlay on a row it deliberately does not belong to, and the thing worth
-/// asserting is that it is still reachable and still opens a board, which is a
-/// gesture rather than a state a launch argument can set up.
+/// The entry point could not be checked any other way. From the board it is the
+/// way back to the title, a 44pt target drawn as an overlay on a row it
+/// deliberately does not belong to, and then the title's Past days. The thing
+/// worth asserting is that both are still reachable and still open a board,
+/// which is a gesture rather than a state a launch argument can set up.
 final class ArchiveEntry: XCTestCase {
     private func launched() -> XCUIApplication {
         let app = XCUIApplication()
@@ -23,15 +24,28 @@ final class ArchiveEntry: XCTestCase {
         return app
     }
 
-    /// The button rides the meter's top row as an overlay, so "is it hittable"
-    /// is a real question rather than a formality.
+    /// Past days lives on the title screen. The board's way back rides the
+    /// meter's top row as an overlay, so "is it hittable" is a real question
+    /// rather than a formality, and the title's Past days opens the calendar.
+    private func openPastDays(_ app: XCUIApplication, file: StaticString = #filePath,
+                              line: UInt = #line) {
+        let home = app.buttons["BoardHome"]
+        XCTAssertTrue(home.waitForExistence(timeout: 10), "no way back on the board",
+                      file: file, line: line)
+        XCTAssertTrue(home.isHittable, "the way back is present but not hittable",
+                      file: file, line: line)
+        home.tap()
+        let entry = app.buttons["TitlePastDays"]
+        XCTAssertTrue(entry.waitForExistence(timeout: 10), "the way back did not open the title",
+                      file: file, line: line)
+        XCTAssertTrue(entry.isHittable, "Past days is present but not hittable",
+                      file: file, line: line)
+        entry.tap()
+    }
+
     func testTheArchiveButtonOpensTheCalendar() {
         let app = launched()
-        let entry = app.buttons["Past days"].firstMatch
-        XCTAssertTrue(entry.waitForExistence(timeout: 10), "no way in to the archive")
-        XCTAssertTrue(entry.isHittable, "the archive button is present but not hittable")
-        entry.tap()
-
+        openPastDays(app)
         XCTAssertTrue(app.buttons["Back to the basket"].waitForExistence(timeout: 10),
                       "the archive sheet did not open")
     }
@@ -47,9 +61,12 @@ final class ArchiveEntry: XCTestCase {
         XCTAssertFalse(app.staticTexts["ArchiveDateRow"].exists,
                        "today's board is claiming to be an archive board")
 
-        app.buttons["Past days"].firstMatch.tap()
+        openPastDays(app)
         XCTAssertTrue(app.buttons["Back to the basket"].waitForExistence(timeout: 10))
 
+        // The calendar's own cells, by identifier: the title's week beneath the
+        // sheet speaks the same states, and its cells would match too.
+        //
         // Explicitly not today, and that exclusion is load-bearing.
         //
         // The grid opens anchored to its newest end, and `LazyVGrid` does not
@@ -59,7 +76,7 @@ final class ArchiveEntry: XCTestCase {
         // and fail this test for a reason that has nothing to do with the
         // archive. Issue #40 is the same lazy-grid behaviour biting a different
         // test.
-        let past = app.buttons
+        let past = app.buttons.matching(identifier: "ArchiveDayCell")
             .matching(NSPredicate(
                 format: "label CONTAINS %@ AND NOT (label CONTAINS %@)",
                 "Still on the tree", "today"))
@@ -77,7 +94,7 @@ final class ArchiveEntry: XCTestCase {
     /// the grid as well as refused in the model.
     func testTomorrowIsNotOfferedAtAll() {
         let app = launched()
-        app.buttons["Past days"].firstMatch.tap()
+        openPastDays(app)
         XCTAssertTrue(app.buttons["Back to the basket"].waitForExistence(timeout: 10))
 
         // The grid runs to the end of the current month now, so days after
