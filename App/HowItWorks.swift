@@ -1,6 +1,7 @@
 import SwiftUI
 
-/// The quiet explainer reachable from the colophon.
+/// The quiet explainer, reached from Settings. Until 22 October 2026 the
+/// colophon at the foot of the found list held the way in.
 ///
 /// How a puzzle is built, the two word lists doing different jobs, and an
 /// honest note on why a word can feel common and still land outside the
@@ -102,6 +103,8 @@ struct HowItWorks: View {
                         .background(Capsule().fill(Cute.accent))
                 }
                 .buttonStyle(PillPressStyle())
+                // Settings, under it now, has a Close of its own.
+                .accessibilityIdentifier("ExplainerClose")
                 .padding(.horizontal, 28)
                 .padding(.top, 12)
                 .padding(.bottom, 20)

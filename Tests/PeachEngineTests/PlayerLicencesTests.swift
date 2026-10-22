@@ -2,8 +2,9 @@ import Foundation
 import Testing
 @testable import PeachEngine
 
-/// The Licences screen's texts: every one present, and the word lists' notice
-/// the very notice the repository records.
+/// The Licences screen's texts: every one present, each on one page of the
+/// list and shown there whole, and the word lists' notice the very notice the
+/// repository records.
 ///
 /// **SCOWL asks that its notice appear in all copies,** so the player's
 /// version in `App/Licences/WordLists.txt` must carry it word for word. It is
@@ -43,14 +44,43 @@ struct PlayerLicencesTests {
         text.split(whereSeparator: \.isWhitespace).joined(separator: " ")
     }
 
-    @Test("every text the screen reads is there", arguments: [
+    /// Every licence text the app ships, written out here rather than read off
+    /// `Licences`, so a text dropped from every page fails below instead of
+    /// quietly leaving this list too.
+    static let texts = [
         "Data/Soundscape-LICENSE.txt", "Data/Soundscape-LICENSE-CHROMIUM.txt",
         "App/Licences/WordLists.txt", "App/Licences/Wiktionary.txt",
         "App/Fonts/OFL-Fredoka.txt", "App/Fonts/OFL-Nunito.txt",
-    ])
+    ]
+
+    @Test("every text the screen reads is there", arguments: texts)
     func present(path: String) throws {
         let text = try Self.text(Self.file(path))
         #expect(text.count > 100, "\(path) is too short to be a licence")
+    }
+
+    @Test("every text is on exactly one page")
+    func everyTextOnOnePage() {
+        let shown = Licences.all.flatMap(\.files)
+        #expect(Set(shown) == Set(Self.texts), "a page shows a text the app does not ship, or none shows one it does")
+        #expect(shown.count == Set(shown).count, "a text is on two pages")
+    }
+
+    @Test("the list is Soundscape, the word lists, Wiktionary and the typefaces, in that order")
+    func listOrder() {
+        #expect(Licences.list.map(\.id) == ["soundscape", "word-lists", "wiktionary", "typefaces"])
+    }
+
+    /// The page shows `Licences.paragraphs` of each text, one `Text` each. Put
+    /// back together they must be the file, word for word: a paragraph dropped,
+    /// a list line lost to a join, or a notice cut short fails here.
+    @Test("each page shows its texts whole", arguments: Licences.all)
+    func pageShowsItsTextsWhole(page: Licences.Page) throws {
+        for path in page.files {
+            let text = try Self.text(Self.file(path))
+            let shown = Licences.paragraphs(text).joined(separator: " ")
+            #expect(Self.words(shown) == Self.words(text), "\(page.id) does not show \(path) whole")
+        }
     }
 
     @Test("the word lists' text carries SCOWL's notice as the repository quotes it")

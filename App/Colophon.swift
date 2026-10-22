@@ -1,230 +1,47 @@
 import SwiftUI
 
-/// The credit, in the app rather than only in the repository.
+/// The foot of the found list: the dedication, and nothing else.
 ///
-/// `ATTRIBUTION.md` records the terms, but a file in a repository says nothing
-/// to the person actually playing, and the web set the bar with an in-app
-/// credit. This is that, ported.
+/// **It carried the credits until 22 October 2026,** with How the words work
+/// and the privacy link under them. Antoine moved all of that to Settings,
+/// which the title screen reaches, and kept this line here:
+/// - the word lists', Wiktionary's and the typefaces' credits are on the
+///   Licences list, each over its full text (`LicencesPage`);
+/// - How the words work and the privacy policy are Settings' own rows;
+/// - each definition card and the reveal card keep their own Wiktionary line,
+///   which credits what is on screen while it is on screen.
 ///
-/// The notice itself travels in `Data/ATTRIBUTION.md`, which is inside the
-/// folder reference bundled into the app, so SCOWL's requirement that its notice
-/// appear in all copies is met by the copy rather than by the repository. Until
-/// 2026-08-11 that directory instead held a copy of the app's MIT `LICENSE`,
-/// which read as though it licensed word lists nobody here owns.
+/// `Data/ATTRIBUTION.md` still travels in the bundle, so SCOWL's notice
+/// appears in every copy whether or not anyone opens Licences.
 ///
-/// **The Wiktionary line, added 2026-08-14 with the content it credits.** This
-/// comment used to explain the opposite: the web credited Wiktionary for
-/// definitions and etymologies, this app shipped none, and crediting a source
-/// that is not used would be worse than saying nothing. That was right while it
-/// was true. The reveal corpus now ships as `Data/etymology.tsv` under CC BY-SA
-/// 4.0, so the credit is owed, and share-alike means owed to the player rather
-/// than only to `ATTRIBUTION.md`.
-///
-/// **The line needed no edit when the definition corpus landed, and that is
-/// worth one sentence rather than none.** It already said "Definitions and
-/// etymologies", because `etymology.tsv` carries a gloss as well as an origin
-/// and the crown card renders both. What changed is only the reach: the same
-/// sentence now covers 24,833 glosses behind every tappable chip rather than
-/// 820 behind the crowns. A credit written for the app as a whole was already
-/// the right shape for a corpus that grew.
-///
-/// The reveal cards carry the same credit underneath the content itself. Both,
-/// deliberately: a card credits what is on screen at the moment it is on
-/// screen, and this credits the app as a whole to someone who never finds a
-/// crown. `DefinitionCard` says "Definition from Wiktionary" rather than
-/// "Definitions and etymologies", because it shows one and not the other.
-///
-/// It sits at the foot of the found list, which is the quietest place the app
-/// has: reachable by scrolling past everything, never on the play surface. That
-/// is where the web puts its footer, and a credit that interrupts a game is a
-/// credit nobody thanks you for.
+/// **It sits at the foot of the found list,** the quietest place the app has:
+/// reachable by scrolling past everything, never on the play surface. That is
+/// where the web puts its footer, and the web's colophon keeps its credits,
+/// since the web has no Settings.
 struct Colophon: View {
-    /// Whether the explainer is up. Owned here rather than by `GameModel`,
-    /// because nothing about the game changes while it is open: it is a page of
-    /// prose reached from the credits, not a moment in play like the reveal or
-    /// the completion card, which is why it is not a `GameModel.Moment`.
-    @State private var explaining = false
-
-    /// The word-list credit, read twice: on screen and by VoiceOver.
-    ///
-    /// **One string, because there were two and they were the same sentence.**
-    /// The visible block and the accessibility label each spelled these out,
-    /// which is the arrangement where a correction lands in one of them. This
-    /// pass corrected both, so it is also the moment to make that impossible.
-    ///
-    /// **"with a curated patch layer" is not decoration.** The boundary is
-    /// ENABLE union SCOWL 95 and then a patch layer that adds and removes
-    /// words by hand: `tulpa` ships in v1.7.0 and is in neither list. Without
-    /// the clause the line names two sources for a set that has three.
-    private static let wordsCredit =
-        "Words from ENABLE and SCOWL, with a curated patch layer."
-
-    /// The text credit.
-    ///
-    /// **"most" and "adapted" are each carrying a correction.**
-    ///
-    /// This said "Definitions and etymologies from Wiktionary", which claimed
-    /// all 24,896 definitions. 38 of them were written for this project and owe
-    /// Wiktionary nothing, so the line claimed a licence over this project's
-    /// own words. `DefinitionCard` and `SourceRevealCard` now caption those 38
-    /// per word; this is the same correction at the bottom of the screen.
-    ///
-    /// "from" also understated what the pipeline does. No Wiktionary-derived
-    /// definition ships as the entry's own string: every one is a
-    /// part-of-speech label joined to one sense chosen out of however many the
-    /// entry offered, and 628 are cut short of it. "adapted" is the honest verb
-    /// and it is the safe direction to be wrong in under ShareAlike.
-    ///
-    /// It is deliberately coarser than `Data/ATTRIBUTION.md`, which carries the
-    /// measurements, including that 357 of the 799 etymologies are in fact the
-    /// entry's prose unchanged. One line at the foot of a game cannot hold
-    /// 357 of 799, and erring toward claiming more modification than occurred
-    /// is the direction that cannot short-change anyone.
-    /// The page the App Store record links to, so both routes land on one
-    /// policy.
-    static let privacyPolicy = URL(string: "https://peachofaword.com/privacy")!
-
-    private static let textCredit =
-        "Etymologies and most definitions adapted from Wiktionary, "
-        + "CC BY-SA 4.0. A few definitions were written for this game."
-
     var body: some View {
-        // Two stacks rather than one, so the dedication can be centred over the
-        // credits without moving them.
+        // **Centred.** Bea's reason is the whole brief: "it made it feel more
+        // intentional". Left-aligned it read as the next item in the list
+        // above it; centred it reads as placed. The web centres it too.
         //
-        // The credits keep their leading alignment inside the inner stack; the
-        // outer stack centres, and its width is the credit block's width, so
-        // the dedication sits centred over that block and nothing else shifts.
-        // Putting `.frame(maxWidth: .infinity)` on the dedication instead would
-        // have centred it by making the whole colophon full width, which drags
-        // the left-aligned credits out to the screen edge: the same appearance
-        // for the one line, a different layout for the other three.
-        VStack(spacing: 3) {
-            VStack(alignment: .leading, spacing: 3) {
-                Text(Self.wordsCredit)
-                Text(Self.textCredit)
-                Text(Vocabulary.typeCredit)
-            }
-            // **Leading, against the `.center` the whole colophon carries.**
-            // That centre is for the dedication, which the comment above says:
-            // the credits keep their leading alignment and the outer stack
-            // centres over them. Until this pass no credit line was long enough
-            // to wrap at default type, so the distinction never showed and the
-            // outer alignment was inherited harmlessly. The Wiktionary line now
-            // wraps, and without this its second line centres under a first
-            // line that is flush left, which reads as a mistake rather than as
-            // a style.
-            .multilineTextAlignment(.leading)
-            // The quiet expansion of the colophon, where the web puts it and
-            // for the same reason: this is where a curious person already
-            // looks, and it stays off the play surface.
-            //
-            // It carries no attribution weight. The credits above discharge
-            // that, along with `Data/ATTRIBUTION.md` in the bundle, so the
-            // explainer's links are there because they are interesting. See
-            // `Vocabulary.explainerLinks`.
-            Button { explaining = true } label: {
-                Text(Vocabulary.explainerTrigger)
-                    .font(CuteFont.body(11, relativeTo: .caption2))
-                    .foregroundStyle(Cute.inkSoft)
-                    .underline()
-                    .frame(minHeight: 44)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .padding(.top, 8)
-            .accessibilityHint("Opens an explanation of how words are chosen")
-
-            // **Apple asks for the privacy policy inside the app** (review
-            // guideline 5.1.1(i)), not only on the App Store record, and until
-            // this line the app linked it nowhere. Beside the explainer and
-            // before the dedication, which is where the web's `Game.tsx` puts
-            // its own.
-            //
-            // A `Link`, so the URL goes to the system and opens in Safari, the
-            // same handoff the explainer's links have made since #78: the app
-            // itself loads no page, which is what the policy it links to says.
-            // One line at the default size, as the trigger above is.
-            Link(destination: Self.privacyPolicy) {
-                Text(Vocabulary.privacyLink)
-                    .font(CuteFont.body(11, relativeTo: .caption2))
-                    .foregroundStyle(Cute.inkSoft)
-                    .underline()
-                    .frame(minHeight: 44)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel(Vocabulary.privacyLinkSpoken)
-            .accessibilityHint("Opens in Safari")
-
-            // **Centred, and only this line.** Bea's reason is the whole brief:
-            // "it made it feel more intentional". Left-aligned it reads as the
-            // next item in the list above it; centred it reads as placed.
-            //
-            // The web centres it too, though not by a rule of its own:
-            // `footer.colophon` sets `text-align: center` on everything,
-            // credits included. Matching that here would make the block read as
-            // a poem rather than a credit, so only the dedication moves. The
-            // two surfaces therefore agree on this line and differ on the three
-            // above it, which is deliberate rather than drift.
-            //
-            // **Last, below the links, which is parity rather than a new
-            // decision.** `Game.tsx` already puts `colophon__dedication`
-            // after both the explainer trigger and the privacy link. The
-            // app had it above the trigger, so it read as one more item in
-            // the stack; a dedication reads as a dedication when nothing
-            // follows it. Same reasoning as centring it.
-            // Obliqued rather than `.italic()`, because Nunito has no italic
-            // face and `.italic()` would render the upright while reading in
-            // the source as though the styling had been matched. See
-            // `CuteFont.bodyOblique`.
-            //
-            // Set apart by a hair of space rather than by a rule or a heading,
-            // the way the web spends `margin-top: 0.9rem` on it. 10pt on top of
-            // the stack's own 3pt is that gesture at this size, and it is a
-            // touch more than the 8pt it used to take, because it is now
-            // separating itself from a control rather than from a line of text.
-            Text(Vocabulary.dedication)
-                .font(CuteFont.bodyOblique(11, relativeTo: .caption2))
-                .padding(.top, 10)
-        }
-        .font(CuteFont.body(11, relativeTo: .caption2))
-        .foregroundStyle(Cute.inkFaint)
-        .frame(maxWidth: .infinity, alignment: .center)
-        // A background rather than an overlay or a stack member: a background
-        // does not influence the size of what it sits behind, so no decoration
-        // here can move the colophon's height, and the colophon's height is
-        // inside the scrolling list the rack is budgeted against.
-        .background(ColophonDecoration())
-        .multilineTextAlignment(.center)
-        .padding(.top, 26)
-        // One element to VoiceOver rather than two orphaned fragments, and it
-        // says what the lines are for, which "Words from ENABLE and SCOWL" on
-        // its own does not.
-        // `.contain` rather than `.combine`, now that the block holds a
-        // control. Combining would fold the button into one flat label and
-        // take its action with it, which is how a tappable thing becomes
-        // unreachable to VoiceOver while still being on screen.
-        .accessibilityElement(children: .contain)
-        // The dedication is spoken too. It is quiet, not secret, and the one
-        // person it names is as likely to meet it here as on screen.
-        .accessibilityLabel(
-            "Credits. " + Self.wordsCredit + " " + Self.textCredit + " "
-            + Vocabulary.typeCredit + " " + Vocabulary.dedication
-        )
-        #if DEBUG
-        // `-openExplainer 1` opens it without a tap, the same hook shape
-        // `FoundSummary` uses for `-openRung`. Opening a sheet needs a tap and
-        // simctl cannot tap, so the explainer would otherwise be unscreenshottable.
-        .onAppear {
-            if UserDefaults.standard.bool(forKey: "openExplainer") { explaining = true }
-        }
-        #endif
-        .sheet(isPresented: $explaining) {
-            HowItWorks { explaining = false }
-                .presentationDetents([.large])
-                .presentationDragIndicator(.visible)
-        }
+        // Obliqued rather than `.italic()`, because Nunito has no italic face
+        // and `.italic()` would render the upright while reading in the source
+        // as though the styling had been matched. See `CuteFont.bodyOblique`.
+        Text(Vocabulary.dedication)
+            .font(CuteFont.bodyOblique(11, relativeTo: .caption2))
+            .foregroundStyle(Cute.inkFaint)
+            .multilineTextAlignment(.center)
+            .frame(maxWidth: .infinity, alignment: .center)
+            // A background rather than an overlay or a stack member: a
+            // background does not influence the size of what it sits behind,
+            // so no decoration here can move the colophon's height, and the
+            // colophon's height is inside the scrolling list the rack is
+            // budgeted against.
+            .background(ColophonDecoration())
+            .padding(.top, 26)
+            // Spoken, as it always was. It is quiet, not secret, and the one
+            // person it names is as likely to meet it here as on screen.
+            .accessibilityIdentifier("Colophon")
     }
 }
 

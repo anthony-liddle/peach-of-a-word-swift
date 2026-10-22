@@ -1,11 +1,15 @@
+import PeachEngine
 import SwiftUI
 
 /// Settings, a sheet from the title screen: the sound switch, How the words
 /// work, Licences, and the privacy policy.
 ///
 /// **A short list,** as the design pass mocked and Antoine chose: the switch on
-/// top, and three rows that open what they name. The colophon stays at the foot
-/// of the found list, so the credits are not repeated here.
+/// top, and three rows that open what they name.
+///
+/// **The colophon's links live here now.** On 22 October 2026 the foot of the
+/// found list kept only the dedication: How the words work and the privacy
+/// policy are this list's rows, and the credits are on Licences.
 struct SettingsSheet: View {
     /// The switch, turned: the game stops or starts the player.
     let onSound: (Bool) -> Void
@@ -16,12 +20,21 @@ struct SettingsSheet: View {
     @AppStorage(SoundSetting.key) private var soundOn = true
     @State private var explaining = false
 
-    /// The pages pushed onto the list; `-openLicences 1` starts on Licences.
-    @State private var path: [String] = {
+    /// The pages pushed onto the list: Licences, then an entry's page, and from
+    /// Soundscape's the notices. `-openLicences 1` starts on Licences, and
+    /// `-openLicence <id>` goes on to that entry's page (`Licences.Page.id`).
+    @State private var path: NavigationPath = {
+        var path = NavigationPath()
         #if DEBUG
-        if UserDefaults.standard.bool(forKey: "openLicences") { return ["licences"] }
+        let defaults = UserDefaults.standard
+        if defaults.bool(forKey: "openLicences") { path.append("licences") }
+        if let id = defaults.string(forKey: "openLicence"),
+           let page = Licences.all.first(where: { $0.id == id }) {
+            if page == Licences.soundscapeNotices { path.append(Licences.soundscape) }
+            path.append(page)
+        }
         #endif
-        return []
+        return path
     }()
 
     private var card: RoundedRectangle {
@@ -52,6 +65,7 @@ struct SettingsSheet: View {
             }
             .toolbar(.hidden, for: .navigationBar)
             .navigationDestination(for: String.self) { _ in LicencesPage() }
+            .navigationDestination(for: Licences.Page.self) { LicenceTextPage(page: $0) }
         }
         .tint(Cute.accentDeep)
         .onChange(of: soundOn) { onSound(soundOn) }
@@ -60,6 +74,19 @@ struct SettingsSheet: View {
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
         }
+        #if DEBUG
+        // Once Settings is up, `-openExplainer 1` opens How the words work and
+        // `-openPrivacy 1` the policy, for tests and pictures: simctl cannot
+        // tap. The explainer's hook was the colophon's, and moved with the way
+        // in; both need `-openSettings 1`.
+        .task {
+            let defaults = UserDefaults.standard
+            guard defaults.bool(forKey: "openExplainer") || defaults.bool(forKey: "openPrivacy") else { return }
+            try? await Task.sleep(for: .seconds(1))
+            if defaults.bool(forKey: "openExplainer") { explaining = true }
+            if defaults.bool(forKey: "openPrivacy") { SafariPage.open(SafariPage.privacyPolicy) }
+        }
+        #endif
     }
 
     /// The switch, with what it governs under it. VoiceOver hears a switch
@@ -100,14 +127,15 @@ struct SettingsSheet: View {
             .buttonStyle(.plain)
             .accessibilityIdentifier("SettingsLicences")
             divider
-            // A `Link`, so the page opens in the browser and the app itself
-            // loads nothing, as the colophon's link does.
-            Link(destination: Colophon.privacyPolicy) {
+            // In a Safari view, not a handoff to Safari: the policy is a page
+            // of the game's own site, read and closed without leaving the game.
+            // See `SafariPage`. The arrow still says it is a page of the web.
+            Button { SafariPage.open(SafariPage.privacyPolicy) } label: {
                 SettingsRow(title: Vocabulary.privacyLinkSpoken, note: Vocabulary.privacyNote,
                             trailing: "arrow.up.right")
             }
             .buttonStyle(.plain)
-            .accessibilityHint("Opens in Safari")
+            .accessibilityHint(Vocabulary.privacyHint)
             .accessibilityIdentifier("SettingsPrivacy")
         }
         .background(card.fill(Cute.paperDeep))
@@ -179,99 +207,5 @@ struct SheetCloseButton: View {
         // Spoken as written, not as the capitals drawn.
         .accessibilityLabel(title)
         .accessibilityIdentifier(identifier)
-    }
-}
-
-// MARK: - Licences
-
-/// Every licence the app carries, each under a sentence saying what it covers.
-///
-/// **Read from the bundle,** so the screen shows the files that ship, byte for
-/// byte, rather than a copy that could drift from them: Soundscape's two from
-/// `Data/`, which `SoundscapeLicenceTests` pins, the fonts' OFL texts, and the
-/// word lists' and Wiktionary's terms from `App/Licences/`, which
-/// `PlayerLicencesTests` holds to `Data/ATTRIBUTION.md`.
-struct LicencesPage: View {
-    struct Notice: Identifiable {
-        let id: String
-        let title: String
-        let covers: String
-        let text: String
-    }
-
-    static let files: [(id: String, title: String, covers: String, name: String, directory: String?)] = [
-        ("soundscape", "Soundscape", Vocabulary.licenceSoundscape, "Soundscape-LICENSE", "Data"),
-        ("chromium", "Soundscape's notices", Vocabulary.licenceChromium,
-         "Soundscape-LICENSE-CHROMIUM", "Data"),
-        ("words", "The word lists", Vocabulary.licenceWordLists, "WordLists", nil),
-        ("wiktionary", "Wiktionary", Vocabulary.licenceWiktionary, "Wiktionary", nil),
-        ("fredoka", "Fredoka", Vocabulary.licenceFredoka, "OFL-Fredoka", nil),
-        ("nunito", "Nunito", Vocabulary.licenceNunito, "OFL-Nunito", nil),
-    ]
-
-    private let notices: [Notice] = Self.files.compactMap { file in
-        guard let url = Bundle.main.url(forResource: file.name, withExtension: "txt",
-                                        subdirectory: file.directory),
-              let text = try? String(contentsOf: url, encoding: .utf8) else { return nil }
-        return Notice(id: file.id, title: file.title, covers: file.covers, text: text)
-    }
-
-    var body: some View {
-        ZStack {
-            Cute.pageBackground.ignoresSafeArea()
-            ScrollView {
-                VStack(alignment: .leading, spacing: 24) {
-                    Text(Vocabulary.licencesTitle)
-                        .font(CuteFont.display(26, relativeTo: .title))
-                        .foregroundStyle(Cute.ink)
-                        .accessibilityAddTraits(.isHeader)
-                    ForEach(notices) { notice in
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text(notice.title)
-                                .font(CuteFont.display(18, relativeTo: .headline))
-                                .foregroundStyle(Cute.ink)
-                                .fixedSize(horizontal: false, vertical: true)
-                                .accessibilityAddTraits(.isHeader)
-                            Text(notice.covers)
-                                .font(CuteFont.body(15, relativeTo: .subheadline))
-                                .foregroundStyle(Cute.ink)
-                                .fixedSize(horizontal: false, vertical: true)
-                            ForEach(Array(Self.paragraphs(notice.text).enumerated()),
-                                    id: \.offset) { _, paragraph in
-                                Text(paragraph)
-                                    .font(CuteFont.body(13, relativeTo: .footnote))
-                                    .foregroundStyle(Cute.inkSoft)
-                                    .fixedSize(horizontal: false, vertical: true)
-                            }
-                        }
-                        .accessibilityIdentifier("Licence-\(notice.id)")
-                    }
-                }
-                .padding(.horizontal, 22)
-                .padding(.vertical, 12)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            }
-        }
-        .toolbar(.visible, for: .navigationBar)
-        .toolbarBackground(Cute.paper, for: .navigationBar)
-        .navigationBarTitleDisplayMode(.inline)
-    }
-
-    /// The texts are wrapped at about 72 columns, for a terminal. A paragraph
-    /// whose lines are all flush left is running prose and is joined, so it
-    /// wraps to the phone; one with indented or listed lines, such as the
-    /// notices' file paths, keeps its breaks.
-    static func paragraphs(_ text: String) -> [String] {
-        text.components(separatedBy: "\n\n")
-            .map { $0.trimmingCharacters(in: .newlines) }
-            .filter { !$0.isEmpty }
-            .map { paragraph in
-                let lines = paragraph.components(separatedBy: "\n")
-                let prose = lines.dropFirst().allSatisfy { line in
-                    !(line.first?.isWhitespace ?? true)
-                        && !line.hasPrefix("- ") && !line.hasPrefix("* ")
-                }
-                return prose ? lines.joined(separator: " ") : paragraph
-            }
     }
 }

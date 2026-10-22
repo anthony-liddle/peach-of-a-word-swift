@@ -32,9 +32,10 @@ final class ColophonDedication: XCTestCase {
             NSPredicate(format: "label MATCHES %@", "^Letter [a-z].*")
         ).firstMatch.waitForExistence(timeout: 30), "the app never rendered a rack")
 
-        // The colophon combines its lines into one element, so the dedication
-        // is a fragment of that element's label rather than an element of its
-        // own. Matched as a fragment for exactly that reason.
+        // Matched as a fragment, not as a whole label: until the credits left
+        // for Settings the colophon combined its lines into one element, and
+        // the dedication was a piece of its label. Now it is the colophon's one
+        // line, and a fragment still finds it.
         return app.descendants(matching: .any).matching(
             NSPredicate(format: "label CONTAINS %@", "for Bea")).firstMatch
     }
@@ -48,5 +49,25 @@ final class ColophonDedication: XCTestCase {
     func testTheDedicationSurvivesTheScrollingLayout() {
         XCTAssertTrue(dedication(at: "UICTContentSizeCategoryAccessibilityXXXL").exists,
                       "the dedication is dropped in the scrolling layout")
+    }
+
+    /// The foot of the found list is the dedication and nothing else, since
+    /// 22 October 2026: the credits are on Licences, and How the words work and
+    /// the privacy policy are Settings' rows. The board's tree is read with
+    /// Settings shut, so anything found here is on the board itself.
+    func testTheFootOfTheListIsTheDedicationAlone() {
+        let line = dedication(at: "UICTContentSizeCategoryL")
+        XCTAssertTrue(line.exists, "the colophon does not carry the dedication")
+        XCTAssertEqual(line.label, "for Bea", "the colophon carries more than the dedication")
+        let app = XCUIApplication()
+        for gone in ["How the words work", "Privacy policy"] {
+            XCTAssertFalse(app.descendants(matching: .any)[gone].exists,
+                           "the board still offers \(gone)")
+        }
+        for credit in ["ENABLE and SCOWL", "Wiktionary", "Fredoka"] {
+            XCTAssertFalse(app.descendants(matching: .any).matching(
+                NSPredicate(format: "label CONTAINS %@", credit)).firstMatch.exists,
+                           "the board still credits \(credit)")
+        }
     }
 }
