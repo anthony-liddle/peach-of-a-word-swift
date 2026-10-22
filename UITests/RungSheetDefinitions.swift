@@ -35,9 +35,11 @@ final class RungSheetDefinitions: XCTestCase {
         XCTAssertTrue(tally.waitForExistence(timeout: 10), "no Mythic tally to tap")
         tally.tap()
 
-        // The sheet's own way out proves the rung sheet is up.
+        // The sheet's own way out proves the rung sheet is up. By its whole
+        // label: the board's chevron says "Back to the title screen", so a
+        // match on "back to the" passed with no sheet open at all.
         let backToBasket = app.buttons.matching(
-            NSPredicate(format: "label CONTAINS[c] %@", "back to the")).firstMatch
+            NSPredicate(format: "label ==[c] %@", "back to the basket")).firstMatch
         XCTAssertTrue(backToBasket.waitForExistence(timeout: 10), "the rung sheet did not open")
 
         // A word chip inside the sheet, which means a hittable one. The found
@@ -128,9 +130,10 @@ final class RungSheetDefinitions: XCTestCase {
     func testAMomentAtLaunchDoesNotSuppressTheRungSheet() {
         let app = launch(["-revealCard", "withdraw"])
 
-        // Clear whatever the launch put up, if anything did.
+        // Clear whatever the launch put up, if anything did. By the whole
+        // label, which the chevron behind it doesn't share.
         let dismissReveal = app.buttons.matching(
-            NSPredicate(format: "label CONTAINS[c] %@", "back to the")).firstMatch
+            NSPredicate(format: "label ==[c] %@", "back to the basket")).firstMatch
         if dismissReveal.waitForExistence(timeout: 6) { dismissReveal.tap() }
 
         let tally = rungTally(app, "Mythic")
@@ -138,7 +141,7 @@ final class RungSheetDefinitions: XCTestCase {
         tally.tap()
 
         let backToBasket = app.buttons.matching(
-            NSPredicate(format: "label CONTAINS[c] %@", "back to the")).firstMatch
+            NSPredicate(format: "label ==[c] %@", "back to the basket")).firstMatch
         XCTAssertTrue(backToBasket.waitForExistence(timeout: 10),
                       "a moment at launch suppressed the rung sheet")
     }

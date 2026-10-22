@@ -36,9 +36,11 @@ final class RevealButtonReach: XCTestCase {
         XCTAssertTrue(app.staticTexts["You found the Peach of a Word!"]
             .waitForExistence(timeout: 30), "the reveal never opened for \(word)")
         // Matched case-insensitively: the label is uppercased for display, and
-        // this should not fail the day that styling changes.
+        // this should not fail the day that styling changes. By the whole
+        // label: the board's chevron behind the card says "Back to the title
+        // screen", and a match on "back to the" found it first, under the card.
         return app.buttons.matching(
-            NSPredicate(format: "label CONTAINS[c] %@", "back to the")
+            NSPredicate(format: "label ==[c] %@", "back to the basket")
         ).firstMatch
     }
 
