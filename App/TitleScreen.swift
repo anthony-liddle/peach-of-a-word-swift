@@ -380,6 +380,12 @@ struct TitleStreak: View {
 /// a layout that only holds by squeezing a label. `lead` sits just above Play
 /// in the fixed branch and scrolls in the other, so only the button and its
 /// line are ever pinned.
+///
+/// **Where Play is pinned, it is read last, where it is drawn.** The scroll
+/// view and the inset holding Play are siblings to VoiceOver, and the week and
+/// the links are both inside the scroll view, so no sort priority can put Play
+/// between them: tried, it put Play first and cost the button its hit test at
+/// some sizes. The fixed layout reads top to bottom, Play after the week.
 struct TitleFit<Content: View, Lead: View, Foot: View, Extras: View>: View {
     @ViewBuilder let content: Content
     @ViewBuilder let lead: Lead

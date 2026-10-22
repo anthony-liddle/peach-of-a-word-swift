@@ -16,12 +16,20 @@ struct SettingsSheet: View {
     @AppStorage(SoundSetting.key) private var soundOn = true
     @State private var explaining = false
 
+    /// The pages pushed onto the list; `-openLicences 1` starts on Licences.
+    @State private var path: [String] = {
+        #if DEBUG
+        if UserDefaults.standard.bool(forKey: "openLicences") { return ["licences"] }
+        #endif
+        return []
+    }()
+
     private var card: RoundedRectangle {
         RoundedRectangle(cornerRadius: Cute.cardRadius, style: .continuous)
     }
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             ZStack {
                 Cute.pageBackground.ignoresSafeArea()
                 VStack(spacing: 0) {
@@ -95,7 +103,7 @@ struct SettingsSheet: View {
             // A `Link`, so the page opens in the browser and the app itself
             // loads nothing, as the colophon's link does.
             Link(destination: Colophon.privacyPolicy) {
-                SettingsRow(title: Vocabulary.privacyLinkSpoken, note: Vocabulary.privacyLink,
+                SettingsRow(title: Vocabulary.privacyLinkSpoken, note: Vocabulary.privacyNote,
                             trailing: "arrow.up.right")
             }
             .buttonStyle(.plain)

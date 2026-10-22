@@ -245,7 +245,7 @@ struct ContentView: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
                 }
                 // `-exposeTopRow 1` prints the meter's height beside its copy's,
-                // so `TopRowCostsNothing` can hold the way back to no cost.
+                // so `TitleAndTopRowAtEverySize` can hold the way back to no cost.
                 if TopRowProbe.isOn {
                     Text(String(format: "real=%.2f bare=%.2f", topRowReal, topRowBare))
                         .font(.caption2)
@@ -475,6 +475,12 @@ struct ContentView: View {
             await model.load()
             #if DEBUG
             if let debugSeed { model.seedBoard(debugSeed) }
+            // `-openSettings 1` and `-openHowToPlay 1` open the title's sheets
+            // at launch, and `-openLicences 1` goes on to the licences: simctl
+            // cannot tap, and these are what the screenshots are of. Same
+            // argument as `-openArchive` and `-openExplainer`.
+            if UserDefaults.standard.bool(forKey: "openSettings") { settingsShown = true }
+            if UserDefaults.standard.bool(forKey: "openHowToPlay") { howToPlay = .fromLink }
             #endif
         }
     }

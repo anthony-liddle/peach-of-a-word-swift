@@ -23,7 +23,7 @@ struct TierMeterView: View {
     /// Opens the title screen, from today's board or a past one.
     ///
     /// Nil draws no control and keeps its reserve, which is the meter the
-    /// top-row guard holds this one to (`TopRowCostsNothing`).
+    /// top-row guard holds this one to (`TitleAndTopRowAtEverySize`).
     var onHome: (() -> Void)?
 
     /// Leaves a past board for the live daily.
@@ -187,7 +187,7 @@ struct TierMeterView: View {
     /// phone at all nine text sizes: a peach ahead of the rank's name took the SE
     /// into the scrolling layout at XXXL, a peach beside the calendar cost it
     /// 23.5pt of list at XXL, and the calendar's own slot cost nothing anywhere,
-    /// because it changes the glyph and not the width. `TopRowCostsNothing`
+    /// because it changes the glyph and not the width. `TitleAndTopRowAtEverySize`
     /// holds that. Everything below was measured for the calendar and holds for
     /// the peach unchanged, since the slot, the reserve and the box are the same.
     ///

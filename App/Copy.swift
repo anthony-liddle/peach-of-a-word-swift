@@ -390,6 +390,10 @@ enum Vocabulary {
     static let licencesTitle = "Licences"
     static let licencesNote = "The sound library, the word lists, the definitions and the typefaces."
 
+    /// The privacy row's line. The colophon's link opens with "Privacy:"
+    /// because it stands alone; here the row's title already says it.
+    static let privacyNote = "Your \(container) stays on your phone."
+
     /// What each notice covers, a sentence each, above its text.
     ///
     /// **Written for a player, not for the repository.** `Data/ATTRIBUTION.md`

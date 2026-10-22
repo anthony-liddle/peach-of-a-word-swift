@@ -12,6 +12,8 @@ struct HowToPlayCard: View {
     let firstRun: Bool
     let onDone: () -> Void
 
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
     var body: some View {
         ZStack {
             Cute.pageBackground.ignoresSafeArea()
@@ -41,10 +43,17 @@ struct HowToPlayCard: View {
 
     /// One line, with its mark beside it. The mark is decoration; the line is
     /// read whole.
+    ///
+    /// **At accessibility sizes the mark sits above its line,** as the rung
+    /// sheet's header stacks: beside it, the mark's column cost the text a
+    /// fifth of an SE's width, and at AX5 a line broke after every two words.
     private func line(_ glyph: some View, _ text: String) -> some View {
-        HStack(alignment: .top, spacing: 14) {
+        let stacked = dynamicTypeSize.isAccessibilitySize
+        let layout = stacked ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
+            : AnyLayout(HStackLayout(alignment: .top, spacing: 14))
+        return layout {
             glyph
-                .frame(width: 34, alignment: .center)
+                .frame(width: 34, alignment: stacked ? .leading : .center)
                 .accessibilityHidden(true)
             Text(text)
                 .font(CuteFont.body(17, relativeTo: .body))
