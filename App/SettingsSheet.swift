@@ -60,6 +60,15 @@ struct SettingsSheet: View {
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
         }
+        #if DEBUG
+        // `-openPrivacy 1` opens the policy over Settings once Settings is up,
+        // for its picture: simctl cannot tap.
+        .task {
+            guard UserDefaults.standard.bool(forKey: "openPrivacy") else { return }
+            try? await Task.sleep(for: .seconds(1))
+            SafariPage.open(SafariPage.privacyPolicy)
+        }
+        #endif
     }
 
     /// The switch, with what it governs under it. VoiceOver hears a switch
@@ -100,14 +109,15 @@ struct SettingsSheet: View {
             .buttonStyle(.plain)
             .accessibilityIdentifier("SettingsLicences")
             divider
-            // A `Link`, so the page opens in the browser and the app itself
-            // loads nothing, as the colophon's link does.
-            Link(destination: Colophon.privacyPolicy) {
+            // In a Safari view, not a handoff to Safari: the policy is a page
+            // of the game's own site, read and closed without leaving the game.
+            // See `SafariPage`. The arrow still says it is a page of the web.
+            Button { SafariPage.open(SafariPage.privacyPolicy) } label: {
                 SettingsRow(title: Vocabulary.privacyLinkSpoken, note: Vocabulary.privacyNote,
                             trailing: "arrow.up.right")
             }
             .buttonStyle(.plain)
-            .accessibilityHint("Opens in Safari")
+            .accessibilityHint(Vocabulary.privacyHint)
             .accessibilityIdentifier("SettingsPrivacy")
         }
         .background(card.fill(Cute.paperDeep))

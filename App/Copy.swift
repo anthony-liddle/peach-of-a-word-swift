@@ -394,6 +394,11 @@ enum Vocabulary {
     /// because it stands alone; here the row's title already says it.
     static let privacyNote = "Your \(container) stays on your phone."
 
+    /// What the privacy row does, for VoiceOver. It said "Opens in Safari"
+    /// while the row handed off to Safari; the page now opens inside the app,
+    /// from the game's own site.
+    static let privacyHint = "Opens the policy from the game's website"
+
     /// What each notice covers, a sentence each, above its text.
     ///
     /// **Written for a player, not for the repository.** `Data/ATTRIBUTION.md`
