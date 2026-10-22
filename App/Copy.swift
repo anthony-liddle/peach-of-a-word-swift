@@ -317,6 +317,102 @@ enum Vocabulary {
     /// that never existed, because its absence reads as a decision.
     static let dedication = "for Bea"
 
+    // MARK: - The title screen
+
+    /// The title's button on a day not yet started.
+    static let titlePlay = "Play"
+
+    /// The title's button once today's board has words.
+    static let titleContinue = "Continue"
+
+    /// The title's button once today's basket is full.
+    ///
+    /// **"Continue" would not be true of it.** A full basket has nothing left
+    /// to continue toward; the board stays playable for the words past it, and
+    /// this says where the button goes rather than promising work left. The
+    /// reveal card's way out says the same thing for the same place.
+    static let titleBasketFull = revealClose
+
+    /// The title's way to a past board it chooses.
+    static let titleRandomDay = "A day at random"
+    static let titleRandomDayHint = "Opens a past board, one not finished if there is one"
+
+    /// The way back to the title, the peach in the board's top row, spoken.
+    static let homeLabel = "Home"
+    static let homeHint = "Opens the title screen"
+
+    /// On a costume day: what the peach wears, as the source chip says it.
+    static func homeLabel(wearing spoken: String) -> String { "\(homeLabel), the peach \(spoken)" }
+
+    /// The title's line under the button once the board is known: the rank, and
+    /// the basket as the share block counts it.
+    static func titleStanding(rank: String, found: Int, total: Int) -> String {
+        "\(rank) \u{00B7} \(found) of \(total) words"
+    }
+
+    // MARK: - How to play
+
+    static let howToPlayTitle = "How to play"
+
+    /// What a player needs before the first tile, in the game's own words.
+    ///
+    /// **Every line checked against the game on 2026-10-21.** Two of the
+    /// design pass's mocked lines were not true of every board: "One word
+    /// uses all eight letters" fails on the 222 of 626 boards whose letters
+    /// also spell another eight-letter word, and "read where it came from"
+    /// fails on the 11 crowns with no etymology. The last line says what is
+    /// true of all of them.
+    static let howToPlayPick = "Tap letters to make a word of three letters or more, then pick it."
+    static var howToPlayClimb: String {
+        "Every word climbs the ladder, from \(tierNames[0]) to \(tierNames[tierNames.count - 1]). "
+            + "Longer and rarer words climb faster."
+    }
+    static let howToPlayBasket = "The \(container) is every common word the letters can spell. "
+        + "Rarer finds are Uncommon, Rare or Mythic."
+    static let howToPlayPeach = "All eight letters come from one word, the peach of a word. "
+        + "Find it to open its card: what it means and, most days, where it came from."
+
+    // MARK: - Settings
+
+    static let settingsTitle = "Settings"
+    static let close = "Close"
+
+    /// The sound switch's name, and the line under it.
+    ///
+    /// **The line is held to every cue the game plays,** not only to finds: a
+    /// tile ticks as it lands, a find plays a note, and a word that is not one
+    /// plays its own. The Ring/Silent sentence is the review notes' claim in
+    /// the review notes' words.
+    static let soundSwitch = "Sound"
+    static let soundNote = "A tick for each letter, a note for each word, a sound for a miss. "
+        + "The Ring/Silent switch silences them too."
+
+    static let licencesTitle = "Licences"
+    static let licencesNote = "The sound library, the word lists, the definitions and the typefaces."
+
+    /// The privacy row's line. The colophon's link opens with "Privacy:"
+    /// because it stands alone; here the row's title already says it.
+    static let privacyNote = "Your \(container) stays on your phone."
+
+    /// What each notice covers, a sentence each, above its text.
+    ///
+    /// **Written for a player, not for the repository.** `Data/ATTRIBUTION.md`
+    /// opens with its own history and stays the repository's record; the
+    /// screen says what each notice is for and then shows it.
+    static let licenceSoundscape =
+        "Soundscape, the library that plays the game's sounds, is under the MIT licence."
+    static let licenceChromium = "Parts of Soundscape follow the design of Chromium's audio code, "
+        + "and carry its seven notices: Chromium's own, four of Google's, Intel's, and Sun's "
+        + "for the maths library fdlibm."
+    static let licenceWordLists = "The words come from ENABLE, which is in the public domain, "
+        + "and SCOWL, whose notice follows."
+    static let licenceWiktionary =
+        "The definitions and etymologies are adapted from Wiktionary, under CC BY-SA 4.0."
+    static let licenceFredoka =
+        "Fredoka, the face of the tiles and the headings, is under the SIL Open Font License."
+    static let licenceNunito =
+        "Nunito, the face of everything else, is under the SIL Open Font License."
+
     // MARK: - The ladder
 
     /// The six named ranks, cute skin. The engine owns the ladder structure and

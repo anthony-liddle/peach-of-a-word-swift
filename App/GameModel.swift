@@ -56,6 +56,12 @@ final class GameModel {
     }
 
     private(set) var phase: Phase = .loading
+
+    /// Whether the load failed, which the title must not cover.
+    var failedToStart: Bool {
+        if case .failed = phase { return true }
+        return false
+    }
     private(set) var puzzle: Puzzle?
     /// Newest first, so the list reads as a history of what you just found.
     private(set) var found: [String] = []
@@ -195,10 +201,11 @@ final class GameModel {
     /// can show a test how many patterns one submit started.
     private(set) var feltBeats: [FindBeat] = []
 
-    /// Every cue asked for since launch, oldest first, so `-exposeSound 1` can
-    /// show a test which moments asked for one. Asked, not heard: a cue asked
-    /// for before the cues load is listed and plays nothing, and a simulator
-    /// with no audio output lists the same as a phone.
+    /// Every cue handed to the player since launch, oldest first, so
+    /// `-exposeSound 1` can show a test which moments asked for one. Asked, not
+    /// heard: a cue asked for before the cues load is listed and plays nothing,
+    /// and a simulator with no audio output lists the same as a phone. With
+    /// sound off nothing is handed over, so nothing is listed.
     private(set) var askedCues: [Cue] = []
     #endif
 
@@ -419,7 +426,7 @@ final class GameModel {
         // The cues load beside the word lists rather than inside the clock
         // below, and the board never waits for them. A find before they are
         // ready is silent, not late; see `Sounds.play`.
-        Task { await sounds.load() }
+        if SoundSetting.isOn { Task { await sounds.load() } }
         let clock = ContinuousClock()
         var loaded: Result<Lexicon, Error>?
         // The corpus read is inside the measurement deliberately: it is part of
@@ -1253,6 +1260,49 @@ final class GameModel {
     /// decodes the whole map, and doing that inside a `ForEach` over ninety rows
     /// is the kind of thing that is free at seventy-nine days and is not at four
     /// hundred.
+    /// The title screen's week: the seven days ending today, marked as the
+    /// calendar marks them.
+    ///
+    /// **Seven outcome reads, not `archiveDays()`.** That walks every day in
+    /// history and is kept off the launch path on purpose, and the title is the
+    /// launch path. Read fresh each time the title is drawn, so coming back from
+    /// the board shows today as it now stands.
+    func titleWeek() -> [ArchiveDay] {
+        let today = Self.todayStorageIndex
+        let first = max(Self.firstPlayableStorageIndex, today - 6)
+        return (first...today).map { day in
+            ArchiveDay(day: day, date: Self.date(forStorageDay: day),
+                       mark: dayMark(for: day, outcome: storage.outcome(dayIndex: day),
+                                     todayIndex: today),
+                       isToday: day == today)
+        }
+    }
+
+    /// Whether today's board has words, from the board once it is today's and
+    /// from the store before then, so the title can say so while the lists load.
+    ///
+    /// **The stored outcome, not the stored day.** An outcome is recorded only
+    /// once a day has a word, where a day's entry can be saved empty: the Debug
+    /// reset writes one, and "any stored day" then read as started.
+    var todayStarted: Bool {
+        if puzzle != nil, !isArchiveBoard { return !found.isEmpty }
+        return storage.outcome(dayIndex: Self.todayStorageIndex) != nil
+    }
+
+    /// Whether this phone has played at all: words on the board, any day's
+    /// outcome, or a streak. Asked at the tap on Play, after any seed, so How
+    /// to play is shown unasked only to a phone that has never played. Every
+    /// day played since the archive shipped has an outcome, and the back-fill
+    /// gave the days before it theirs.
+    var hasAnyProgress: Bool {
+        !found.isEmpty || !storage.allOutcomes().isEmpty || storedStreak > 0
+    }
+
+    /// The streak, from the store, so the title has it before the board does.
+    var storedStreak: Int {
+        storage.currentStreak(todayIndex: Self.todayStorageIndex)
+    }
+
     func archiveDays() -> [ArchiveDay] {
         #if DEBUG
         // **A walk of the whole archive, counted so it can be kept off the
@@ -1326,6 +1376,24 @@ final class GameModel {
         feedback = .none
         writeDebugState()
         return true
+    }
+
+    /// "A day at random": a past board, one not finished if any is left.
+    ///
+    /// Drawn by `randomPastDay`, which never gives today or a day to come, and
+    /// opened through `openArchiveDay`, the archive's one gate. A walk of every
+    /// stored outcome, which is fine on a tap and is why it is not on the
+    /// title's launch path.
+    @discardableResult
+    func openRandomPastDay() async -> Bool {
+        var generator = SystemRandomNumberGenerator()
+        guard let day = randomPastDay(
+            firstPlayableDayIndex: Self.firstPlayableStorageIndex,
+            todayIndex: Self.todayStorageIndex,
+            outcomes: storage.allOutcomes(),
+            using: &generator
+        ) else { return false }
+        return await openArchiveDay(storageDay: day)
     }
 
     /// Go back to the live daily.
@@ -1580,10 +1648,19 @@ final class GameModel {
 
     /// Ask for a cue. Every sound the game makes goes through here.
     private func sound(_ cue: Cue) {
+        // Off means no cue reaches the player at all, not a muted one: the
+        // engine stays stopped, and `askedCues` records only what was handed
+        // over, so `SoundSwitch` can hold the switch to nothing.
+        guard SoundSetting.isOn else { return }
         #if DEBUG
         askedCues.append(cue)
         #endif
         sounds.play(cue)
+    }
+
+    /// The sound switch, turned in settings.
+    func soundSwitched(on: Bool) {
+        sounds.setOn(on)
     }
 }
 

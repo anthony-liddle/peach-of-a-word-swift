@@ -112,3 +112,30 @@ public func completionAlreadySeen(outcome: DayOutcome?) -> Bool {
     guard let outcome else { return false }
     return outcome.reached >= DayOutcome.basket
 }
+
+/// A past day at random, for the title's "A day at random".
+///
+/// **Days before today that are not finished,** never played or started and
+/// left below the streak's rank, the calendar's "Still on the tree" and
+/// "Started". When every past day is finished it draws from all of them, so
+/// the button always goes somewhere once there is a past at all. Never today,
+/// never a day to come, and nil before the first board has a yesterday.
+///
+/// "Finished" is the calendar's own word, from `dayMark`, so the two cannot
+/// disagree about which days are done.
+public func randomPastDay<Generator: RandomNumberGenerator>(
+    firstPlayableDayIndex first: Int,
+    todayIndex today: Int,
+    outcomes: [Int: DayOutcome],
+    using generator: inout Generator
+) -> Int? {
+    guard today > first else { return nil }
+    let past = Array(first..<today)
+    let unfinished = past.filter { day in
+        switch dayMark(for: day, outcome: outcomes[day], todayIndex: today) {
+        case .noRecord, .incomplete: true
+        case .notYet, .cleared, .basket: false
+        }
+    }
+    return (unfinished.isEmpty ? past : unfinished).randomElement(using: &generator)
+}

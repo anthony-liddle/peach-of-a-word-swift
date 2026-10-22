@@ -20,8 +20,11 @@ struct TierMeterView: View {
     /// streak stops being shown beside a board it has nothing to do with.
     var archiveDate: Date?
 
-    /// Opens the calendar of past days.
-    var onOpenArchive: () -> Void = {}
+    /// Opens the title screen, from today's board or a past one.
+    ///
+    /// Nil draws no control and keeps its reserve, which is the meter the
+    /// top-row guard holds this one to (`TitleAndTopRowAtEverySize`).
+    var onHome: (() -> Void)?
 
     /// Leaves a past board for the live daily.
     var onReturnToToday: () -> Void = {}
@@ -74,13 +77,12 @@ struct TierMeterView: View {
                     // trailing edge lands on the column edge, inside the width
                     // the row reserves above.
                     .overlay(alignment: .trailing) {
-                        archiveButton.offset(x: archiveReserve)
+                        if let onHome { homeButton(onHome).offset(x: glyphReserve) }
                     }
             }
-            // Width reserved for the archive button, which is drawn as an
-            // overlay rather than as a third item in this row. See
-            // `archiveButton` for why.
-            .padding(.trailing, archiveReserve)
+            // Width reserved for the way back, which is drawn as an overlay
+            // rather than as a third item in this row. See `homeButton` for why.
+            .padding(.trailing, glyphReserve)
             // The glyph rides the points total inside this row; see there.
 
             track
@@ -167,9 +169,27 @@ struct TierMeterView: View {
     /// Slightly under the target, because the row already ends in a gutter and
     /// the glyph is centred in its 44pt box: reserving the full 44 would leave a
     /// visible gap between the points total and the icon.
-    @ScaledMetric(relativeTo: .subheadline) private var archiveReserve: CGFloat = 34
+    @ScaledMetric(relativeTo: .subheadline) private var glyphReserve: CGFloat = 34
 
-    /// The way in to the archive, and the only navigation affordance in the app.
+    /// The peach's size in its box: the calendar glyph's, scaled the same way,
+    /// and held inside the 44pt box at the largest sizes.
+    @ScaledMetric(relativeTo: .subheadline) private var homeGlyph: CGFloat = 17
+
+    /// What the peach is wearing on this board, if anything.
+    @Environment(\.peachCostume) private var worn
+
+    /// The way back to the title screen, and the only navigation affordance on
+    /// the board.
+    ///
+    /// **It was the calendar until the title took Past days, and it kept the
+    /// calendar's slot because the slot is free.** The design pass of
+    /// 2026-10-21 measured three placements on an iPhone SE 3 and the largest
+    /// phone at all nine text sizes: a peach ahead of the rank's name took the SE
+    /// into the scrolling layout at XXXL, a peach beside the calendar cost it
+    /// 23.5pt of list at XXL, and the calendar's own slot cost nothing anywhere,
+    /// because it changes the glyph and not the width. `TitleAndTopRowAtEverySize`
+    /// holds that. Everything below was measured for the calendar and holds for
+    /// the peach unchanged, since the slot, the reserve and the box are the same.
     ///
     /// **It rides this row rather than sitting in a toolbar, and that was
     /// measured rather than preferred.** On an iPhone SE 3 at XXXL the fixed
@@ -209,21 +229,27 @@ struct TierMeterView: View {
     /// clears the track by 9.00pt at L and 10.50pt at XXXL, and clears the
     /// points total by 6.00pt and 14.00pt. The 44pt hit box does lie across the
     /// track, which is not interactive and is the whole point of the overlay.
-    private var archiveButton: some View {
-        Button(action: onOpenArchive) {
-            Image(systemName: "calendar")
-                .font(CuteFont.body(15, weight: "SemiBold", relativeTo: .subheadline))
-                .foregroundStyle(Cute.accentDeep)
+    ///
+    /// **It wears its board's costume,** as the source word's mark does: a
+    /// board goes by its own date, so 31 October's board dresses the peach on
+    /// any day it is replayed, and no other board does. VoiceOver says so.
+    private func homeButton(_ action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            PeachMark(showsFace: false, costume: worn)
+                .frame(width: min(homeGlyph, 40), height: min(homeGlyph, 40))
                 // The drawn mark, identified separately from the 44pt box around
                 // it, so a test can ask where the glyph is rather than where the
                 // hit area is. The two are allowed to differ and the difference
                 // is the whole point of the overlay.
-                .accessibilityIdentifier("ArchiveGlyph")
+                .accessibilityIdentifier("HomeGlyph")
                 .frame(width: Cute.minTapTarget, height: Cute.minTapTarget)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(Vocabulary.archiveTitle)
+        .accessibilityLabel(worn.map { Vocabulary.homeLabel(wearing: $0.spoken) }
+                            ?? Vocabulary.homeLabel)
+        .accessibilityHint(Vocabulary.homeHint)
+        .accessibilityIdentifier("BoardHome")
     }
 
     /// Three segments fill the track: on-page set points, off-page discovery
@@ -257,3 +283,40 @@ struct TierMeterView: View {
         .overlay(Capsule().stroke(Cute.ink, lineWidth: 1))
     }
 }
+
+#if DEBUG
+/// `-exposeTopRow 1`: the meter's height, and the height of a copy of it with
+/// no way back, laid out at the same width, so a test can hold the way back to
+/// costing nothing at every text size.
+///
+/// **A copy measured in the same layout pass, not a number recorded once.**
+/// Heights differ by phone and by text size, so a table would be a second
+/// truth to keep current. The copy is the meter as it would be without the
+/// control, keeping the slot's reserve, which the calendar had before the peach.
+/// It is hidden and drawn behind the real one, so it moves nothing. Opt in, as
+/// `-exposeToday` is, so no other test's tree carries a second meter.
+struct TopRowProbe: ViewModifier {
+    static var isOn: Bool { UserDefaults.standard.bool(forKey: "exposeTopRow") }
+
+    let standing: TierStanding
+    let streak: Int
+    let archiveDate: Date?
+    @Binding var real: CGFloat
+    @Binding var bare: CGFloat
+
+    func body(content: Content) -> some View {
+        if Self.isOn {
+            content
+                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { real = $0 }
+                .background(alignment: .top) {
+                    TierMeterView(standing: standing, streak: streak, archiveDate: archiveDate)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .hidden()
+                        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { bare = $0 }
+                }
+        } else {
+            content
+        }
+    }
+}
+#endif

@@ -1,6 +1,9 @@
 import XCTest
 
-/// Where the archive glyph sits in the meter's top row.
+/// Where the way back's peach sits in the meter's top row.
+///
+/// It was the archive's calendar glyph until the title screen took Past days;
+/// the peach has the calendar's slot and box, so everything below holds for it.
 ///
 /// The button is a 44pt box overlaid at the meter's top trailing corner with the
 /// glyph centred in it, so the glyph's centre is 22pt down from the meter's top.
@@ -26,24 +29,24 @@ final class MeterGlyphPlacement: XCTestCase {
     private func assertGlyphIsOnItsRow(_ size: String, file: StaticString = #filePath,
                                        line: UInt = #line) {
         let app = launched(size)
-        let glyph = app.buttons["Past days"].firstMatch
+        let glyph = app.buttons["BoardHome"].firstMatch
         let points = app.staticTexts["MeterPoints"].firstMatch
         let track = app.otherElements["MeterTrack"].firstMatch
-        XCTAssertTrue(glyph.waitForExistence(timeout: 10), "no archive glyph",
+        XCTAssertTrue(glyph.waitForExistence(timeout: 10), "no way back on the board",
                       file: file, line: line)
         XCTAssertTrue(points.exists, "no points label", file: file, line: line)
 
         let drift = glyph.frame.midY - points.frame.midY
         // The hit box, reported rather than asserted.
         //
-        // `ArchiveGlyph` is on the image, but the accessibility element is the
+        // `HomeGlyph` is on the peach, but the accessibility element is the
         // 44pt frame wrapped around it, so this measures the target and not the
         // drawn mark. The target is ALLOWED across the track, which is not
         // interactive; the mark is not. A frame cannot tell those apart, so the
         // mark's clearance is measured in pixels from a screenshot instead and
         // recorded in the report rather than asserted here. A test that cannot
         // fail for the right reason is not a guard.
-        let box = app.images["ArchiveGlyph"].firstMatch
+        let box = app.descendants(matching: .any)["HomeGlyph"].firstMatch
         let boxFrame = box.exists ? box.frame : glyph.frame
         print(String(format: "GLYPH %@ drift %+.2f box=%.1f..%.1f track=%.1f..%.1f",
                      size, drift, boxFrame.minY, boxFrame.maxY,
@@ -51,7 +54,7 @@ final class MeterGlyphPlacement: XCTestCase {
 
         XCTAssertLessThanOrEqual(
             abs(drift), 1,
-            "the archive glyph sits \(drift)pt off the points label's line",
+            "the way back's peach sits \(drift)pt off the points label's line",
             file: file, line: line)
     }
 
