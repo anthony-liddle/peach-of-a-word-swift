@@ -888,6 +888,13 @@ struct ContentView: View {
     /// near-complete board end in the same place, because the colophon rides at
     /// the foot of the list and fills what a short list would otherwise leave.
     ///
+    /// **The colophon is one line since 22 October 2026,** the dedication, its
+    /// credits and links moved to Settings, so it fills about 125pt less. Shot
+    /// that day at L, an empty board's list still runs past its own height on
+    /// an iPhone SE and on an iPhone 17: it scrolls, the key and "for Bea" are
+    /// its foot, and the bottom of the screen shows the list, not a gap. The
+    /// pictures are in the report Peach 1.1 Notes On The First Build.
+    ///
     /// One measurement worth not repeating: the largest continuous band of
     /// blank pixels below the rack is 46pt, which looks like a finding and is
     /// not. It sits between the label of the top control row and the label of

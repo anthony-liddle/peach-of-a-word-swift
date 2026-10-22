@@ -314,6 +314,12 @@ struct FoundListView: View {
                     // colophon fills most of that, so the florettes landed
                     // among the credits and mixed with the colophon's own.
                     //
+                    // **Since then the key has come between the line and the
+                    // colophon,** and on 22 October 2026 the colophon kept only
+                    // the dedication. Shot on an iPhone SE at L that day, two
+                    // florettes sit on the key's first line. Left as found; it
+                    // is the key's arrival, not the colophon's change.
+                    //
                     // A background takes no size from this frame, so the empty
                     // state still measures what it always did.
                     .background(alignment: .top) {

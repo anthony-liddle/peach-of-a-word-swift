@@ -77,24 +77,16 @@ enum Vocabulary {
 
     // MARK: - How the words work
 
-    /// The explainer's title. Sentence case, matching the colophon's trigger
-    /// and the app's other headings. The web's dialog title is title case while
-    /// its own trigger is sentence case, which is an inconsistency there rather
-    /// than a style to carry over.
+    /// The explainer's title, and Settings' row that opens it. Sentence case,
+    /// matching the app's other headings. The web's dialog title is title case
+    /// while its own trigger is sentence case, which is an inconsistency there
+    /// rather than a style to carry over.
     static let explainerTitle = "How the words work"
-
-    /// The colophon's quiet way in.
-    static let explainerTrigger = "How the words work"
 
     // MARK: - Privacy
 
-    /// The colophon's link to the privacy policy, beside the explainer's.
-    ///
-    /// The web's says only "Privacy". This one carries the container because
-    /// the policy's whole answer fits in it: progress and streaks live on the
-    /// phone, with no account and nothing sent anywhere. VoiceOver reads
-    /// `privacyLinkSpoken` instead, which names the thing plainly.
-    static let privacyLink = "Privacy: your \(container) stays on your phone"
+    /// Settings' row for the privacy policy. It was also the colophon link's
+    /// spoken name, until the colophon kept only the dedication.
     static let privacyLinkSpoken = "Privacy policy"
 
     /// The explainer body, ported from the web's `HowItWorks.tsx`.
@@ -157,8 +149,9 @@ enum Vocabulary {
     /// The two lists the explainer names, and where to read about them.
     ///
     /// **These links carry no licence obligation.** The attribution is already
-    /// discharged twice over: the colophon credits ENABLE and SCOWL on screen,
-    /// and `Data/ATTRIBUTION.md` ships inside the bundle carrying the notices.
+    /// discharged twice over: Licences credits ENABLE and SCOWL on screen, over
+    /// SCOWL's notice, and `Data/ATTRIBUTION.md` ships inside the bundle
+    /// carrying the notices.
     /// These are here because they are interesting. Keeping that straight
     /// matters, because an explainer that quietly becomes a second attribution
     /// surface is one that can drift from the first without anyone noticing.
@@ -301,11 +294,8 @@ enum Vocabulary {
     /// of a thing, which is exactly what the source word is in a rack.
     static let sourceFound = "You found the Peach of a Word!"
 
-    /// The type credit, for the colophon. The typefaces differ per theme on the
-    /// web as well as the verb; these are the cute pair.
-    static let typeCredit = "Set in Fredoka and Nunito."
-
-    /// The dedication, last line of the colophon.
+    /// The dedication, the colophon's one line since the credits moved to
+    /// Licences. It was the colophon's last line before that.
     ///
     /// Four words, lowercase, no full stop, exactly as `Game.tsx` spells them.
     /// The title says what the game is to everyone; this says who it is for to
@@ -395,28 +385,45 @@ enum Vocabulary {
     static let licencesTitle = "Licences"
     static let licencesNote = "The sound library, the word lists, the definitions and the typefaces."
 
-    /// The privacy row's line. The colophon's link opens with "Privacy:"
-    /// because it stands alone; here the row's title already says it.
+    /// The privacy row's line, under its title. The colophon's link said it
+    /// as "Privacy: your basket stays on your phone", standing alone.
     static let privacyNote = "Your \(container) stays on your phone."
 
-    /// What each notice covers, a sentence each, above its text.
+    /// What the privacy row does, for VoiceOver. It said "Opens in Safari"
+    /// while the row handed off to Safari; the page now opens inside the app,
+    /// from the game's own site.
+    static let privacyHint = "Opens the policy from the game's website"
+
+    /// The Licences list's entries: a title, and a sentence on what each
+    /// covers, which heads its page too.
     ///
     /// **Written for a player, not for the repository.** `Data/ATTRIBUTION.md`
     /// opens with its own history and stays the repository's record; the
     /// screen says what each notice is for and then shows it.
+    ///
+    /// **The credits are here since the colophon kept only the dedication,**
+    /// in the colophon's words where it had them: the word lists' line, the
+    /// Wiktionary line, which says the text is adapted and names its licence,
+    /// whose address is on its page, and the typefaces' line.
+    static let licenceSoundscapeTitle = "Soundscape"
     static let licenceSoundscape =
-        "Soundscape, the library that plays the game's sounds, is under the MIT licence."
+        "The library that plays the game's sounds, under the MIT licence."
+    static let licenceNoticesTitle = "Code Soundscape adapts"
     static let licenceChromium = "Parts of Soundscape follow the design of Chromium's audio code, "
         + "and carry its seven notices: Chromium's own, four of Google's, Intel's, and Sun's "
         + "for the maths library fdlibm."
-    static let licenceWordLists = "The words come from ENABLE, which is in the public domain, "
-        + "and SCOWL, whose notice follows."
-    static let licenceWiktionary =
-        "The definitions and etymologies are adapted from Wiktionary, under CC BY-SA 4.0."
-    static let licenceFredoka =
-        "Fredoka, the face of the tiles and the headings, is under the SIL Open Font License."
-    static let licenceNunito =
-        "Nunito, the face of everything else, is under the SIL Open Font License."
+    static let licenceWordListsTitle = "The word lists"
+    static let licenceWordLists = "Words from ENABLE and SCOWL, with a curated patch layer. "
+        + "ENABLE is in the public domain; SCOWL's notice is on its page."
+    static let licenceWiktionaryTitle = "Definitions and word histories"
+    static let licenceWiktionary = "Etymologies and most definitions adapted from Wiktionary, "
+        + "CC BY-SA 4.0. A few definitions were written for this game."
+    static let licenceTypefacesTitle = "The typefaces"
+    static let licenceTypefaces = "Set in Fredoka and Nunito, both under the SIL Open Font License."
+    static let licenceFredokaTitle = "Fredoka"
+    static let licenceFredoka = "The face of the tiles and the headings."
+    static let licenceNunitoTitle = "Nunito"
+    static let licenceNunito = "The face of everything else."
 
     // MARK: - The ladder
 

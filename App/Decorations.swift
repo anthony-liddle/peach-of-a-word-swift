@@ -82,12 +82,12 @@ struct ColophonDecoration: View {
     var body: some View {
         GeometryReader { geo in
             ZStack {
-                // Inside the left margin, and measured rather than eyeballed:
-                // the credits block is centred and about 300pt wide in a 402pt
-                // colophon, so its leading edge is near 52pt. A 26pt peach
-                // centred at 0.06 spans roughly 12 to 38pt and clears the text.
-                // The first attempt put a 34pt peach at 0.11 and it sat on the
-                // word "Set".
+                // Inside the left margin. Placed when the colophon held the
+                // credits, a block about 300pt wide in a 402pt colophon whose
+                // leading edge was near 52pt: a 26pt peach centred at 0.06
+                // spans roughly 12 to 38pt and cleared it, where a 34pt peach at
+                // 0.11 sat on the word "Set". The dedication alone is far
+                // narrower, so it clears that by more.
                 PeachMark()
                     .frame(width: 26, height: 26)
                     .opacity(0.55)
