@@ -153,9 +153,11 @@ well as the MIT licence.
 
 Both texts ship in the bundle, byte for byte as the package has them at that
 version: `Data/Soundscape-LICENSE.txt` and
-`Data/Soundscape-LICENSE-CHROMIUM.txt`. Nothing in the app shows them yet; a
-Licences screen will. Until then, carrying them is what discharges the notices
-that ask for a binary to reproduce them.
+`Data/Soundscape-LICENSE-CHROMIUM.txt`. Since iOS #93 the app shows them, in
+full, on its Licences screen, from Settings. Since 2026-10-22 that screen is a
+list: Soundscape's entry opens the MIT licence, and its page leads on to the
+seven notices. Carrying them in the bundle and on screen is what discharges the
+notices that ask for a binary to reproduce them.
 
 ## In the app
 

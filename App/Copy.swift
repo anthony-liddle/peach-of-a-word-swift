@@ -389,24 +389,36 @@ enum Vocabulary {
     /// from the game's own site.
     static let privacyHint = "Opens the policy from the game's website"
 
-    /// What each notice covers, a sentence each, above its text.
+    /// The Licences list's entries: a title, and a sentence on what each
+    /// covers, which heads its page too.
     ///
     /// **Written for a player, not for the repository.** `Data/ATTRIBUTION.md`
     /// opens with its own history and stays the repository's record; the
     /// screen says what each notice is for and then shows it.
+    ///
+    /// **The credits are here since the colophon kept only the dedication,**
+    /// in the colophon's words where it had them: the word lists' line, the
+    /// Wiktionary line, which says the text is adapted and names its licence,
+    /// whose address is on its page, and the typefaces' line.
+    static let licenceSoundscapeTitle = "Soundscape"
     static let licenceSoundscape =
-        "Soundscape, the library that plays the game's sounds, is under the MIT licence."
+        "The library that plays the game's sounds, under the MIT licence."
+    static let licenceNoticesTitle = "Code Soundscape adapts"
     static let licenceChromium = "Parts of Soundscape follow the design of Chromium's audio code, "
         + "and carry its seven notices: Chromium's own, four of Google's, Intel's, and Sun's "
         + "for the maths library fdlibm."
-    static let licenceWordLists = "The words come from ENABLE, which is in the public domain, "
-        + "and SCOWL, whose notice follows."
-    static let licenceWiktionary =
-        "The definitions and etymologies are adapted from Wiktionary, under CC BY-SA 4.0."
-    static let licenceFredoka =
-        "Fredoka, the face of the tiles and the headings, is under the SIL Open Font License."
-    static let licenceNunito =
-        "Nunito, the face of everything else, is under the SIL Open Font License."
+    static let licenceWordListsTitle = "The word lists"
+    static let licenceWordLists = "Words from ENABLE and SCOWL, with a curated patch layer. "
+        + "ENABLE is in the public domain; SCOWL's notice is on its page."
+    static let licenceWiktionaryTitle = "Definitions and word histories"
+    static let licenceWiktionary = "Etymologies and most definitions adapted from Wiktionary, "
+        + "CC BY-SA 4.0. A few definitions were written for this game."
+    static let licenceTypefacesTitle = "The typefaces"
+    static let licenceTypefaces = "Set in Fredoka and Nunito, both under the SIL Open Font License."
+    static let licenceFredokaTitle = "Fredoka"
+    static let licenceFredoka = "The face of the tiles and the headings."
+    static let licenceNunitoTitle = "Nunito"
+    static let licenceNunito = "The face of everything else."
 
     // MARK: - The ladder
 
