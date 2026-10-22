@@ -259,7 +259,8 @@ struct ContentView: View {
             // to be read rather than hidden behind a Play that never wakes.
             if titleShown, !model.failedToStart {
                 TitleScreen(model: model, actions: titleActions)
-                    .transition(.opacity)
+                    .transition(.modifier(active: TitleFade(shown: false),
+                                          identity: TitleFade(shown: true)))
                     .zIndex(1)
             }
         }
@@ -928,6 +929,21 @@ struct ContentView: View {
                 endPoint: .bottom
             )
         }
+    }
+}
+
+/// The title's crossfade, which stops taking taps the moment it starts to go.
+///
+/// **`.opacity` alone left a leaving title on top and taking taps** for the
+/// whole fade, so the way back tapped in that quarter second did nothing: CI's
+/// runner tapped it 0.12s after the board appeared, and the title never came
+/// back. Hit testing is not animated, so it switches off as the title starts
+/// to leave and on as it starts to arrive, while the opacity fades.
+private struct TitleFade: ViewModifier {
+    let shown: Bool
+
+    func body(content: Content) -> some View {
+        content.opacity(shown ? 1 : 0).allowsHitTesting(shown)
     }
 }
 
