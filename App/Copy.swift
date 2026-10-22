@@ -327,12 +327,17 @@ enum Vocabulary {
     static let titleRandomDay = "A day at random"
     static let titleRandomDayHint = "Opens a past board, one not finished if there is one"
 
-    /// The way back to the title, the peach in the board's top row, spoken.
-    static let homeLabel = "Home"
-    static let homeHint = "Opens the title screen"
-
-    /// On a costume day: what the peach wears, as the source chip says it.
-    static func homeLabel(wearing spoken: String) -> String { "\(homeLabel), the peach \(spoken)" }
+    /// The way back to the title, the chevron before the rank's name, spoken.
+    ///
+    /// **"Back to", and where.** A bare "Back" is system language this game
+    /// does not speak, which `OneDefinitionCardTests` holds Copy to, and it
+    /// caught a first draft of this. iOS names a back button's destination too:
+    /// its label is the screen it returns to. The title screen's own name is
+    /// the game's, "Peach of a Word", which would read as the app's name rather
+    /// than as a way out, so the label says both, as "Back to today" and "Back
+    /// to the basket" do. #93's peach was "Home", with this as its hint, and
+    /// wore the day's costume; the chevron wears nothing.
+    static let backToTitle = "Back to the title screen"
 
     /// The title's line under the button once the board is known: the rank, and
     /// the basket as the share block counts it.

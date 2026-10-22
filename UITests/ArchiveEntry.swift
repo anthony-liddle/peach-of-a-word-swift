@@ -2,11 +2,12 @@ import XCTest
 
 /// The way in to the archive, and one past board opened through it.
 ///
-/// The entry point could not be checked any other way. From the board it is the
-/// way back to the title, a 44pt target drawn as an overlay on a row it
-/// deliberately does not belong to, and then the title's Past days. The thing
-/// worth asserting is that both are still reachable and still open a board,
-/// which is a gesture rather than a state a launch argument can set up.
+/// The entry point could not be checked any other way. It is the calendar again
+/// since 22 October 2026, as it was before #93 put the way back in its slot: a
+/// 44pt target drawn as an overlay on a row it deliberately does not belong to.
+/// The thing worth asserting is that it is still reachable and still opens a
+/// board, which is a gesture rather than a state a launch argument can set up.
+/// The title's own Past days is `TitleScreenAppears`' to check.
 final class ArchiveEntry: XCTestCase {
     private func launched() -> XCUIApplication {
         let app = XCUIApplication()
@@ -24,21 +25,14 @@ final class ArchiveEntry: XCTestCase {
         return app
     }
 
-    /// Past days lives on the title screen. The board's way back rides the
-    /// meter's top row as an overlay, so "is it hittable" is a real question
-    /// rather than a formality, and the title's Past days opens the calendar.
+    /// The calendar rides the meter's top row as an overlay, so "is it
+    /// hittable" is a real question rather than a formality.
     private func openPastDays(_ app: XCUIApplication, file: StaticString = #filePath,
                               line: UInt = #line) {
-        let home = app.buttons["BoardHome"]
-        XCTAssertTrue(home.waitForExistence(timeout: 10), "no way back on the board",
+        let entry = app.buttons["Past days"].firstMatch
+        XCTAssertTrue(entry.waitForExistence(timeout: 10), "no way in to the archive",
                       file: file, line: line)
-        XCTAssertTrue(home.isHittable, "the way back is present but not hittable",
-                      file: file, line: line)
-        home.tap()
-        let entry = app.buttons["TitlePastDays"]
-        XCTAssertTrue(entry.waitForExistence(timeout: 10), "the way back did not open the title",
-                      file: file, line: line)
-        XCTAssertTrue(entry.isHittable, "Past days is present but not hittable",
+        XCTAssertTrue(entry.isHittable, "the archive button is present but not hittable",
                       file: file, line: line)
         entry.tap()
     }

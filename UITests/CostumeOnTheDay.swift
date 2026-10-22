@@ -74,9 +74,10 @@ final class CostumeOnTheDay: XCTestCase {
         waitForTheCard(app)
         XCTAssertTrue(peachSaysCostume(app, timeout: 5),
                       "31 October's board, replayed on 5 November, did not dress the peach")
-        // The way back's peach goes by its board's date too.
-        XCTAssertTrue(app.buttons["BoardHome"].label.contains("the peach in a ghost sheet"),
-                      "31 October's board's way back did not wear the ghost on 5 November")
+        // The way back is a chevron since 22 October 2026, not #93's peach, and
+        // a chevron wears nothing, on this board or any.
+        XCTAssertEqual(app.buttons["BoardHome"].label, "Back to the title screen",
+                       "31 October's board's way back is not the plain chevron")
     }
 
     func testAnotherDaysBoardOnTheDayDoesNot() {
@@ -86,13 +87,14 @@ final class CostumeOnTheDay: XCTestCase {
         waitForTheCard(app)
         XCTAssertFalse(peachSaysCostume(app, timeout: 3),
                        "30 October's board, played on 31 October, dressed the peach")
-        XCTAssertEqual(app.buttons["BoardHome"].label, "Home",
-                       "30 October's board's way back wore a costume on 31 October")
+        XCTAssertEqual(app.buttons["BoardHome"].label, "Back to the title screen",
+                       "30 October's board's way back is not the plain chevron")
     }
 
     /// The title shows today, so its peach wears today's costume: plain on 30
-    /// October, the ghost when the app comes back on the 31st, and then the
-    /// way back on that day's board wears it as well.
+    /// October, and the ghost when the app comes back on the 31st. Play then
+    /// opens that day's board, whose way back is the plain chevron; until
+    /// 22 October 2026 it was a peach, and wore the ghost too.
     func testTheTitleWearsTodaysCostume() {
         // A Halloween whose eve is still to come, so the offset is never
         // negative, even when the suite runs on the 31st.
@@ -120,8 +122,7 @@ final class CostumeOnTheDay: XCTestCase {
         play.tap()
         let home = app.buttons["BoardHome"]
         XCTAssertTrue(home.waitForExistence(timeout: 10), "Play did not open the board")
-        XCTAssertTrue(home.label.contains("the peach in a ghost sheet"),
-                      "31 October's way back did not wear the ghost: \(home.label)")
+        XCTAssertEqual(home.label, "Back to the title screen", "31 October's way back is not the plain chevron")
     }
 
     /// And the day after, plain again.

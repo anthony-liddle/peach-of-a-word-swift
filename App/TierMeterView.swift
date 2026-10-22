@@ -20,11 +20,17 @@ struct TierMeterView: View {
     /// streak stops being shown beside a board it has nothing to do with.
     var archiveDate: Date?
 
-    /// Opens the title screen, from today's board or a past one.
+    /// Opens the title screen, from today's board or a past one: the back
+    /// chevron at the top left.
     ///
-    /// Nil draws no control and keeps its reserve, which is the meter the
-    /// top-row guard holds this one to (`TitleAndTopRowAtEverySize`).
+    /// Nil draws no chevron, which is the meter the top-row guard holds this one
+    /// to (`TitleAndTopRowAtEverySize`).
     var onHome: (() -> Void)?
+
+    /// Opens the calendar of past days, from the slot at the top right.
+    ///
+    /// Nil draws no glyph and keeps its reserve.
+    var onOpenArchive: (() -> Void)?
 
     /// Leaves a past board for the live daily.
     var onReturnToToday: () -> Void = {}
@@ -55,6 +61,11 @@ struct TierMeterView: View {
                 Text(label)
                     .font(CuteFont.display(18, relativeTo: .headline))
                     .foregroundStyle(completed ? Cute.crown : Cute.ink)
+                    // In the margin before the name, on its first line: an
+                    // overlay, so the name keeps its width. See `backButton`.
+                    .overlay(alignment: Alignment(horizontal: .leading, vertical: .firstTextBaseline)) {
+                        if let onHome { backButton(onHome).offset(x: -(chevronWidth + chevronGap)) }
+                    }
                 Spacer(minLength: 8)
                 Text(counted(standing.score, "point"))
                     .font(CuteFont.body(15, weight: "Bold", relativeTo: .subheadline))
@@ -77,11 +88,11 @@ struct TierMeterView: View {
                     // trailing edge lands on the column edge, inside the width
                     // the row reserves above.
                     .overlay(alignment: .trailing) {
-                        if let onHome { homeButton(onHome).offset(x: glyphReserve) }
+                        if let onOpenArchive { archiveButton(onOpenArchive).offset(x: glyphReserve) }
                     }
             }
-            // Width reserved for the way back, which is drawn as an overlay
-            // rather than as a third item in this row. See `homeButton` for why.
+            // Width reserved for the calendar, which is drawn as an overlay
+            // rather than as a third item in this row. See `archiveButton` for why.
             .padding(.trailing, glyphReserve)
             // The glyph rides the points total inside this row; see there.
 
@@ -171,25 +182,15 @@ struct TierMeterView: View {
     /// visible gap between the points total and the icon.
     @ScaledMetric(relativeTo: .subheadline) private var glyphReserve: CGFloat = 34
 
-    /// The peach's size in its box: the calendar glyph's, scaled the same way,
-    /// and held inside the 44pt box at the largest sizes.
-    @ScaledMetric(relativeTo: .subheadline) private var homeGlyph: CGFloat = 17
-
-    /// What the peach is wearing on this board, if anything.
-    @Environment(\.peachCostume) private var worn
-
-    /// The way back to the title screen, and the only navigation affordance on
-    /// the board.
+    /// The way in to the archive, in the top row's trailing slot.
     ///
-    /// **It was the calendar until the title took Past days, and it kept the
-    /// calendar's slot because the slot is free.** The design pass of
-    /// 2026-10-21 measured three placements on an iPhone SE 3 and the largest
-    /// phone at all nine text sizes: a peach ahead of the rank's name took the SE
-    /// into the scrolling layout at XXXL, a peach beside the calendar cost it
-    /// 23.5pt of list at XXL, and the calendar's own slot cost nothing anywhere,
-    /// because it changes the glyph and not the width. `TitleAndTopRowAtEverySize`
-    /// holds that. Everything below was measured for the calendar and holds for
-    /// the peach unchanged, since the slot, the reserve and the box are the same.
+    /// **It is the calendar again, as it was before the title screen.** #93 put
+    /// the way back to the title in this slot, a peach, because the slot was
+    /// free at every size; Antoine's note on that build was that a peach at the
+    /// top right is not read as "back", and that top right is not where iOS
+    /// puts the way back. So the way back is the chevron at the top left
+    /// (`backButton`), and the calendar has its slot, its reserve and its box
+    /// again, one tap from the board.
     ///
     /// **It rides this row rather than sitting in a toolbar, and that was
     /// measured rather than preferred.** On an iPhone SE 3 at XXXL the fixed
@@ -229,26 +230,70 @@ struct TierMeterView: View {
     /// clears the track by 9.00pt at L and 10.50pt at XXXL, and clears the
     /// points total by 6.00pt and 14.00pt. The 44pt hit box does lie across the
     /// track, which is not interactive and is the whole point of the overlay.
-    ///
-    /// **It wears its board's costume,** as the source word's mark does: a
-    /// board goes by its own date, so 31 October's board dresses the peach on
-    /// any day it is replayed, and no other board does. VoiceOver says so.
-    private func homeButton(_ action: @escaping () -> Void) -> some View {
+    private func archiveButton(_ action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            PeachMark(showsFace: false, costume: worn)
-                .frame(width: min(homeGlyph, 40), height: min(homeGlyph, 40))
+            Image(systemName: "calendar")
+                .font(CuteFont.body(15, weight: "SemiBold", relativeTo: .subheadline))
+                .foregroundStyle(Cute.accentDeep)
                 // The drawn mark, identified separately from the 44pt box around
                 // it, so a test can ask where the glyph is rather than where the
                 // hit area is. The two are allowed to differ and the difference
                 // is the whole point of the overlay.
-                .accessibilityIdentifier("HomeGlyph")
+                .accessibilityIdentifier("ArchiveGlyph")
                 .frame(width: Cute.minTapTarget, height: Cute.minTapTarget)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(worn.map { Vocabulary.homeLabel(wearing: $0.spoken) }
-                            ?? Vocabulary.homeLabel)
-        .accessibilityHint(Vocabulary.homeHint)
+        .accessibilityLabel(Vocabulary.archiveTitle)
+    }
+
+    /// The space between the chevron and the rank's name, and the chevron's
+    /// width, which stops growing at L.
+    private let chevronGap: CGFloat = 4
+    private let chevronWidth: CGFloat = 11
+
+    /// The way back to the title screen: a back chevron before the rank's name,
+    /// where iOS puts the way back, on today's board and on a past one.
+    ///
+    /// **In the margin, not in the row, because the row has no width to give.**
+    /// Measured with the meter's harness at all nine sizes on an iPhone SE and
+    /// an iPhone 18 Pro Max, against `main`, on the near-complete board:
+    /// - **In the row, before the name,** it took the SE into the scrolling
+    ///   layout at XXXL, where the row had 2pt to spare, and cost the largest
+    ///   phone 32.33pt of list at AX1 and 47pt at AX3, and its fixed layout at
+    ///   AX4.
+    /// - **In the row, capped at L,** it still took the SE into scrolling at
+    ///   XXXL and cost the largest phone the same at AX1 and AX3.
+    /// - **Here,** an overlay on the name that hangs into the board's 18pt
+    ///   margin, it costs nothing at any size on either phone, and the name
+    ///   keeps its place on the column, over the bar.
+    /// `TitleAndTopRowAtEverySize` holds that.
+    ///
+    /// **Capped at L,** so it always fits the margin: 11pt of glyph, 4 from
+    /// the name, about 3 from the screen's edge.
+    ///
+    /// **Its 44pt box starts at the glyph and runs over the name's first
+    /// letters,** which take no taps, rather than off the screen's edge. It is
+    /// an overlay, so it takes no width either way. The swipe from the left
+    /// edge (`EdgeSwipeBack`) does the same as a tap.
+    ///
+    /// **VoiceOver hears "Back to the title screen", and first:** the meter's
+    /// elements are its children, and this one is sorted ahead of the name.
+    /// Why not a bare "Back" is `Vocabulary.backToTitle`'s.
+    private func backButton(_ action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(Image(systemName: "chevron.backward"))
+                .font(.system(.headline).weight(.semibold))
+                .foregroundStyle(Cute.accentDeep)
+                .dynamicTypeSize(...DynamicTypeSize.large)
+                .frame(width: chevronWidth, alignment: .leading)
+                .accessibilityIdentifier("BackChevron")
+                .frame(width: Cute.minTapTarget, height: Cute.minTapTarget, alignment: .leading)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(Vocabulary.backToTitle)
+        .accessibilitySortPriority(1)
         .accessibilityIdentifier("BoardHome")
     }
 
@@ -291,9 +336,9 @@ struct TierMeterView: View {
 ///
 /// **A copy measured in the same layout pass, not a number recorded once.**
 /// Heights differ by phone and by text size, so a table would be a second
-/// truth to keep current. The copy is the meter as it would be without the
-/// control, keeping the slot's reserve, which the calendar had before the peach.
-/// It is hidden and drawn behind the real one, so it moves nothing. Opt in, as
+/// truth to keep current. The copy is the meter as it would be without the back
+/// chevron, the calendar's reserve kept as the real one keeps it. It is hidden
+/// and drawn behind the real one, so it moves nothing. Opt in, as
 /// `-exposeToday` is, so no other test's tree carries a second meter.
 struct TopRowProbe: ViewModifier {
     static var isOn: Bool { UserDefaults.standard.bool(forKey: "exposeTopRow") }
