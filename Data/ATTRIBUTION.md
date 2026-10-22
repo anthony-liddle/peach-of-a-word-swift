@@ -83,15 +83,17 @@ sense, 83,750 across them, and one is kept. 628 are cut short.
 
 **442 of the 799 etymologies differ from the entry's rendered prose. The other
 357 are that prose unchanged**, give or take collapsed whitespace. Calling
-those adapted would be wrong, and the colophon does call them adapted, because
-one line cannot carry 357 of 799 and claiming more modification than occurred is
-the safe direction under share-alike.
+those adapted would be wrong, and the app's credit does call them adapted,
+because one line cannot carry 357 of 799 and claiming more modification than
+occurred is the safe direction under share-alike.
 
 Share-alike applies to that text: a derivative of it has to be released under
 the same terms, and the attribution has to be visible to the player rather than
 only in a file like this one. It is. Each card carries the credit underneath the
 content it credits, naming what it actually shows and who wrote it, and the
-colophon at the foot of the found list carries it for the app as a whole.
+Licences screen, from Settings, carries it for the app as a whole, with the
+licence's name and address. Until 2026-10-22 the colophon at the foot of the
+found list carried it; it now keeps only the dedication.
 
 A card with nothing to show carries no credit. Crediting a source that was not
 used would be worse than saying nothing, which is the same argument the section

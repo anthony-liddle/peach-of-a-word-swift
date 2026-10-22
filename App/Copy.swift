@@ -77,24 +77,16 @@ enum Vocabulary {
 
     // MARK: - How the words work
 
-    /// The explainer's title. Sentence case, matching the colophon's trigger
-    /// and the app's other headings. The web's dialog title is title case while
-    /// its own trigger is sentence case, which is an inconsistency there rather
-    /// than a style to carry over.
+    /// The explainer's title, and Settings' row that opens it. Sentence case,
+    /// matching the app's other headings. The web's dialog title is title case
+    /// while its own trigger is sentence case, which is an inconsistency there
+    /// rather than a style to carry over.
     static let explainerTitle = "How the words work"
-
-    /// The colophon's quiet way in.
-    static let explainerTrigger = "How the words work"
 
     // MARK: - Privacy
 
-    /// The colophon's link to the privacy policy, beside the explainer's.
-    ///
-    /// The web's says only "Privacy". This one carries the container because
-    /// the policy's whole answer fits in it: progress and streaks live on the
-    /// phone, with no account and nothing sent anywhere. VoiceOver reads
-    /// `privacyLinkSpoken` instead, which names the thing plainly.
-    static let privacyLink = "Privacy: your \(container) stays on your phone"
+    /// Settings' row for the privacy policy. It was also the colophon link's
+    /// spoken name, until the colophon kept only the dedication.
     static let privacyLinkSpoken = "Privacy policy"
 
     /// The explainer body, ported from the web's `HowItWorks.tsx`.
@@ -157,8 +149,9 @@ enum Vocabulary {
     /// The two lists the explainer names, and where to read about them.
     ///
     /// **These links carry no licence obligation.** The attribution is already
-    /// discharged twice over: the colophon credits ENABLE and SCOWL on screen,
-    /// and `Data/ATTRIBUTION.md` ships inside the bundle carrying the notices.
+    /// discharged twice over: Licences credits ENABLE and SCOWL on screen, over
+    /// SCOWL's notice, and `Data/ATTRIBUTION.md` ships inside the bundle
+    /// carrying the notices.
     /// These are here because they are interesting. Keeping that straight
     /// matters, because an explainer that quietly becomes a second attribution
     /// surface is one that can drift from the first without anyone noticing.
@@ -301,11 +294,8 @@ enum Vocabulary {
     /// of a thing, which is exactly what the source word is in a rack.
     static let sourceFound = "You found the Peach of a Word!"
 
-    /// The type credit, for the colophon. The typefaces differ per theme on the
-    /// web as well as the verb; these are the cute pair.
-    static let typeCredit = "Set in Fredoka and Nunito."
-
-    /// The dedication, last line of the colophon.
+    /// The dedication, the colophon's one line since the credits moved to
+    /// Licences. It was the colophon's last line before that.
     ///
     /// Four words, lowercase, no full stop, exactly as `Game.tsx` spells them.
     /// The title says what the game is to everyone; this says who it is for to
@@ -390,8 +380,8 @@ enum Vocabulary {
     static let licencesTitle = "Licences"
     static let licencesNote = "The sound library, the word lists, the definitions and the typefaces."
 
-    /// The privacy row's line. The colophon's link opens with "Privacy:"
-    /// because it stands alone; here the row's title already says it.
+    /// The privacy row's line, under its title. The colophon's link said it
+    /// as "Privacy: your basket stays on your phone", standing alone.
     static let privacyNote = "Your \(container) stays on your phone."
 
     /// What the privacy row does, for VoiceOver. It said "Opens in Safari"

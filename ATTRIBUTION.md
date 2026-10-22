@@ -85,10 +85,10 @@ collapsed whitespace, and it would be wrong to call those adapted. Of the 442,
 382 had zero-width or bidirectional marks removed, 174 join two or more
 Etymology sections into one line, and 87 had footnote markers removed.
 
-The colophon says "adapted" over both, which claims more modification than
+The app's credit says "adapted" over both, which claims more modification than
 occurred for those 357. That is the direction that cannot short-change anyone
-under a share-alike licence, and one line at the foot of a game cannot carry
-357 of 799. The measurement is here instead.
+under a share-alike licence, and one line of credit cannot carry 357 of 799.
+The measurement is here instead.
 
 ### Where The Attribution Is Visible
 
@@ -98,7 +98,12 @@ this one. Three places carry it, and each credits only what it shows:
 
 - The **source-word reveal**, underneath the content.
 - The **definition card**, under a tapped found word's gloss.
-- The **colophon**, at the foot of the found list.
+- **Licences**, from Settings: Wiktionary's entry says the text is adapted
+  under CC BY-SA 4.0, and its page gives the licence's name and address.
+
+The third was the **colophon**, at the foot of the found list, until
+2026-10-22, when the colophon kept only the dedication and its credits moved to
+Licences.
 
 - Source: <https://en.wiktionary.org/>
 - Licence: <https://creativecommons.org/licenses/by-sa/4.0/>
@@ -154,7 +159,12 @@ that ask for a binary to reproduce them.
 
 ## In the app
 
-There is a colophon in the game itself, at the foot of the found list: "Words
+**Since 2026-10-22 the credits are on Licences,** from Settings, which the
+title screen reaches: the word lists, Wiktionary and the typefaces, each over
+its full text, beside Soundscape's. The colophon at the foot of the found list
+keeps only the dedication. Before that the colophon carried them, as below.
+
+There was a colophon in the game itself, at the foot of the found list: "Words
 from ENABLE and SCOWL." and "Set in Fredoka and Nunito." A file in a repository
 satisfies SCOWL's notice requirement but says nothing to the person actually
 playing, and the web set the bar with an in-app credit.

@@ -4,8 +4,11 @@ import SwiftUI
 /// work, Licences, and the privacy policy.
 ///
 /// **A short list,** as the design pass mocked and Antoine chose: the switch on
-/// top, and three rows that open what they name. The colophon stays at the foot
-/// of the found list, so the credits are not repeated here.
+/// top, and three rows that open what they name.
+///
+/// **The colophon's links live here now.** On 22 October 2026 the foot of the
+/// found list kept only the dedication: How the words work and the privacy
+/// policy are this list's rows, and the credits are on Licences.
 struct SettingsSheet: View {
     /// The switch, turned: the game stops or starts the player.
     let onSound: (Bool) -> Void
@@ -61,12 +64,16 @@ struct SettingsSheet: View {
                 .presentationDragIndicator(.visible)
         }
         #if DEBUG
-        // `-openPrivacy 1` opens the policy over Settings once Settings is up,
-        // for its picture: simctl cannot tap.
+        // Once Settings is up, `-openExplainer 1` opens How the words work and
+        // `-openPrivacy 1` the policy, for tests and pictures: simctl cannot
+        // tap. The explainer's hook was the colophon's, and moved with the way
+        // in; both need `-openSettings 1`.
         .task {
-            guard UserDefaults.standard.bool(forKey: "openPrivacy") else { return }
+            let defaults = UserDefaults.standard
+            guard defaults.bool(forKey: "openExplainer") || defaults.bool(forKey: "openPrivacy") else { return }
             try? await Task.sleep(for: .seconds(1))
-            SafariPage.open(SafariPage.privacyPolicy)
+            if defaults.bool(forKey: "openExplainer") { explaining = true }
+            if defaults.bool(forKey: "openPrivacy") { SafariPage.open(SafariPage.privacyPolicy) }
         }
         #endif
     }
