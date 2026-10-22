@@ -591,6 +591,11 @@ struct ContentView: View {
             fixedLayout
             scrollingFallback
         }
+        // The other two ways back, beside the chevron: the swipe from the left
+        // edge (`EdgeSwipeBack`), and VoiceOver's two-finger scrub, which is
+        // how a VoiceOver user says "back" anywhere in iOS.
+        .background(EdgeSwipeBack { showTitle() })
+        .accessibilityAction(.escape) { showTitle() }
     }
 
     /// The rack and controls are fixed furniture; only the list scrolls.
@@ -750,6 +755,7 @@ struct ContentView: View {
                     // Nil for the live daily, so the caption keeps the streak.
                     archiveDate: model.isArchiveBoard ? model.boardDate : nil,
                     onHome: { showTitle() },
+                    onOpenArchive: { openArchive() },
                     onReturnToToday: { Task { await model.returnToToday() } }
                 )
                 #if DEBUG
