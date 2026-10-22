@@ -74,6 +74,9 @@ final class CostumeOnTheDay: XCTestCase {
         waitForTheCard(app)
         XCTAssertTrue(peachSaysCostume(app, timeout: 5),
                       "31 October's board, replayed on 5 November, did not dress the peach")
+        // The way back's peach goes by its board's date too.
+        XCTAssertTrue(app.buttons["BoardHome"].label.contains("the peach in a ghost sheet"),
+                      "31 October's board's way back did not wear the ghost on 5 November")
     }
 
     func testAnotherDaysBoardOnTheDayDoesNot() {
@@ -83,6 +86,53 @@ final class CostumeOnTheDay: XCTestCase {
         waitForTheCard(app)
         XCTAssertFalse(peachSaysCostume(app, timeout: 3),
                        "30 October's board, played on 31 October, dressed the peach")
+        XCTAssertEqual(app.buttons["BoardHome"].label, "Home",
+                       "30 October's board's way back wore a costume on 31 October")
+    }
+
+    /// The title shows today, so its peach wears today's costume: plain on 30
+    /// October, the ghost when the app comes back on the 31st, and then the
+    /// way back on that day's board wears it as well.
+    func testTheTitleWearsTodaysCostume() {
+        // A Halloween whose eve is still to come, so the offset is never
+        // negative, even when the suite runs on the 31st.
+        let cal = Calendar.current
+        let halloween = cal.isDate(nextHalloween, inSameDayAs: TestClock.now)
+            ? cal.date(byAdding: .year, value: 1, to: nextHalloween)! : nextHalloween
+        let app = XCUIApplication()
+        app.launchArguments = ["-showTitle", "1", "-resetProgress", "1", "-seedBoard", "3",
+                               "-dayOffset", offset(to: halloween, plus: -1),
+                               "-dayOffsetOnResume", "1",
+                               "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryL"]
+        app.launch()
+        let play = app.buttons["TitlePlay"]
+        XCTAssertTrue(play.waitForExistence(timeout: 30), "no title on 30 October")
+        XCTAssertFalse(peachSaysCostume(app, timeout: 3), "the title dressed the peach on 30 October")
+
+        XCUIDevice.shared.press(.home)
+        Thread.sleep(forTimeInterval: 2)
+        app.activate()
+        XCTAssertTrue(peachSaysCostume(app, timeout: 15),
+                      "the title did not dress the peach on 31 October")
+
+        let enabled = expectation(for: NSPredicate(format: "isEnabled == true"), evaluatedWith: play)
+        XCTAssertEqual(XCTWaiter().wait(for: [enabled], timeout: 30), .completed)
+        play.tap()
+        let home = app.buttons["BoardHome"]
+        XCTAssertTrue(home.waitForExistence(timeout: 10), "Play did not open the board")
+        XCTAssertTrue(home.label.contains("the peach in a ghost sheet"),
+                      "31 October's way back did not wear the ghost: \(home.label)")
+    }
+
+    /// And the day after, plain again.
+    func testTheTitleTheDayAfterDoesNot() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-showTitle", "1", "-resetProgress", "1",
+                               "-dayOffset", offset(to: nextHalloween, plus: 1),
+                               "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryL"]
+        app.launch()
+        XCTAssertTrue(app.buttons["TitlePlay"].waitForExistence(timeout: 30), "no title on 1 November")
+        XCTAssertFalse(peachSaysCostume(app, timeout: 3), "the title dressed the peach on 1 November")
     }
 
     /// The costume must not move anything: the source word's chip, with the

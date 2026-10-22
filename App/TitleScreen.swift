@@ -168,16 +168,29 @@ struct TitleLink: View {
 /// The peach, the name and "Pick the peaches": the title's top, and the whole
 /// of what shows while the board loads on a launch that skips the title, so
 /// the app has one loading look rather than two.
+///
+/// **The peach wears today's costume,** since the title shows today: the
+/// costume table decides it as it decides a board's, by date, and
+/// `-costumeDate` previews it. VoiceOver says what it wears; a plain peach is
+/// decoration and is not a stop.
 struct TitleTop: View {
     let arrived: Bool
+    var costume: Costume? = TitleTop.todaysCostume
+
+    static var todaysCostume: Costume? {
+        boardCostume(storageDay: GameModel.todayStorageIndex, preview: GameModel.costumePreview)
+    }
 
     var body: some View {
         VStack(spacing: 12) {
-            PeachMark()
-                .frame(width: 96, height: 96)
-                .scaleEffect(arrived ? 1 : 0.88)
-                .opacity(arrived ? 1 : 0)
-                .accessibilityHidden(true)
+            Group {
+                if let costume {
+                    peach.sayingWhatThePeachWears(costume)
+                } else {
+                    peach.accessibilityHidden(true)
+                }
+            }
+            .accessibilityIdentifier("TitlePeach")
             TitleWordmark()
             Text(Vocabulary.mastheadSubline)
                 .font(CuteFont.body(12, weight: "SemiBold", relativeTo: .caption))
@@ -187,6 +200,13 @@ struct TitleTop: View {
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
         }
+    }
+
+    private var peach: some View {
+        PeachMark(costume: costume)
+            .frame(width: 96, height: 96)
+            .scaleEffect(arrived ? 1 : 0.88)
+            .opacity(arrived ? 1 : 0)
     }
 }
 

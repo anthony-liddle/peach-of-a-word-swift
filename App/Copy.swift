@@ -341,6 +341,9 @@ enum Vocabulary {
     static let homeLabel = "Home"
     static let homeHint = "Opens the title screen"
 
+    /// On a costume day: what the peach wears, as the source chip says it.
+    static func homeLabel(wearing spoken: String) -> String { "\(homeLabel), the peach \(spoken)" }
+
     /// The title's line under the button once the board is known: the rank, and
     /// the basket as the share block counts it.
     static func titleStanding(rank: String, found: Int, total: Int) -> String {

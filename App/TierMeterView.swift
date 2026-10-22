@@ -175,6 +175,9 @@ struct TierMeterView: View {
     /// and held inside the 44pt box at the largest sizes.
     @ScaledMetric(relativeTo: .subheadline) private var homeGlyph: CGFloat = 17
 
+    /// What the peach is wearing on this board, if anything.
+    @Environment(\.peachCostume) private var worn
+
     /// The way back to the title screen, and the only navigation affordance on
     /// the board.
     ///
@@ -226,9 +229,13 @@ struct TierMeterView: View {
     /// clears the track by 9.00pt at L and 10.50pt at XXXL, and clears the
     /// points total by 6.00pt and 14.00pt. The 44pt hit box does lie across the
     /// track, which is not interactive and is the whole point of the overlay.
+    ///
+    /// **It wears its board's costume,** as the source word's mark does: a
+    /// board goes by its own date, so 31 October's board dresses the peach on
+    /// any day it is replayed, and no other board does. VoiceOver says so.
     private func homeButton(_ action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            PeachMark(showsFace: false)
+            PeachMark(showsFace: false, costume: worn)
                 .frame(width: min(homeGlyph, 40), height: min(homeGlyph, 40))
                 // The drawn mark, identified separately from the 44pt box around
                 // it, so a test can ask where the glyph is rather than where the
@@ -239,7 +246,8 @@ struct TierMeterView: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(Vocabulary.homeLabel)
+        .accessibilityLabel(worn.map { Vocabulary.homeLabel(wearing: $0.spoken) }
+                            ?? Vocabulary.homeLabel)
         .accessibilityHint(Vocabulary.homeHint)
         .accessibilityIdentifier("BoardHome")
     }
