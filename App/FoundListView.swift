@@ -228,8 +228,14 @@ struct FoundListView: View {
     /// one-source-of-truth shape this project keeps hitting.
     private let words: [FoundWord]
 
+    /// The space between the list's rows, and so between the empty basket's
+    /// line and the key under it.
+    private static let rowSpacing: CGFloat = 18
+    /// The empty basket's line's own space over it.
+    private static let emptyLineLead: CGFloat = 24
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
+        VStack(alignment: .leading, spacing: Self.rowSpacing) {
             // The heading the app never had, and the total that goes with it.
             //
             // Both live here rather than in the pinned summary, and that is the
@@ -282,11 +288,11 @@ struct FoundListView: View {
             bestWord
 
             if found.isEmpty {
-                // The line, and stars around it. This is the screen she sees
-                // first every morning and it was one sentence alone in the
+                // The line, and florettes around it. This is the screen she
+                // sees first every morning and it was one sentence alone in the
                 // region.
                 //
-                // The stars are a background on a frame that claims no extra
+                // The florettes are a background on a frame that claims no extra
                 // height, so the empty state measures exactly what it measured
                 // before. That matters more here than anywhere: the decoration
                 // vanishes when the first word lands, and the empty state and
@@ -297,33 +303,26 @@ struct FoundListView: View {
                     .font(CuteFont.body(15, relativeTo: .subheadline))
                     .foregroundStyle(Cute.inkFaint)
                     .frame(maxWidth: .infinity, alignment: .center)
-                    .padding(.top, 24)
-                    // Anchored to the top and given a height of its own, so
-                    // the florettes spread into the empty region rather than
-                    // crowding the one line. A background does not take its
-                    // size from this frame, so the empty state still measures
-                    // what it measured before; anchoring top keeps the overflow
-                    // going downward into the slack rather than upward into the
-                    // pinned summary.
-                    // 84pt, which is the line's own height plus the gap
-                    // beneath it, measured rather than guessed: on an iPhone 16
-                    // Pro the message ends at 642pt and the credits begin at
-                    // 691.7pt, so the slack here is 49.7pt. The first attempt
-                    // asked for 190 on the assumption that this region was the
-                    // 223pt the empty list occupies, and it is not: the
-                    // colophon fills most of that, so the florettes landed
-                    // among the credits and mixed with the colophon's own.
+                    .padding(.top, Self.emptyLineLead)
+                    // **In the two bands round the line that keep their
+                    // height at every text size:** its lead over it, and the
+                    // list's row spacing under it, before the key. The same
+                    // two constants set those bands and place the florettes,
+                    // so a change to either moves both.
                     //
-                    // **Since then the key has come between the line and the
-                    // colophon,** and on 22 October 2026 the colophon kept only
-                    // the dedication. Shot on an iPhone SE at L that day, two
-                    // florettes sit on the key's first line. Left as found; it
-                    // is the key's arrival, not the colophon's change.
-                    //
-                    // A background takes no size from this frame, so the empty
-                    // state still measures what it always did.
-                    .background(alignment: .top) {
-                        EmptyBasketDecoration().frame(height: 84)
+                    // **They were placed by fractions of an 84pt frame from
+                    // the lead's top, and that stopped fitting.** 84pt was the
+                    // line and the slack beneath it on an iPhone 16 Pro, when
+                    // the credits came next, 49.7pt below. Then the key came
+                    // between, 18pt below. Shot on 23 October 2026 on an iPhone
+                    // SE and an iPhone 18 Pro Max:
+                    // - where the line is one line, two florettes sat on the
+                    //   key's first line, at L on both;
+                    // - where it wraps, at XXXL on the SE and at the
+                    //   accessibility sizes on both, the frame's lower part
+                    //   is the sentence, so they sat on its words.
+                    .background {
+                        EmptyBasketDecoration(above: Self.emptyLineLead, below: Self.rowSpacing)
                     }
             } else {
                 // The summary is no longer here. It is pinned above the scroll
