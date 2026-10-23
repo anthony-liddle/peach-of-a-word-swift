@@ -48,7 +48,7 @@ CUES_SHA256="b66a60d767bd4fc804945a1f78d0d2acfa60a2168be279ffb848b388445f615f"
 # The Soundscape version whose conformance copy CUES_SHA256 equals. --check
 # reads Package.resolved and fails if the app has moved to another version
 # without anyone checking the cue file against that version's copy.
-SOUNDSCAPE_VERSION="0.2.0"
+SOUNDSCAPE_VERSION="0.2.1"
 
 WEB_REPO="anthony-liddle/peach-of-a-word"
 WEB_PATH="src/audio/peach.cues.json"

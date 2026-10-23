@@ -105,7 +105,7 @@ jobs:
 
       # The licence texts the app carries for Soundscape, against the package
       # the build just resolved, byte for byte. A unit test pins their hashes
-      # at 0.2.0 and runs everywhere, Xcode Cloud included; this is what ties
+      # at 0.2.1 and runs everywhere, Xcode Cloud included; this is what ties
       # them to whatever Package.resolved actually pins, so moving the package
       # without taking its licences fails here.
       #

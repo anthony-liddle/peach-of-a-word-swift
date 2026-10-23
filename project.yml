@@ -40,7 +40,7 @@ packages:
     path: .
   # The cue player, and the app's first remote package.
   #
-  # **Exactly 0.2.0, not "up to next minor" as its README suggests.** Below 1.0
+  # **Exactly 0.2.1, not "up to next minor" as its README suggests.** Below 1.0
   # a minor version may break something, and the renders it plays are held to
   # the browsers' at this version: the cue file in Data/ is the conformance copy
   # at this tag, and so are the two licence texts beside it. Moving this is a
@@ -55,7 +55,7 @@ packages:
   # request rather than the delivery build.
   Soundscape:
     url: https://github.com/anthony-liddle/soundscape.git
-    exactVersion: 0.2.0
+    exactVersion: 0.2.1
 
 targets:
   PeachOfAWord:
