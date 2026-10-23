@@ -5,10 +5,11 @@ import XCTest
 /// past one. And what the swipe must leave alone: a tile at the edge, a swipe
 /// that does not start at the edge, and the calendar's own swipe.
 final class BackToTheTitle: XCTestCase {
-    private func board(_ extra: [String] = []) -> XCUIApplication {
+    private func board(_ extra: [String] = [],
+                       size: String = "UICTContentSizeCategoryL") -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = ["-resetProgress", "1",
-                               "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryL"] + extra
+                               "-UIPreferredContentSizeCategoryName", size] + extra
         app.launch()
         XCTAssertTrue(app.buttons["BoardHome"].waitForExistence(timeout: 30), "no board")
         return app
@@ -32,6 +33,16 @@ final class BackToTheTitle: XCTestCase {
         XCTAssertTrue(back.isHittable, "the chevron is not hittable")
         back.tap()
         XCTAssertTrue(titleOpened(app), "the chevron did not open the title")
+    }
+
+    /// At the largest size the chevron stays at L, and a long press shows it
+    /// large in the Large Content Viewer. A tap is still a tap: the viewer's
+    /// own touch handling is what could swallow one.
+    func testTheChevronOpensTheTitleAtTheLargestSize() {
+        let app = board(size: "UICTContentSizeCategoryAccessibilityXXXL")
+        XCTAssertFalse(titleOpened(app, timeout: 1), "the title was up before the tap")
+        app.buttons["BoardHome"].tap()
+        XCTAssertTrue(titleOpened(app), "the chevron did not open the title at the largest size")
     }
 
     func testTheChevronOpensTheTitleFromAPastBoard() {

@@ -272,6 +272,11 @@ struct TierMeterView: View {
     /// **Capped at L,** so it always fits the margin: 11pt of glyph, 4 from
     /// the name, about 3 from the screen's edge.
     ///
+    /// **So at the accessibility sizes a long press shows it large,** in the
+    /// Large Content Viewer: the chevron and its name, as iOS shows a tab bar's
+    /// items, which don't grow with the text either. The viewer comes only at
+    /// those sizes, which is iOS's rule, not this view's.
+    ///
     /// **Its 44pt box starts at the glyph and runs over the name's first
     /// letters,** which take no taps, rather than off the screen's edge. It is
     /// an overlay, so it takes no width either way. The swipe from the left
@@ -293,6 +298,9 @@ struct TierMeterView: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(Vocabulary.backToTitle)
+        .accessibilityShowsLargeContentViewer {
+            Label(Vocabulary.backToTitle, systemImage: "chevron.backward")
+        }
         .accessibilitySortPriority(1)
         .accessibilityIdentifier("BoardHome")
     }

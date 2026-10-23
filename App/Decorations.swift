@@ -113,27 +113,35 @@ struct ColophonDecoration: View {
 /// sentence alone in the region. No peach here: the peach means the source word
 /// everywhere else in the app, and putting one on an empty board would promise
 /// something the board has not given yet.
+///
+/// **Above the line and below it, never beside it.** The sentence is centred
+/// and runs nearly the full width, so there is no clear space at its own
+/// height: an early attempt put a florette on the word "No".
+///
+/// **Each in a band that is the same height at every text size,** the space
+/// over the line and the space under it, which the caller passes in. Placed by
+/// those bands rather than by fractions of a frame, because the line's own
+/// height grows with the text and the bands do not. `FoundListView` has the
+/// history.
 struct EmptyBasketDecoration: View {
+    /// The band over the line, the top of the frame this is drawn behind.
+    var above: CGFloat
+    /// The band under the line, below that frame's foot.
+    var below: CGFloat
+
     var body: some View {
         GeometryReader { geo in
             ZStack {
-                // All of them below the line, not beside it. The sentence is
-                // centred and runs nearly the full width, so there is no clear
-                // horizontal space at its own height: the first attempt put a
-                // florette on the word "No". The slack in this region is
-                // underneath, which is where these go.
-                // In the lower part of the frame, which is the gap under the
-                // sentence. Not beside it: the sentence is centred and runs
-                // nearly the full width, so there is no clear space at its own
-                // height, and an early attempt put a florette on the word "No".
+                // The larger two over the line, towards its ends.
                 Bloom(size: 15, opacity: 0.7)
-                    .position(x: geo.size.width * 0.13, y: geo.size.height * 0.66)
-                Bloom(size: 10, opacity: 0.5)
-                    .position(x: geo.size.width * 0.29, y: geo.size.height * 0.92)
+                    .position(x: geo.size.width * 0.13, y: above * 0.5)
                 Bloom(size: 13, opacity: 0.62)
-                    .position(x: geo.size.width * 0.87, y: geo.size.height * 0.62)
+                    .position(x: geo.size.width * 0.87, y: above * 0.42)
+                // The smaller two under it, nearer the middle.
+                Bloom(size: 10, opacity: 0.5)
+                    .position(x: geo.size.width * 0.29, y: geo.size.height + below * 0.5)
                 Bloom(size: 9, opacity: 0.45)
-                    .position(x: geo.size.width * 0.71, y: geo.size.height * 0.9)
+                    .position(x: geo.size.width * 0.71, y: geo.size.height + below * 0.5)
             }
         }
         .allowsHitTesting(false)
