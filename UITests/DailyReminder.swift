@@ -45,8 +45,35 @@ final class DailyReminder: XCTestCase {
 
     /// The switch's own knob, at the row's trailing end: a tap on the label's
     /// text does not always reach a SwiftUI toggle.
-    private func flip(_ toggle: XCUIElement) {
+    ///
+    /// **Then waits for it to answer,** by moving or with the refusal's line,
+    /// and taps once more if neither comes. On 24 October 2026 one flip in the
+    /// Pro Max's whole suite never reached the app: the tap was synthesized on
+    /// the knob, `switched(on:)` never ran, and the app logged nothing. The
+    /// cause was not found. The same test passed ten times alone and three
+    /// times in its class's order. A second tap that misses too still fails,
+    /// at the caller's check.
+    private func flip(_ toggle: XCUIElement, in app: XCUIApplication) {
+        let wasOn = isOn(toggle)
+        tapKnob(toggle)
+        if answered(toggle, wasOn: wasOn, in: app) { return }
+        print("REMINDERFLIP the flip did not reach the switch: once more")
+        tapKnob(toggle)
+    }
+
+    private func tapKnob(_ toggle: XCUIElement) {
         toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.93, dy: 0.5)).tap()
+    }
+
+    /// Whether the switch moved, or a refusal put it back and said so.
+    private func answered(_ toggle: XCUIElement, wasOn: Bool, in app: XCUIApplication) -> Bool {
+        let refusal = app.staticTexts["SettingsReminderRefused"]
+        let deadline = Date().addingTimeInterval(5)
+        while Date() < deadline {
+            if isOn(toggle) != wasOn || refusal.exists { return true }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.25))
+        }
+        return false
     }
 
     private func probe(_ app: XCUIApplication) -> XCUIElement {
@@ -76,6 +103,7 @@ final class DailyReminder: XCTestCase {
 
     /// The picker's popover: its hour and minute wheels, set, then put away.
     private func setTime(_ app: XCUIApplication, hour: String, minute: String, period: String) {
+        XCTAssertTrue(isOn(app.switches["SettingsReminder"]), "the switch is off, so there is no time to set")
         let picker = app.datePickers["SettingsReminderTime"]
         XCTAssertTrue(picker.waitForExistence(timeout: 10), "no time once the switch is on")
         picker.buttons.firstMatch.tap()
@@ -96,7 +124,7 @@ final class DailyReminder: XCTestCase {
         let app = launch(["-notificationAnswer", "denied", "-openSettings", "1"])
         let toggle = reminderSwitch(app)
         XCTAssertFalse(isOn(toggle), "the reminder is on before anyone turned it on")
-        flip(toggle)
+        flip(toggle, in: app)
         XCTAssertTrue(app.staticTexts["SettingsReminderRefused"].waitForExistence(timeout: 10),
                       "a refusal did not say where to change it")
         XCTAssertFalse(isOn(toggle), "a refusal left the switch on")
@@ -120,7 +148,7 @@ final class DailyReminder: XCTestCase {
         try XCTSkipIf(now.hour == 23 && (now.minute ?? 0) >= 57, "too close to midnight to hold today")
         let app = launch(["-notificationAnswer", "granted", "-dayOffset", Self.julySeventeenth,
                           "-reminderMinutes", "1439", "-openSettings", "1"])
-        flip(reminderSwitch(app))
+        flip(reminderSwitch(app), in: app)
         let before = waitForProbe(app) { self.dates($0).first == "2026-07-17 23:59" }
         XCTAssertEqual(dates(before).first, "2026-07-17 23:59", "today, unplayed, has no reminder: \(before)")
         XCTAssertEqual(dates(before).count, 14, "not one a day for a fortnight: \(before)")
@@ -143,8 +171,11 @@ final class DailyReminder: XCTestCase {
     /// Every date moves to the time picked.
     func testItMovesWithTheTime() {
         let app = launch(["-notificationAnswer", "granted", "-openSettings", "1"])
-        flip(reminderSwitch(app))
+        flip(reminderSwitch(app), in: app)
         let first = waitForProbe(app) { !self.dates($0).isEmpty }
+        // An empty list satisfies anything: without this, a switch that never
+        // came on read as 7 pm.
+        XCTAssertFalse(dates(first).isEmpty, "turned on, nothing was handed to iOS: \(first)")
         XCTAssertTrue(dates(first).allSatisfy { $0.hasSuffix(" 19:00") }, "not 7 pm by default: \(first)")
 
         setTime(app, hour: "8", minute: "30", period: "AM")
@@ -159,7 +190,7 @@ final class DailyReminder: XCTestCase {
     /// time, so what it shows is what was stored.
     func testTheSwitchAndTimeSurviveARelaunch() {
         let app = launch(["-notificationAnswer", "granted", "-openSettings", "1"])
-        flip(reminderSwitch(app))
+        flip(reminderSwitch(app), in: app)
         setTime(app, hour: "9", minute: "15", period: "PM")
         waitForProbe(app) { label in
             !self.dates(label).isEmpty && self.dates(label).allSatisfy { $0.hasSuffix(" 21:15") }
