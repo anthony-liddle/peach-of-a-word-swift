@@ -26,6 +26,25 @@ final class SoundSwitch: XCTestCase {
         (toggle.value as? String) == "1"
     }
 
+    /// The switch alone in its card, as most of iOS's settings switches are.
+    ///
+    /// **The card's height is the check,** because the line it lost was
+    /// `accessibilityHidden` and a query could not see it go. The card is its
+    /// switch and 18pt of padding a side, and a point for rounding. Shown red
+    /// first with the line still in.
+    func testTheCardHoldsTheSwitchAlone() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-showTitle", "1", "-resetProgress", "1",
+                               "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryL"]
+        app.launch()
+        let toggle = openSettings(app)
+        let card = app.otherElements["SettingsSoundCard"]
+        XCTAssertTrue(card.exists, "no sound card")
+        XCTAssertLessThanOrEqual(card.frame.height, toggle.frame.height + 36 + 1,
+                                 "the card holds more than its switch: \(card.frame.height)pt "
+                                 + "around a \(toggle.frame.height)pt switch")
+    }
+
     func testAMuteIsRememberedAndPlaysNothing() {
         let app = XCUIApplication()
         app.launchArguments = ["-showTitle", "1", "-resetProgress", "1",
