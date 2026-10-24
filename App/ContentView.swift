@@ -246,6 +246,15 @@ struct ContentView: View {
                         .accessibilityIdentifier("DebugSound")
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
                 }
+                // `-exposeGlint 1` lists the Mythic finds that glinted since
+                // launch, so `MythicGlint` can hold the glint to a find made
+                // by play, and to none under Reduce Motion.
+                if UserDefaults.standard.bool(forKey: "exposeGlint") {
+                    Text(model.glinted.isEmpty ? "none" : model.glinted.joined(separator: ","))
+                        .font(.caption2)
+                        .accessibilityIdentifier("DebugGlint")
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+                }
                 // `-exposeReminder 1` prints the switch, whether iOS said no,
                 // and every date last handed to iOS, so `DailyReminder` can
                 // hold the schedule to the days played and to the time.
@@ -820,7 +829,8 @@ struct ContentView: View {
                 FoundListView(puzzle: puzzle, found: model.found,
                               standing: standing, boardDate: model.boardDate,
                               definitions: model.definitions,
-                              provenance: model.glossProvenance) { word in
+                              provenance: model.glossProvenance,
+                              glint: model.glint) { word in
                     model.revealFound(word)
                 }
             }

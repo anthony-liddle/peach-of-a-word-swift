@@ -1,6 +1,7 @@
 import Foundation
 import Observation
 import PeachEngine
+import UIKit
 #if DEBUG
 import os
 #endif
@@ -207,7 +208,56 @@ final class GameModel {
     /// and a simulator with no audio output lists the same as a phone. With
     /// sound off nothing is handed over, so nothing is listed.
     private(set) var askedCues: [Cue] = []
+
+    /// Every Mythic find that glinted since launch, oldest first, so
+    /// `-exposeGlint 1` can show a test which finds did, or that none did.
+    private(set) var glinted: [String] = []
     #endif
+
+    /// A new Mythic find's glint: the GDD's "Mythic earning a touch more
+    /// sparkle in cute". Its chips' gems get one sweep of light, drawn by
+    /// `WordChip`.
+    ///
+    /// **Set by a find made by play, never by a board opening,** so a Mythic
+    /// already in the list has none (`resolve`, and `adopt` clears it). Cleared
+    /// once the sweep is over, so nothing that redraws the chip can replay it.
+    /// Never set under Reduce Motion. Kept here as data rather than in the
+    /// chip, because the found list is built twice, once for each layout
+    /// `ViewThatFits` weighs.
+    private(set) var glint: Glint?
+    private var glintCount = 0
+
+    struct Glint: Equatable {
+        let word: String
+        /// Counts glints, so a second find of the same word is a new one.
+        let seq: Int
+    }
+
+    /// How long a glint stays set: its sweep, and a little after.
+    static let glintSeconds = 1.2
+
+    /// Reduce Motion, as the system has it, or `-reduceMotion 1` in Debug, so a
+    /// test can ask for it.
+    static var reduceMotion: Bool {
+        #if DEBUG
+        if UserDefaults.standard.bool(forKey: "reduceMotion") { return true }
+        #endif
+        return UIAccessibility.isReduceMotionEnabled
+    }
+
+    private func startGlint(_ word: String) {
+        guard !Self.reduceMotion else { return }
+        glintCount += 1
+        let mine = Glint(word: word, seq: glintCount)
+        glint = mine
+        #if DEBUG
+        glinted.append(word)
+        #endif
+        Task { [weak self] in
+            try? await Task.sleep(for: .seconds(Self.glintSeconds))
+            if self?.glint == mine { self?.glint = nil }
+        }
+    }
 
     /// The game's sounds. Loaded at launch, beside the word lists; see `load`.
     private let sounds = Sounds()
@@ -535,6 +585,9 @@ final class GameModel {
     /// own copy of this, and they would have the first time either changed.
     private func adopt(_ p: Puzzle, storageDay: Int, isArchive: Bool) {
         puzzle = p
+        // A board opening has no glint to give: a Mythic already in its list
+        // was found before, and the last board's glint is not this one's.
+        glint = nil
         // Tile ids are indices into the sorted rack, matching the web
         // version's `tilesFor`.
         tiles = p.letters.enumerated().map { Tile(id: $0.offset, letter: String($0.element)) }
@@ -806,6 +859,14 @@ final class GameModel {
         if UserDefaults.standard.bool(forKey: "findSource"), let source = puzzle?.sourceWord {
             clear()
             for letter in source { addLetter(String(letter)) }
+            submit()
+        }
+        // `-findMythic 1` finds the board's first Mythic word, alphabetically,
+        // through the same path, so a test can watch a Mythic found by play.
+        if UserDefaults.standard.bool(forKey: "findMythic"),
+           let mythic = puzzle?.mythicWords.sorted().first {
+            clear()
+            for letter in mythic { addLetter(String(letter)) }
             submit()
         }
         // `-tapTiles 4,1,6` places those rack POSITIONS, exercising `addTile`
@@ -1270,11 +1331,13 @@ final class GameModel {
     func titleWeek() -> [ArchiveDay] {
         let today = Self.todayStorageIndex
         let first = max(Self.firstPlayableStorageIndex, today - 6)
+        let peaches = peachDays(first...today)
         return (first...today).map { day in
             ArchiveDay(day: day, date: Self.date(forStorageDay: day),
                        mark: dayMark(for: day, outcome: storage.outcome(dayIndex: day),
                                      todayIndex: today),
-                       isToday: day == today)
+                       isToday: day == today,
+                       foundItsWord: peaches.contains(day))
         }
     }
 
@@ -1336,13 +1399,28 @@ final class GameModel {
         } ?? 0
         if daysLeft > 0 { indices += (1...daysLeft).map { today + $0 } }
 
+        let peaches = peachDays(indices.filter { $0 <= today })
         return indices.map { day in
             ArchiveDay(
                 day: day,
                 date: Self.date(forStorageDay: day),
                 mark: dayMark(for: day, outcome: outcomes[day], todayIndex: today),
-                isToday: day == today
+                isToday: day == today,
+                foundItsWord: peaches.contains(day)
             )
+        }
+    }
+
+    /// The days among `days` you found the peach of a word on: the calendar's
+    /// peach. Each day's word from the calendar once the word lists are in, and
+    /// the stored word before then. See `daysWithTheirWordFound`, whose rule is
+    /// the restore's, so a peach says what opening the day would show.
+    private func peachDays(_ days: some Sequence<Int>) -> Set<Int> {
+        let calendar = lexicon?.calendar
+        return storage.daysWithTheirWordFound(days) { day in
+            calendar.flatMap {
+                PeachEngine.sourceWord(calendar: $0, dailyIndex: day - Self.firstPlayableStorageIndex)
+            }
         }
     }
 
@@ -1574,6 +1652,7 @@ final class GameModel {
         switch result {
         case .valid(let word, let score, let rung, let isSourceWord):
             found.insert(word, at: 0)
+            if rung == .mythic { startGlint(word) }
             // One beat per find, chosen once it is known whether this find
             // reaches the peak: completion over the source word over an
             // ordinary find, the precedence the cards and the web's sounds

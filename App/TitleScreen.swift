@@ -452,7 +452,9 @@ struct WeekStrip: View {
                         ArchiveCellFace(
                             mark: day.mark,
                             day: Foundation.Calendar.current.component(.day, from: day.date),
-                            size: cell
+                            size: cell,
+                            foundItsWord: day.foundItsWord,
+                            costume: boardCostume(storageDay: day.day)
                         )
                         .overlay {
                             if day.isToday {
@@ -485,6 +487,7 @@ struct WeekStrip: View {
         case .cleared: parts.append(Vocabulary.markCleared)
         case .basket: parts.append(Vocabulary.markBasket)
         }
+        if day.foundItsWord { parts.append(Vocabulary.markSourceFound) }
         if day.isToday { parts.append(Vocabulary.markToday) }
         return parts.joined(separator: ", ")
     }
