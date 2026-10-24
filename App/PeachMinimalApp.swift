@@ -2,11 +2,16 @@ import SwiftUI
 
 /// The entry point.
 ///
-/// `@main` on a type conforming to `App` replaces the AppDelegate lifecycle
-/// entirely. There is no main.swift, no UIApplicationMain, and no storyboard.
-/// The whole app is this struct plus whatever view it returns.
+/// `@main` on a type conforming to `App` replaces the AppDelegate lifecycle.
+/// There is no main.swift, no UIApplicationMain, and no storyboard. The whole
+/// app is this struct plus whatever view it returns, and one small delegate
+/// adapted in for the reminder's taps, which only a delegate hears in time.
 @main
 struct PeachMinimalApp: App {
+    /// Only so a tap on the daily reminder is heard from the first moment of a
+    /// launch. See `AppDelegate`.
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+
     #if DEBUG
     /// Says which commit this binary came from, once, at launch.
     ///

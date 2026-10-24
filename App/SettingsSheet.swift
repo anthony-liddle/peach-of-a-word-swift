@@ -1,8 +1,8 @@
 import PeachEngine
 import SwiftUI
 
-/// Settings, a sheet from the title screen: the sound switch, How the words
-/// work, Licences, and the privacy policy.
+/// Settings, a sheet from the title screen: the sound switch, the daily
+/// reminder, How the words work, Licences, and the privacy policy.
 ///
 /// **A short list,** as the design pass mocked and Antoine chose: the switch on
 /// top, and three rows that open what they name.
@@ -19,6 +19,7 @@ struct SettingsSheet: View {
     /// covers a phone that has never written the key. See `SoundSetting`.
     @AppStorage(SoundSetting.key) private var soundOn = true
     @State private var explaining = false
+    private var reminder: Reminder { .shared }
 
     /// The pages pushed onto the list: Licences, then an entry's page, and from
     /// Soundscape's the notices. `-openLicences 1` starts on Licences, and
@@ -53,6 +54,7 @@ struct SettingsSheet: View {
                                 .foregroundStyle(Cute.ink)
                                 .accessibilityAddTraits(.isHeader)
                             soundCard
+                            reminderCard
                             rows
                         }
                         .padding(.horizontal, 22)
@@ -109,6 +111,53 @@ struct SettingsSheet: View {
         // The card by its own name, so a test can hold it to the switch alone.
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("SettingsSoundCard")
+    }
+
+    /// The daily reminder: its switch, off by default, and its time once it is
+    /// on. Turned on, it asks iOS; refused, the switch goes back off and the
+    /// line under it says where notifications are turned back on. See
+    /// `Reminder`.
+    private var reminderCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Toggle(isOn: Binding(get: { reminder.isOn }, set: { reminder.switched(on: $0) })) {
+                Text(Vocabulary.reminderSwitch)
+                    .font(CuteFont.body(17, weight: "SemiBold", relativeTo: .body))
+                    .foregroundStyle(Cute.ink)
+            }
+            .tint(Cute.accent)
+            .accessibilityIdentifier("SettingsReminder")
+            if reminder.isOn {
+                DatePicker(selection: Binding(get: { reminderDate }, set: { reminderChanged(to: $0) }),
+                           displayedComponents: .hourAndMinute) {
+                    Text(Vocabulary.reminderTime)
+                        .font(CuteFont.body(16, relativeTo: .body))
+                        .foregroundStyle(Cute.ink)
+                }
+                .accessibilityLabel(Vocabulary.reminderTimeSpoken)
+                .accessibilityIdentifier("SettingsReminderTime")
+            }
+            if reminder.refused {
+                Text(Vocabulary.reminderRefused)
+                    .font(CuteFont.body(14, relativeTo: .subheadline))
+                    .foregroundStyle(Cute.inkFaint)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("SettingsReminderRefused")
+            }
+        }
+        .padding(18)
+        .background(card.fill(Cute.paperDeep))
+        .overlay(card.stroke(Cute.tileEdge, lineWidth: 1))
+    }
+
+    /// The reminder's time as today's date at that time, for the picker.
+    private var reminderDate: Date {
+        Calendar.current.date(bySettingHour: reminder.minutes / 60, minute: reminder.minutes % 60,
+                              second: 0, of: Date()) ?? Date()
+    }
+
+    private func reminderChanged(to date: Date) {
+        let time = Calendar.current.dateComponents([.hour, .minute], from: date)
+        reminder.timeChanged(to: (time.hour ?? 0) * 60 + (time.minute ?? 0))
     }
 
     private var rows: some View {

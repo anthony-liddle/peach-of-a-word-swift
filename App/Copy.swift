@@ -379,6 +379,20 @@ enum Vocabulary {
     /// October 2026. See `SettingsSheet.soundCard`.
     static let soundSwitch = "Sound"
 
+    /// The daily reminder's switch, under Sound. See `Reminder`.
+    static let reminderSwitch = "Daily reminder"
+    /// Its time, shown once it is on.
+    static let reminderTime = "Time"
+    static let reminderTimeSpoken = "Reminder time"
+    /// The notification itself. The calendar's words for a day with no record,
+    /// "Still on the tree", said of today: about the board, not the player, so
+    /// no streak and no count, and never a letter of the day's rack.
+    static let reminderBody = "Today's peaches are still on the tree."
+    /// Under the switch, once iOS has said no, and spoken when it does. Says
+    /// where, since the game cannot turn notifications back on itself.
+    static let reminderRefused = "Notifications are off for Peach of a Word. To have the reminder, "
+        + "turn them on in the Settings app, under Notifications, then turn this on again."
+
     static let licencesTitle = "Licences"
     static let licencesNote = "The sound library, the word lists, the definitions and the typefaces."
 
