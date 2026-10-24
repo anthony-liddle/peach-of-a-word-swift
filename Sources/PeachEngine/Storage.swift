@@ -210,6 +210,39 @@ public final class GameStorage {
         return []
     }
 
+    /// The days among `days` whose saved words include the day's own word, the
+    /// peach of a word: the calendar's peach.
+    ///
+    /// **By `loadDayProgress`'s rule,** so the mark says what opening the day
+    /// would restore. The live store first, then the archive, and a store whose
+    /// source word is not the day's is passed over. `sourceWord` is the day's
+    /// word from the calendar, or nil before the word lists have loaded, when
+    /// the stored word stands in; the two differ only on a date the calendar
+    /// moved.
+    ///
+    /// Both stores are read once, however many days are asked about.
+    public func daysWithTheirWordFound(
+        _ days: some Sequence<Int>, sourceWord: (Int) -> String?
+    ) -> Set<Int> {
+        let live = read().days
+        let archived = readArchive().days
+        var marked = Set<Int>()
+        for day in days {
+            let key = String(day)
+            let saved: DayProgress?
+            if let word = sourceWord(day) {
+                saved = [live[key], archived[key]].compactMap { $0 }.first { $0.sourceWord == word }
+            } else {
+                saved = live[key] ?? archived[key]
+            }
+            // An empty stored word is a half-written entry, and matches nothing.
+            if let saved, !saved.sourceWord.isEmpty, saved.found.contains(saved.sourceWord) {
+                marked.insert(day)
+            }
+        }
+        return marked
+    }
+
     /// Whether the one-time archive expansion has already happened.
     ///
     /// **Asked before the work, not after.** `backFillOutcomes` needs a

@@ -57,6 +57,14 @@ import PeachEngine
 /// already means the thing being marked. It also survives 8pt, where `PeachMark`
 /// drops its face because it turns to mud.
 ///
+/// **A peach does mark a day now, for the fact a peach means (23 October
+/// 2026).** Every past day keeps its found words since the prune went, so
+/// whether the day's own word is among them is stored after all, in the words
+/// rather than in `DayOutcome`, which still has no such bit. So the heart stays
+/// the full basket's, and a day you found the peach of a word on carries the
+/// source word's own mark in its corner (`ArchiveCellFace`), read by the rule
+/// a board is restored by (`daysWithTheirWordFound`).
+///
 /// **One month at a time, decided 2026-09-10.** A grid rather than a list, and a
 /// page rather than a scroll of every month: a month is at most 42 cells, so it
 /// is built eagerly and costs the same on the day the archive holds three years
@@ -855,6 +863,8 @@ struct ArchiveDay: Equatable {
     let date: Date
     let mark: DayMark
     let isToday: Bool
+    /// Whether that day's words include its own, the peach of a word.
+    var foundItsWord = false
 }
 
 // MARK: - The cell
@@ -873,6 +883,10 @@ struct ArchiveCellFace: View {
     /// that does not exist.
     let day: Int?
     let size: CGFloat
+    /// Whether the day's words include its own, the peach of a word.
+    var foundItsWord = false
+    /// What that day's peach wears, by the board's own date.
+    var costume: Costume? = nil
 
     var body: some View {
         let radius = size * 0.3
@@ -930,7 +944,20 @@ struct ArchiveCellFace: View {
             // If this looks like a missing feature, it is a removed one.
         }
         .frame(width: size, height: size)
+        // The peach of a word, found that day: the source word's own mark, on
+        // the corner like a badge, where it clears the number even when the
+        // heart lifts it. An overlay, so the cell is the same size with it or
+        // without.
+        .overlay(alignment: .topTrailing) {
+            if foundItsWord {
+                PeachMark(showsFace: false, costume: costume)
+                    .frame(width: peachSize, height: peachSize)
+                    .offset(x: size * 0.04, y: -size * 0.03)
+            }
+        }
     }
+
+    private var peachSize: CGFloat { size * 0.3 }
 
     private var numberPoints: CGFloat { max(8, size * 0.38) }
 
@@ -979,7 +1006,9 @@ private struct ArchiveCell: View {
             ArchiveCellFace(
                 mark: day.mark,
                 day: Foundation.Calendar.current.component(.day, from: day.date),
-                size: size
+                size: size,
+                foundItsWord: day.foundItsWord,
+                costume: boardCostume(storageDay: day.day)
             )
             .overlay {
                 // Today, ringed outside its own fill, so the ring says "here"
@@ -1015,6 +1044,7 @@ private struct ArchiveCell: View {
             parts.append(Vocabulary.markBasket)
             if !onTheDay { parts.append(Vocabulary.markCaughtUpLater) }
         }
+        if day.foundItsWord { parts.append(Vocabulary.markSourceFound) }
         if day.isToday { parts.append(Vocabulary.markToday) }
         return parts.joined(separator: ", ")
     }

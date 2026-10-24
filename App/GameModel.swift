@@ -1270,11 +1270,13 @@ final class GameModel {
     func titleWeek() -> [ArchiveDay] {
         let today = Self.todayStorageIndex
         let first = max(Self.firstPlayableStorageIndex, today - 6)
+        let peaches = peachDays(first...today)
         return (first...today).map { day in
             ArchiveDay(day: day, date: Self.date(forStorageDay: day),
                        mark: dayMark(for: day, outcome: storage.outcome(dayIndex: day),
                                      todayIndex: today),
-                       isToday: day == today)
+                       isToday: day == today,
+                       foundItsWord: peaches.contains(day))
         }
     }
 
@@ -1336,13 +1338,28 @@ final class GameModel {
         } ?? 0
         if daysLeft > 0 { indices += (1...daysLeft).map { today + $0 } }
 
+        let peaches = peachDays(indices.filter { $0 <= today })
         return indices.map { day in
             ArchiveDay(
                 day: day,
                 date: Self.date(forStorageDay: day),
                 mark: dayMark(for: day, outcome: outcomes[day], todayIndex: today),
-                isToday: day == today
+                isToday: day == today,
+                foundItsWord: peaches.contains(day)
             )
+        }
+    }
+
+    /// The days among `days` you found the peach of a word on: the calendar's
+    /// peach. Each day's word from the calendar once the word lists are in, and
+    /// the stored word before then. See `daysWithTheirWordFound`, whose rule is
+    /// the restore's, so a peach says what opening the day would show.
+    private func peachDays(_ days: some Sequence<Int>) -> Set<Int> {
+        let calendar = lexicon?.calendar
+        return storage.daysWithTheirWordFound(days) { day in
+            calendar.flatMap {
+                PeachEngine.sourceWord(calendar: $0, dailyIndex: day - Self.firstPlayableStorageIndex)
+            }
         }
     }
 

@@ -276,6 +276,9 @@ enum Vocabulary {
     /// here since, and the record cannot tell them apart. This says the thing
     /// that is true of all of them.
     static let markFromStreak = "kept by your streak"
+    /// Said after the day's state, of a day whose words include its own: the
+    /// reveal's words, "You found the Peach of a Word!", as a phrase.
+    static let markSourceFound = "you found the Peach of a Word"
     static let markToday = "today"
 
     /// The way back from a past board.
