@@ -279,6 +279,9 @@ enum Vocabulary {
     /// Said after the day's state, of a day whose words include its own: the
     /// reveal's words, "You found the Peach of a Word!", as a phrase.
     static let markSourceFound = "you found the Peach of a Word"
+    /// The calendar key's fifth entry, for the peach on a day's corner: the
+    /// same fact, as a key's label rather than a phrase after a state.
+    static let keySourceFound = "Found the Peach of a Word"
     static let markToday = "today"
 
     /// The way back from a past board.
