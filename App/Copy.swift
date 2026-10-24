@@ -276,6 +276,9 @@ enum Vocabulary {
     /// here since, and the record cannot tell them apart. This says the thing
     /// that is true of all of them.
     static let markFromStreak = "kept by your streak"
+    /// Said after the day's state, of a day whose words include its own: the
+    /// reveal's words, "You found the Peach of a Word!", as a phrase.
+    static let markSourceFound = "you found the Peach of a Word"
     static let markToday = "today"
 
     /// The way back from a past board.
@@ -372,15 +375,9 @@ enum Vocabulary {
     static let settingsTitle = "Settings"
     static let close = "Close"
 
-    /// The sound switch's name, and the line under it.
-    ///
-    /// **The line is held to every cue the game plays,** not only to finds: a
-    /// tile ticks as it lands, a find plays a note, and a word that is not one
-    /// plays its own. The Ring/Silent sentence is the review notes' claim in
-    /// the review notes' words.
+    /// The sound switch's name, and all it says: the line under it went on 23
+    /// October 2026. See `SettingsSheet.soundCard`.
     static let soundSwitch = "Sound"
-    static let soundNote = "A tick for each letter, a note for each word, a sound for a miss. "
-        + "The Ring/Silent switch silences them too."
 
     static let licencesTitle = "Licences"
     static let licencesNote = "The sound library, the word lists, the definitions and the typefaces."

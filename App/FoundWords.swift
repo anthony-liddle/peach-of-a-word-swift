@@ -182,3 +182,54 @@ struct RarityMark: View {
         .accessibilityHidden(true)
     }
 }
+
+/// How long a glint's sweep takes. `GameModel.glintSeconds` keeps the glint
+/// set a little longer than this, so the sweep ends before the chip forgets.
+private let glintSweepSeconds = 0.9
+
+/// A new Mythic find's glint, the light: one band of white crossing the gem,
+/// masked to its shape by the chip, then gone. Started when it appears, which
+/// is when the model sets the glint, and `.id` makes each glint a new one.
+struct GlintSweep: View {
+    @State private var crossed = false
+
+    var body: some View {
+        GeometryReader { geo in
+            LinearGradient(colors: [.clear, .white.opacity(0.95), .clear],
+                           startPoint: .leading, endPoint: .trailing)
+                .frame(width: geo.size.width * 0.7)
+                .rotationEffect(.degrees(20))
+                .offset(x: crossed ? geo.size.width * 1.2 : -geo.size.width * 0.9)
+                .opacity(crossed ? 0 : 1)
+        }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+        .onAppear {
+            withAnimation(.easeOut(duration: glintSweepSeconds)) { crossed = true }
+        }
+    }
+}
+
+/// A new Mythic find's glint, the halo: a soft ring of the discovery purple
+/// behind the gem that opens and fades as the light crosses it.
+///
+/// **It opens to a third past the gem and no further.** The found list's
+/// scroll view and its fade mask bound everything to the list's edge, and a
+/// chip that starts a row sits under three points inside it: a halo opened to
+/// twice the gem was cut off straight on that side.
+struct GlintHalo: View {
+    @State private var opened = false
+
+    var body: some View {
+        Circle()
+            .fill(Cute.discovery.opacity(0.5))
+            .blur(radius: 1)
+            .scaleEffect(opened ? 1.35 : 0.6)
+            .opacity(opened ? 0 : 1)
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+            .onAppear {
+                withAnimation(.easeOut(duration: glintSweepSeconds)) { opened = true }
+            }
+    }
+}

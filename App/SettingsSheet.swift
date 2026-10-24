@@ -89,27 +89,26 @@ struct SettingsSheet: View {
         #endif
     }
 
-    /// The switch, with what it governs under it. VoiceOver hears a switch
-    /// named "Sound", and the line as its hint rather than as a second stop.
+    /// The switch alone, as most of iOS's settings switches are. VoiceOver
+    /// hears a switch named "Sound", on or off, and no hint.
+    ///
+    /// **It had a line under it until 23 October 2026,** "A tick for each
+    /// letter, a note for each word, a sound for a miss. The Ring/Silent switch
+    /// silences them too.", which was also its hint. Antoine cut both.
     private var soundCard: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Toggle(isOn: $soundOn) {
-                Text(Vocabulary.soundSwitch)
-                    .font(CuteFont.body(17, weight: "SemiBold", relativeTo: .body))
-                    .foregroundStyle(Cute.ink)
-            }
-            .tint(Cute.accent)
-            .accessibilityHint(Vocabulary.soundNote)
-            .accessibilityIdentifier("SettingsSound")
-            Text(Vocabulary.soundNote)
-                .font(CuteFont.body(14, relativeTo: .subheadline))
-                .foregroundStyle(Cute.inkFaint)
-                .fixedSize(horizontal: false, vertical: true)
-                .accessibilityHidden(true)
+        Toggle(isOn: $soundOn) {
+            Text(Vocabulary.soundSwitch)
+                .font(CuteFont.body(17, weight: "SemiBold", relativeTo: .body))
+                .foregroundStyle(Cute.ink)
         }
+        .tint(Cute.accent)
+        .accessibilityIdentifier("SettingsSound")
         .padding(18)
         .background(card.fill(Cute.paperDeep))
         .overlay(card.stroke(Cute.tileEdge, lineWidth: 1))
+        // The card by its own name, so a test can hold it to the switch alone.
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("SettingsSoundCard")
     }
 
     private var rows: some View {
