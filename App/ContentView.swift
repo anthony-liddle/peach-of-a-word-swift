@@ -148,6 +148,8 @@ struct ContentView: View {
         #if DEBUG
         TitleSchedule.resetForFreshInstall()
         #endif
+        // A day with an outcome has words: the first find writes one.
+        Reminder.shared.played = { storage.outcome(dayIndex: $0) != nil }
         _titleShown = State(initialValue: TitleSchedule.claim(today: GameModel.todayStorageIndex))
     }
 
@@ -243,6 +245,18 @@ struct ContentView: View {
                         .font(.caption2)
                         .accessibilityIdentifier("DebugSound")
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+                }
+                // `-exposeReminder 1` prints the switch, whether iOS said no,
+                // and every date last handed to iOS, so `DailyReminder` can
+                // hold the schedule to the days played and to the time.
+                if UserDefaults.standard.bool(forKey: "exposeReminder") {
+                    let reminder = Reminder.shared
+                    Text("\(reminder.isOn ? "on" : "off") \(reminder.refused ? "refused" : "allowed") "
+                         + (reminder.handedOver.isEmpty
+                            ? "none" : reminder.handedOver.map(Reminder.stamp).joined(separator: ",")))
+                        .font(.caption2)
+                        .accessibilityIdentifier("DebugReminder")
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
                 }
                 // `-exposeTopRow 1` prints the meter's height beside its copy's,
                 // so `TitleAndTopRowAtEverySize` can hold the way back to no cost.
@@ -437,7 +451,29 @@ struct ContentView: View {
                 // midnight rather than launched. At launch the schedule has
                 // already been asked, so this finds nothing due.
                 if TitleSchedule.claim(today: GameModel.todayStorageIndex) { showTitle() }
+                // Every open, launch included: what iOS allows now, and the
+                // fortnight from the day the rollover just settled.
+                await Reminder.shared.refresh()
             }
+        }
+        // The clock moved under an open game: midnight, a new zone, daylight
+        // saving, or a hand on the clock. The reminder's days move with it.
+        .onReceive(NotificationCenter.default.publisher(
+            for: UIApplication.significantTimeChangeNotification)) { _ in
+            Reminder.shared.reschedule()
+        }
+        // The day's first find: today has words now, so today's reminder goes.
+        .onChange(of: model.todayStarted) { _, started in
+            if started { Reminder.shared.reschedule() }
+        }
+        // A tap on a reminder, cold or warm, lands on the title. On a cold
+        // launch the tap can come before this view exists, so it is looked
+        // for on appear as well.
+        .onChange(of: Reminder.shared.titleRequested) { _, requested in
+            if requested { answerReminder() }
+        }
+        .onAppear {
+            if Reminder.shared.titleRequested { answerReminder() }
         }
         .task {
             #if DEBUG
@@ -539,6 +575,17 @@ struct ContentView: View {
         if reduceMotion { titleShown = true } else {
             withAnimation(.easeOut(duration: 0.25)) { titleShown = true }
         }
+    }
+
+    /// A reminder tapped: the title, over whatever was open, with its sheets
+    /// put away, since the reminder spoke of today's board and the title is
+    /// where today is.
+    private func answerReminder() {
+        Reminder.shared.titleRequested = false
+        settingsShown = false
+        archivePresentation = nil
+        howToPlay = nil
+        showTitle()
     }
 
     /// **A screen, not a page.**
