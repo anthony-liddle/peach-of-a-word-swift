@@ -805,6 +805,65 @@ extension GameStorage {
     }
 }
 
+/// The title's peach as it last stood: one day and its stage.
+///
+/// Lenient field by field, as every value here is, so a half-written entry
+/// reads as no stage rather than as a throw: a missing day matches no day,
+/// and a missing stage names none.
+struct RememberedStage: Codable {
+    var day: Int
+    var stage: String
+
+    init(day: Int, stage: String) {
+        self.day = day
+        self.stage = stage
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        day = c.lenient(.day, Int.min)
+        stage = c.lenient(.stage, "")
+    }
+}
+
+extension GameStorage {
+    /// A fourth key: the stage the title's peach reached on a day, so the
+    /// title can draw it before the word lists load.
+    ///
+    /// **Why it is stored at all.** A stage is computed from the board, and the
+    /// title draws before the board exists. The outcome says played, cleared or
+    /// basket, which is three answers to a question with seven. So the stage is
+    /// remembered whenever it changes, and the title draws the remembered one
+    /// until today's board is ready (Antoine's choice, 24 October 2026).
+    ///
+    /// **Its own key, not a field beside the day's words.** The words' blob is
+    /// rewritten on every find and is the one thing whose loss costs a streak;
+    /// this changes at most seven times a day and costs a drawing if it is lost.
+    /// One day only: the title asks about today, so yesterday's stage is
+    /// overwritten rather than kept.
+    static let stageKey = "peach-of-a-word/stage/v1"
+
+    /// The stage remembered for a day, or nil when none was, when the one
+    /// remembered is another day's, or when it is a stage this build does not
+    /// know.
+    public func rememberedStage(dayIndex: Int) -> GrowthStage? {
+        guard let data = store.data(forKey: Self.stageKey),
+              let remembered = try? JSONDecoder().decode(RememberedStage.self, from: data),
+              remembered.day == dayIndex
+        else { return nil }
+        return GrowthStage(rawValue: remembered.stage)
+    }
+
+    /// Remember a day's stage. Writes only when it differs from what is
+    /// already remembered, so a find that keeps the stage costs no write.
+    public func rememberStage(_ stage: GrowthStage, dayIndex: Int) {
+        guard rememberedStage(dayIndex: dayIndex) != stage,
+              let data = try? JSONEncoder().encode(RememberedStage(day: dayIndex, stage: stage.rawValue))
+        else { return }
+        store.set(data, forKey: Self.stageKey)
+    }
+}
+
 extension GameStorage {
     /// Expand a transferred streak run into one outcome per day it covers. Once.
     ///
@@ -994,10 +1053,11 @@ extension GameStorage {
         public func eraseAll() { storage.eraseAllForSeeding() }
     }
 
-    /// See `Seeding.eraseAll`. Removes the three blobs outright rather than
-    /// writing empty ones, which is what a fresh install reads as.
+    /// See `Seeding.eraseAll`. Removes the four blobs outright rather than
+    /// writing empty ones, which is what a fresh install reads as. The
+    /// remembered stage goes too, or a reset launch would draw the last test's.
     func eraseAllForSeeding() {
-        for key in [Self.storageKey, Self.archiveKey, Self.outcomesKey] {
+        for key in [Self.storageKey, Self.archiveKey, Self.outcomesKey, Self.stageKey] {
             store.set(nil, forKey: key)
         }
     }

@@ -69,7 +69,16 @@ final class ArchivePageOrder: XCTestCase {
 
         let items = app.descendants(matching: .any)
             .matching(identifier: "ArchiveKeyItem").allElementsBoundByIndex
-        XCTAssertEqual(items.count, 4, "the key does not have its four states")
+        XCTAssertEqual(items.count, 5, "the key does not have its four states and the peach")
+        // The peach under the four states: it is worn over a state, not a
+        // fifth step on the ramp, and a fifth column broke "Finished" at XXXL.
+        let peach = items.first { $0.label == "Found the Peach of a Word" }
+        XCTAssertNotNil(peach, "the key has no entry for the peach")
+        if let peach {
+            let ramp = items.filter { $0 != peach }
+            XCTAssertGreaterThanOrEqual(peach.frame.minY, ramp.map { $0.frame.maxY }.max() ?? .infinity,
+                                        "the peach is a column on the ramp, not under it")
+        }
 
         let cells = dayCells(app)
         XCTAssertFalse(cells.isEmpty, "no day cells")

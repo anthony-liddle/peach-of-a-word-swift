@@ -319,6 +319,11 @@ struct ArchiveSheet: View {
     /// is the tell that the cells were not carrying their own meaning: a scale
     /// reads at a glance.
     ///
+    /// **Then the peach, on its own line under the four,** since 24 October
+    /// 2026: a day you found the Peach of a Word on wears it over its state,
+    /// so it is not a step on the ramp, and it is drawn alone, with no cell
+    /// behind it. At accessibility sizes it is the fifth row.
+    ///
     /// **It sits below the grid now, which reverses the reason first given for
     /// putting it above.** That reason was that a legend arriving after the
     /// thing it explains has already failed. What was actually failing was a
@@ -345,25 +350,64 @@ struct ArchiveSheet: View {
                 keyRow(.incomplete, Vocabulary.markIncomplete, size)
                 keyRow(.cleared(onTheDay: true, fromStreak: false), Vocabulary.markCleared, size)
                 keyRow(.basket(onTheDay: true), Vocabulary.markBasket, size)
+                keyRow(Vocabulary.keySourceFound) { peachSwatch(size) }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         } else {
-            HStack(alignment: .top, spacing: 10) {
-                keyItem(.noRecord, Vocabulary.markNoRecord, size)
-                keyItem(.incomplete, Vocabulary.markIncomplete, size)
-                keyItem(.cleared(onTheDay: true, fromStreak: false), Vocabulary.markCleared, size)
-                keyItem(.basket(onTheDay: true), Vocabulary.markBasket, size)
+            VStack(spacing: 12) {
+                HStack(alignment: .top, spacing: 10) {
+                    keyItem(.noRecord, Vocabulary.markNoRecord, size)
+                    keyItem(.incomplete, Vocabulary.markIncomplete, size)
+                    keyItem(.cleared(onTheDay: true, fromStreak: false), Vocabulary.markCleared, size)
+                    keyItem(.basket(onTheDay: true), Vocabulary.markBasket, size)
+                }
+                // **Under the ramp, not a fifth column on it.** As a fifth
+                // column it took a fifth of the width from every state, and at
+                // XXXL on the SE "Finished" broke as "Finishe / d", the defect
+                // the AX rows exist for (#66).
+                keyPeach(size)
             }
         }
     }
 
+    /// The peach's entry below the ramp: its swatch, and its label beside it
+    /// on one line, centred under the four.
+    private func keyPeach(_ size: CGFloat) -> some View {
+        HStack(alignment: .center, spacing: 8) {
+            peachSwatch(size)
+            Text(Vocabulary.keySourceFound)
+                .font(CuteFont.body(10, relativeTo: .caption2))
+                .foregroundStyle(Cute.inkFaint)
+                .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(Vocabulary.keySourceFound)
+        .accessibilityIdentifier("ArchiveKeyItem")
+    }
+
+    /// The peach's swatch: the peach alone, at a swatch's size, since a day of
+    /// any state can wear it. On a Started square, as first built, it read as
+    /// a fifth cell colour, and next to Started itself it looked the same
+    /// (Antoine, 24 October 2026).
+    private func peachSwatch(_ size: CGFloat) -> some View {
+        PeachMark()
+            .frame(width: size, height: size)
+    }
+
     /// One state of the key on its own line, swatch first.
+    private func keyRow(_ mark: DayMark, _ label: String, _ size: CGFloat) -> some View {
+        keyRow(label) { ArchiveCellFace(mark: mark, day: nil, size: size) }
+    }
+
+    /// One entry of the key on its own line, swatch first.
     ///
     /// The label takes the rest of the row, so its wrapping is decided by the
     /// sheet's width rather than by a quarter of it.
-    private func keyRow(_ mark: DayMark, _ label: String, _ size: CGFloat) -> some View {
+    private func keyRow<Swatch: View>(_ label: String,
+                                      @ViewBuilder swatch: () -> Swatch) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 12) {
-            ArchiveCellFace(mark: mark, day: nil, size: size)
+            swatch()
             Text(label)
                 .font(CuteFont.body(10, relativeTo: .caption2))
                 .foregroundStyle(Cute.inkFaint)
@@ -944,20 +988,45 @@ struct ArchiveCellFace: View {
             // If this looks like a missing feature, it is a removed one.
         }
         .frame(width: size, height: size)
-        // The peach of a word, found that day: the source word's own mark, on
-        // the corner like a badge, where it clears the number even when the
-        // heart lifts it. An overlay, so the cell is the same size with it or
+        // The peach of a word, found that day: the source word's own mark, as
+        // a badge in the cell's lower corner, beside the heart and clear of
+        // the number. An overlay, so the cell is the same size with it or
         // without.
-        .overlay(alignment: .topTrailing) {
+        //
+        // **Inside the cell, big enough to be a peach, and with its face.**
+        // At 0.3 of the cell and set over its top edge it read as an orange
+        // dot at L, even on the Pro Max (Antoine, 24 October 2026). Measured on
+        // the SE at L, larger alone did not fix it: at 0.38 and 0.44 without
+        // the face it was a bigger orange ball, and from about 18pt the face is
+        // what says it is the game's peach. The top corner, where it was, met
+        // the number at any size that read; the lower one clears the number
+        // and the heart.
+        .overlay(alignment: .bottomTrailing) {
             if foundItsWord {
-                PeachMark(showsFace: false, costume: costume)
+                PeachMark(showsFace: true, costume: costume)
                     .frame(width: peachSize, height: peachSize)
-                    .offset(x: size * 0.04, y: -size * 0.03)
+                    // The drawing's body stops short of its frame, by 16% at
+                    // the right and 10% at the bottom, so the frame overhangs
+                    // by that much and the peach itself sits in the corner.
+                    .offset(x: peachSize * 0.16, y: peachSize * 0.1)
+                    .padding(peachInset)
             }
         }
     }
 
-    private var peachSize: CGFloat { size * 0.3 }
+    /// The badge's share of the cell.
+    private var peachSize: CGFloat { size * 0.44 }
+
+    /// How far the peach's body is held off the cell's two edges, so it stays
+    /// inside the rounded corner. The body is near enough a circle of 0.35 of
+    /// its frame, and a circle touching both edges pokes out past a corner of
+    /// a larger radius, as the Pro Max showed. Held off each edge by
+    /// (1 - 1/√2) of the difference, it touches the corner's curve instead.
+    private var peachInset: CGFloat {
+        let corner = size * 0.3
+        let body = peachSize * 0.35
+        return max(0, (1 - 1 / 2.squareRoot()) * (corner - body))
+    }
 
     private var numberPoints: CGFloat { max(8, size * 0.38) }
 

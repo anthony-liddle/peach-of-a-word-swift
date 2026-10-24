@@ -33,6 +33,9 @@ struct TitleScreen: View {
     let actions: TitleActions
 
     @State private var arrived = false
+    /// The stage drawn, which follows `model.todaysStage` so a change can be
+    /// animated, or cut under Reduce Motion.
+    @State private var shownStage: GrowthStage?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var ready: Bool {
@@ -75,7 +78,7 @@ struct TitleScreen: View {
         ZStack {
             Cute.pageBackground.ignoresSafeArea()
             TitleFit {
-                TitleTop(arrived: arrived)
+                TitleTop(arrived: arrived, stage: shownStage)
             } lead: {
                 VStack(alignment: .leading, spacing: 10) {
                     ViewThatFits(in: .horizontal) {
@@ -105,10 +108,37 @@ struct TitleScreen: View {
                     }
                 }
             }
+            #if DEBUG
+            // `-exposeGrowingPeach 1` lists every change of the peach while the
+            // title was up, and how it was drawn, so `GrowingPeach` can hold a
+            // change to a cut under Reduce Motion, and to an animation without.
+            if UserDefaults.standard.bool(forKey: "exposeGrowingPeach") {
+                Text(model.growthChanges.isEmpty ? "none" : model.growthChanges.joined(separator: ","))
+                    .font(.caption2)
+                    .accessibilityIdentifier("DebugGrowingPeach")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+            }
+            #endif
         }
         // The peach settles in. Under Reduce Motion it is simply there.
         .onAppear {
             if reduceMotion { arrived = true } else { withAnimation(Feel.settle) { arrived = true } }
+        }
+        // **The peach grows while the title is up** when the board arrives
+        // with a stage the store did not have, at midnight, or when a seed
+        // plays. Animated, or a cut under Reduce Motion: the animation is the
+        // one thing decided here, so the probe reports what was drawn.
+        .onChange(of: model.todaysStage, initial: true) { old, new in
+            guard old != new else {
+                shownStage = new
+                return
+            }
+            let animation: Animation? = GameModel.reduceMotion ? nil : Feel.settle
+            #if DEBUG
+            model.growthChanges.append("\(old?.rawValue ?? "plain")>\(new?.rawValue ?? "plain") "
+                                       + (animation == nil ? "cut" : "animated"))
+            #endif
+            withAnimation(animation) { shownStage = new }
         }
         .accessibilityElement(children: .contain)
     }
@@ -169,28 +199,33 @@ struct TitleLink: View {
 /// of what shows while the board loads on a launch that skips the title, so
 /// the app has one loading look rather than two.
 ///
-/// **The peach wears today's costume,** since the title shows today: the
-/// costume table decides it as it decides a board's, by date, and
-/// `-costumeDate` previews it. VoiceOver says what it wears; a plain peach is
+/// **On the title, the peach grows with today's rank** (`GrowthStage`), and
+/// VoiceOver says how far: "The peach is in blossom." The splash passes no
+/// stage and keeps the plain peach, as the app icon does.
+///
+/// **A costume wins over the stage,** since the title shows today: the costume
+/// table decides it as it decides a board's, by date, and `-costumeDate`
+/// previews it. VoiceOver says what it wears. With neither, the plain peach is
 /// decoration and is not a stop.
 struct TitleTop: View {
     let arrived: Bool
     var costume: Costume? = TitleTop.todaysCostume
+    /// Today's stage, on the title; nil on the splash.
+    var stage: GrowthStage? = nil
 
     static var todaysCostume: Costume? {
         boardCostume(storageDay: GameModel.todayStorageIndex, preview: GameModel.costumePreview)
     }
 
+    /// A new stage grows in over the old one, which fades.
+    private static let growth: AnyTransition = .asymmetric(
+        insertion: .scale(scale: 0.8).combined(with: .opacity), removal: .opacity
+    )
+
     var body: some View {
         VStack(spacing: 12) {
-            Group {
-                if let costume {
-                    peach.sayingWhatThePeachWears(costume)
-                } else {
-                    peach.accessibilityHidden(true)
-                }
-            }
-            .accessibilityIdentifier("TitlePeach")
+            peach
+                .accessibilityIdentifier("TitlePeach")
             TitleWordmark()
             Text(Vocabulary.mastheadSubline)
                 .font(CuteFont.body(12, weight: "SemiBold", relativeTo: .caption))
@@ -202,11 +237,28 @@ struct TitleTop: View {
         }
     }
 
+    /// **What is drawn and what VoiceOver hears are decided in one branch,** so
+    /// the two cannot disagree, and a test that reads the label reads the
+    /// drawing. Decided apart, a title that drew the plain peach while saying
+    /// "a first sprout" passed every test.
     private var peach: some View {
-        PeachMark(costume: costume)
-            .frame(width: 96, height: 96)
-            .scaleEffect(arrived ? 1 : 0.88)
-            .opacity(arrived ? 1 : 0)
+        ZStack {
+            if let costume {
+                PeachMark(costume: costume)
+                    .sayingWhatThePeachWears(costume)
+            } else if let stage {
+                GrowthMark(stage: stage)
+                    .sayingTheStage(stage)
+                    .id(stage)
+                    .transition(Self.growth)
+            } else {
+                PeachMark()
+                    .accessibilityHidden(true)
+            }
+        }
+        .frame(width: 96, height: 96)
+        .scaleEffect(arrived ? 1 : 0.88)
+        .opacity(arrived ? 1 : 0)
     }
 }
 

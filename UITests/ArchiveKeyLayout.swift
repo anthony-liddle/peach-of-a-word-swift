@@ -67,11 +67,17 @@ final class ArchiveKeyLayout: XCTestCase {
     /// what its children actually drew, so a short label like "Started" comes
     /// back 161.7pt wide in a row that is 354pt across. What it can see is that
     /// the states are stacked rather than side by side, which is the change.
+    ///
+    /// **The peach's row starts where its drawing does,** for the same reason.
+    /// A state's swatch is a square that fills its box, but the peach is drawn
+    /// alone in a box of the same size, and its body stops 16% short of the
+    /// box's left edge. So its row is held to start exactly that far in: a key
+    /// swatch is 26pt at an accessibility size.
     func testTheKeyStatesAreStackedAtAccessibilitySize() {
         let app = openArchive("UICTContentSizeCategoryAccessibilityXXXL")
         let items = app.descendants(matching: .any)
             .matching(identifier: "ArchiveKeyItem").allElementsBoundByIndex
-        XCTAssertEqual(items.count, 4, "the key does not have its four states")
+        XCTAssertEqual(items.count, 5, "the key does not have its four states and the peach")
 
         let ordered = items.sorted { $0.frame.minY < $1.frame.minY }
         for (above, below) in zip(ordered, ordered.dropFirst()) {
@@ -81,9 +87,12 @@ final class ArchiveKeyLayout: XCTestCase {
                 above.frame.maxY, below.frame.minY + 0.5,
                 "\(above.label) and \(below.label) share a line, so the key is still "
                 + "in columns and a column is narrower than a word")
-            XCTAssertEqual(
-                above.frame.minX, below.frame.minX, accuracy: 0.5,
-                "\(above.label) and \(below.label) do not start at the same edge")
+        }
+        guard let edge = ordered.first?.frame.minX else { return }
+        for item in ordered {
+            let inset: CGFloat = item.label == "Found the Peach of a Word" ? 26 * 0.16 : 0
+            XCTAssertEqual(item.frame.minX, edge + inset, accuracy: 0.5,
+                           "\(item.label) does not start at the key's edge")
         }
     }
 
@@ -92,7 +101,7 @@ final class ArchiveKeyLayout: XCTestCase {
         let app = openArchive("UICTContentSizeCategoryAccessibilityXXXL")
         let items = app.descendants(matching: .any)
             .matching(identifier: "ArchiveKeyItem").allElementsBoundByIndex
-        XCTAssertEqual(items.count, 4, "the key lost a state when it moved")
+        XCTAssertEqual(items.count, 5, "the key lost an entry when it moved")
 
         let cell = anyCell(app)
         XCTAssertTrue(cell.waitForExistence(timeout: 10), "no day cell")
