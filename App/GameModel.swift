@@ -1,6 +1,7 @@
 import Foundation
 import Observation
 import PeachEngine
+import UIKit
 #if DEBUG
 import os
 #endif
@@ -207,7 +208,56 @@ final class GameModel {
     /// and a simulator with no audio output lists the same as a phone. With
     /// sound off nothing is handed over, so nothing is listed.
     private(set) var askedCues: [Cue] = []
+
+    /// Every Mythic find that glinted since launch, oldest first, so
+    /// `-exposeGlint 1` can show a test which finds did, or that none did.
+    private(set) var glinted: [String] = []
     #endif
+
+    /// A new Mythic find's glint: the GDD's "Mythic earning a touch more
+    /// sparkle in cute". Its chips' gems get one sweep of light, drawn by
+    /// `WordChip`.
+    ///
+    /// **Set by a find made by play, never by a board opening,** so a Mythic
+    /// already in the list has none (`resolve`, and `adopt` clears it). Cleared
+    /// once the sweep is over, so nothing that redraws the chip can replay it.
+    /// Never set under Reduce Motion. Kept here as data rather than in the
+    /// chip, because the found list is built twice, once for each layout
+    /// `ViewThatFits` weighs.
+    private(set) var glint: Glint?
+    private var glintCount = 0
+
+    struct Glint: Equatable {
+        let word: String
+        /// Counts glints, so a second find of the same word is a new one.
+        let seq: Int
+    }
+
+    /// How long a glint stays set: its sweep, and a little after.
+    static let glintSeconds = 1.2
+
+    /// Reduce Motion, as the system has it, or `-reduceMotion 1` in Debug, so a
+    /// test can ask for it.
+    static var reduceMotion: Bool {
+        #if DEBUG
+        if UserDefaults.standard.bool(forKey: "reduceMotion") { return true }
+        #endif
+        return UIAccessibility.isReduceMotionEnabled
+    }
+
+    private func startGlint(_ word: String) {
+        guard !Self.reduceMotion else { return }
+        glintCount += 1
+        let mine = Glint(word: word, seq: glintCount)
+        glint = mine
+        #if DEBUG
+        glinted.append(word)
+        #endif
+        Task { [weak self] in
+            try? await Task.sleep(for: .seconds(Self.glintSeconds))
+            if self?.glint == mine { self?.glint = nil }
+        }
+    }
 
     /// The game's sounds. Loaded at launch, beside the word lists; see `load`.
     private let sounds = Sounds()
@@ -535,6 +585,9 @@ final class GameModel {
     /// own copy of this, and they would have the first time either changed.
     private func adopt(_ p: Puzzle, storageDay: Int, isArchive: Bool) {
         puzzle = p
+        // A board opening has no glint to give: a Mythic already in its list
+        // was found before, and the last board's glint is not this one's.
+        glint = nil
         // Tile ids are indices into the sorted rack, matching the web
         // version's `tilesFor`.
         tiles = p.letters.enumerated().map { Tile(id: $0.offset, letter: String($0.element)) }
@@ -806,6 +859,14 @@ final class GameModel {
         if UserDefaults.standard.bool(forKey: "findSource"), let source = puzzle?.sourceWord {
             clear()
             for letter in source { addLetter(String(letter)) }
+            submit()
+        }
+        // `-findMythic 1` finds the board's first Mythic word, alphabetically,
+        // through the same path, so a test can watch a Mythic found by play.
+        if UserDefaults.standard.bool(forKey: "findMythic"),
+           let mythic = puzzle?.mythicWords.sorted().first {
+            clear()
+            for letter in mythic { addLetter(String(letter)) }
             submit()
         }
         // `-tapTiles 4,1,6` places those rack POSITIONS, exercising `addTile`
@@ -1591,6 +1652,7 @@ final class GameModel {
         switch result {
         case .valid(let word, let score, let rung, let isSourceWord):
             found.insert(word, at: 0)
+            if rung == .mythic { startGlint(word) }
             // One beat per find, chosen once it is known whether this find
             // reaches the peak: completion over the source word over an
             // ordinary find, the precedence the cards and the web's sounds

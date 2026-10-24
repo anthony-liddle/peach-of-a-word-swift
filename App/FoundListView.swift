@@ -65,6 +65,9 @@ struct FlowLayout: Layout {
 struct WordChip: View {
     @Environment(\.peachCostume) private var costume
     let found: FoundWord
+    /// The glint's count when this chip is a new Mythic find's, so its gem
+    /// glints once; nil for every other chip. See `GameModel.glint`.
+    var glint: Int? = nil
     /// What tapping this chip does. Defaulted to nothing so a preview or a
     /// future read-only surface can render a chip without inventing an action.
     var onSelect: () -> Void = {}
@@ -133,6 +136,14 @@ struct WordChip: View {
         } label: {
             HStack(spacing: 5) {
                 RarityMark(category: found.category)
+                    // Over the mark and behind it, never in the row, so the
+                    // chip's layout is the same while it glints.
+                    .background { if let glint { GlintHalo().id(glint) } }
+                    .overlay {
+                        if let glint {
+                            GlintSweep().id(glint).mask(RarityMark(category: found.category))
+                        }
+                    }
                 // The web sets the source word in a semibold oblique and every
                 // off-page rung in the discovery ink; the app painted all of
                 // them `ink`, so the ladder's colour stopped at the mark. See
@@ -200,12 +211,15 @@ struct FoundListView: View {
     var definitions: [String: String] = [:]
     /// Who wrote them, carried the same way and for the same distance.
     let provenance: GlossProvenance
+    /// A new Mythic find to glint, from the model. See `GameModel.glint`.
+    var glint: GameModel.Glint? = nil
     var onSelect: (FoundWord) -> Void = { _ in }
 
     init(puzzle: Puzzle, found: [String], standing: TierStanding,
          boardDate: Date = Date(),
          definitions: [String: String] = [:],
          provenance: GlossProvenance,
+         glint: GameModel.Glint? = nil,
          onSelect: @escaping (FoundWord) -> Void = { _ in }) {
         self.puzzle = puzzle
         self.found = found
@@ -213,6 +227,7 @@ struct FoundListView: View {
         self.boardDate = boardDate
         self.definitions = definitions
         self.provenance = provenance
+        self.glint = glint
         self.onSelect = onSelect
         self.words = classifyFound(found, in: puzzle)
     }
@@ -339,6 +354,13 @@ struct FoundListView: View {
         }
     }
 
+    /// The glint's count when this chip is the new Mythic find's, so its gem
+    /// glints; nil for every other chip.
+    private func glintSeq(for word: FoundWord) -> Int? {
+        guard word.category == .mythic, let glint, glint.word == word.word else { return nil }
+        return glint.seq
+    }
+
     /// The single highest-scoring find.
     ///
     /// Ported from the web's `bestOf`: the highest score wins and a tie goes to
@@ -356,7 +378,7 @@ struct FoundListView: View {
                     .tracking(1.4)
                     .textCase(.uppercase)
                     .foregroundStyle(Cute.inkFaint)
-                WordChip(found: best) { onSelect(best) }
+                WordChip(found: best, glint: glintSeq(for: best)) { onSelect(best) }
             }
         }
     }
@@ -419,7 +441,7 @@ struct FoundListView: View {
             if !group.setWords.isEmpty {
                 FlowLayout() {
                     ForEach(group.setWords) { word in
-                        WordChip(found: word) { onSelect(word) }
+                        WordChip(found: word, glint: glintSeq(for: word)) { onSelect(word) }
                     }
                 }
             }
@@ -439,7 +461,7 @@ struct FoundListView: View {
             if !group.offPageWords.isEmpty {
                 FlowLayout() {
                     ForEach(group.offPageWords) { word in
-                        WordChip(found: word) { onSelect(word) }
+                        WordChip(found: word, glint: glintSeq(for: word)) { onSelect(word) }
                     }
                 }
             }
