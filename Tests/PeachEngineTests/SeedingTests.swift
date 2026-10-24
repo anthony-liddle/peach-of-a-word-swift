@@ -31,8 +31,10 @@ struct SeedingTests {
         storage.seeding.replaceOutcomes([Self.today - 2: DayOutcome(
             reached: DayOutcome.cleared, on: Self.today - 2, fromStreak: false)])
         _ = storage.backFillOutcomes(firstPlayableDayIndex: 173) { _, _, _ in nil }
+        storage.rememberStage(.sweet, dayIndex: Self.today)
         #expect(!storage.daysWithProgress().isEmpty)
         #expect(storage.hasBackFilledOutcomes())
+        #expect(storage.rememberedStage(dayIndex: Self.today) == .sweet)
 
         storage.seeding.eraseAll()
 
@@ -40,6 +42,8 @@ struct SeedingTests {
         #expect(storage.allOutcomes().isEmpty, "an outcome survived the erase")
         #expect(storage.currentStreak(todayIndex: Self.today) == 0, "the streak survived")
         #expect(!storage.hasBackFilledOutcomes(), "the back-fill still reads as spent")
+        #expect(storage.rememberedStage(dayIndex: Self.today) == nil,
+                "the title's remembered stage survived the erase")
     }
 }
 #endif

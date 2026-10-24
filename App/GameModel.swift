@@ -212,6 +212,11 @@ final class GameModel {
     /// Every Mythic find that glinted since launch, oldest first, so
     /// `-exposeGlint 1` can show a test which finds did, or that none did.
     private(set) var glinted: [String] = []
+
+    /// Every change of the title's peach while the title was up, oldest
+    /// first, as "from>to animated" or "from>to cut", so
+    /// `-exposeGrowingPeach 1` can show a test how each was drawn.
+    var growthChanges: [String] = []
     #endif
 
     /// A new Mythic find's glint: the GDD's "Mythic earning a touch more
@@ -538,21 +543,13 @@ final class GameModel {
                 phase = .failed("the daily calendar is empty")
                 return
             }
-            #if DEBUG
-            // **Every seed and `-resetProgress` start from a phone that has
-            // never been played**, before anything reads the store, so what a
-            // test sees cannot depend on what ran before it. Each used to clear
+            // A seed or `-resetProgress` has already erased the store, in the
+            // app's init, before the title first read it. Each used to clear
             // only what it wrote: `-resetProgress` today's words, `showcase`
             // the outcome map, and `bea` nothing at all (#73). A `bea` run left
             // an 87-day streak on every later launch and 26 words on the board
-            // LayoutBudget's archive probe opens. Here rather than in each
-            // seed, because the board and the streak on screen are read from
-            // the store just below and would otherwise show what was erased.
-            if UserDefaults.standard.bool(forKey: "resetProgress")
-                || UserDefaults.standard.string(forKey: "seedArchive") != nil {
-                storage.seeding.eraseAll()
-            }
-            #endif
+            // LayoutBudget's archive probe opens.
+            //
             // Before the board is adopted, so a day left in the daily blob by
             // a session that ended yesterday is already where it belongs when
             // the back-fill goes looking for it.
@@ -624,6 +621,10 @@ final class GameModel {
         // filled. The outcome remembers what the found list is allowed to
         // forget; see `completionAlreadySeen`.
         completionSeen = completionAlreadySeen(outcome: storage.outcome(dayIndex: storageDay))
+
+        // A day started before the stage was remembered has none until its
+        // board is read, which is now.
+        rememberTodaysStage()
     }
 
     /// The date a storage day index falls on.
@@ -768,7 +769,7 @@ final class GameModel {
             }
         }
         // `-resetProgress 1` starts from a phone that has never been played:
-        // the load path erases the whole store before the board is read, so
+        // the app's init erases the whole store before anything reads it, so
         // the board is empty and the source word can be found for real. By
         // the time this runs the board is already empty; clearing it here is
         // what the flag did before that erase existed, and costs one save.
@@ -1164,6 +1165,7 @@ final class GameModel {
 
         // The archive's whole substance: what this board reached, kept.
         recordOutcome(standing: standing, day: day, today: today)
+        rememberTodaysStage()
 
         if standing.index >= streakTierIndex && !streakRecordedThisSession {
             streakRecordedThisSession = true
@@ -1366,6 +1368,37 @@ final class GameModel {
         storage.currentStreak(todayIndex: Self.todayStorageIndex)
     }
 
+    /// Where today's peach has grown to, for the title: from today's board
+    /// while it is the board in play, and from the store when it is not, which
+    /// is mostly back on the title from a past day, and otherwise a launch
+    /// that shows the title while the word lists load.
+    ///
+    /// - **A day with no words is First Sprout,** whatever is remembered: the
+    ///   ladder's first rank starts at nothing.
+    /// - **A started day draws the stage it last reached,** remembered at each
+    ///   change, so a launch opens on it with no jump when the board arrives.
+    /// - **Nil, the plain peach,** only for a day started before this build
+    ///   remembered stages, and only until its board is read.
+    ///
+    /// **Today's board by its day, not by `isArchiveBoard`,** so a board left
+    /// open past midnight never speaks for the new day, and today opened from
+    /// the calendar still does.
+    var todaysStage: GrowthStage? {
+        let today = Self.todayStorageIndex
+        if storageDayIndex == today, let standing {
+            return GrowthStage(standing: standing)
+        }
+        guard storage.outcome(dayIndex: today) != nil else { return .firstSprout }
+        return storage.rememberedStage(dayIndex: today)
+    }
+
+    /// Remember the stage of the board in play, when it is today's, for the
+    /// title's next launch. Writes only a change; see `rememberStage`.
+    private func rememberTodaysStage() {
+        guard let day = storageDayIndex, day == Self.todayStorageIndex, let standing else { return }
+        storage.rememberStage(GrowthStage(standing: standing), dayIndex: day)
+    }
+
     func archiveDays() -> [ArchiveDay] {
         #if DEBUG
         // **A walk of the whole archive, counted so it can be kept off the
@@ -1559,7 +1592,7 @@ final class GameModel {
         let count = 70 + (last - Self.snapshotLastCleared)
         guard last - count + 1 >= first else { return }
 
-        // The store is already empty: the load path erases it for any
+        // The store is already empty: the app's init erases it for any
         // `-seedArchive` before this runs (#73).
 
         // No outcomes, and the expansion not yet run. Armed explicitly rather

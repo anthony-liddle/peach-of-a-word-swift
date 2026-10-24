@@ -36,7 +36,7 @@ struct PeachMark: View {
                 body_.fill(Color(hex: 0xFFC27A))
                 highlight.fill(Color(hex: 0xFFD79B).opacity(0.7))
                 if showsFace && !(costume?.replacesFace ?? false) { face }
-                if let costume { CostumeLayer(costume: costume, showsFace: showsFace) }
+                if let costume { PartsLayer(parts: costume.parts, showsFace: showsFace) }
             }
             .frame(width: Self.designSize, height: Self.designSize)
             .scaleEffect(scale, anchor: .topLeading)
@@ -128,16 +128,36 @@ struct PeachMark: View {
     .background(Cute.paper)
 }
 
-/// A costume's parts, drawn in the peach's 100x100 space from the same path data
-/// the web draws. Parsed once per part; a part that fails to parse is skipped,
-/// which `CostumeTests` makes impossible for the shipped table.
-private struct CostumeLayer: View {
-    let costume: Costume
+/// The title's peach at one of its stages: a drawing from the growing peach's
+/// table, in the peach's 100x100 box, drawn the way a costume is. Perfectly
+/// Peachy is `PeachMark`'s own paths; see `GrowthStage`.
+struct GrowthMark: View {
+    let stage: GrowthStage
+    var showsFace: Bool = true
+
+    var body: some View {
+        GeometryReader { geo in
+            let scale = min(geo.size.width, geo.size.height) / 100
+            PartsLayer(parts: stage.parts, showsFace: showsFace)
+                .frame(width: 100, height: 100)
+                .scaleEffect(scale, anchor: .topLeading)
+        }
+        .aspectRatio(1, contentMode: .fit)
+        .accessibilityHidden(true)
+    }
+}
+
+/// A costume's parts, or a growing peach's, drawn in the peach's 100x100 space
+/// from path data: the costumes' is the web's own. Parsed once per part; a part
+/// that fails to parse is skipped, which `CostumeTests` and `GrowthStageTests`
+/// make impossible for the shipped tables.
+private struct PartsLayer: View {
+    let parts: [CostumePart]
     let showsFace: Bool
 
     var body: some View {
         ZStack {
-            ForEach(Array(costume.parts.enumerated()), id: \.offset) { _, part in
+            ForEach(Array(parts.enumerated()), id: \.offset) { _, part in
                 if showsFace || !part.faceOnly, let path = Self.path(part.d) {
                     ZStack {
                         if let fill = part.fill { path.fill(Color(css: fill)) }
@@ -206,5 +226,12 @@ extension View {
         } else {
             self
         }
+    }
+
+    /// Tells VoiceOver how far the title's peach has grown, in the same words
+    /// a costume is said in: "The peach is in blossom."
+    func sayingTheStage(_ stage: GrowthStage) -> some View {
+        accessibilityElement(children: .ignore)
+            .accessibilityLabel("The peach is \(stage.spoken).")
     }
 }

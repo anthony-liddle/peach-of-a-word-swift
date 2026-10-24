@@ -236,8 +236,9 @@ public func canonicalCostumeTable() -> String {
     return lines.joined(separator: "\n")
 }
 
-/// A number as JavaScript prints it: no ".0" on a whole one.
-private func jsNumber(_ n: Double) -> String {
+/// A number as JavaScript prints it: no ".0" on a whole one. The growing
+/// peach's table is written the same way; see `canonicalGrowthTable`.
+func jsNumber(_ n: Double) -> String {
     n.rounded() == n ? String(Int(n)) : String(n)
 }
 

@@ -1,3 +1,4 @@
+import PeachEngine
 import SwiftUI
 
 /// The entry point.
@@ -28,6 +29,17 @@ struct PeachMinimalApp: App {
         let stamp = Bundle.main.url(forResource: "BuildStamp", withExtension: "txt")
             .flatMap { try? String(contentsOf: $0, encoding: .utf8) }
         print("PEACH BUILD \(stamp ?? "unstamped")")
+
+        // **Every seed and `-resetProgress` start from a phone that has never
+        // been played**, so what a test sees cannot depend on what ran before
+        // it (#73). Here, once a process, before any view: the title draws from
+        // the store at once, and when this ran in the load path, after the
+        // word lists, a reset launch's title drew the last test's stage, streak
+        // and week first.
+        let defaults = UserDefaults.standard
+        if defaults.bool(forKey: "resetProgress") || defaults.string(forKey: "seedArchive") != nil {
+            GameStorage.appDefault.seeding.eraseAll()
+        }
     }
     #endif
 
