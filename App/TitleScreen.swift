@@ -51,18 +51,33 @@ struct TitleScreen: View {
 
     private var started: Bool { model.todayStarted }
 
-    private var complete: Bool { standing.map(isComplete) ?? false }
+    /// From the board in play when it is today's, and otherwise from the
+    /// stage the peach beside it draws, so a full basket stays full back from
+    /// a past day.
+    private var complete: Bool { standing.map(isComplete) ?? (model.todaysStage == .crown) }
 
     private var buttonTitle: String {
         guard started else { return Vocabulary.titlePlay }
         return complete ? Vocabulary.titleBasketFull : Vocabulary.titleContinue
     }
 
-    /// The calendar's own words for a day not started or started, and the rank
-    /// with the basket once the board is known.
+    /// The calendar's own words for a day not started, and the rank with the
+    /// basket once the board is known.
+    ///
+    /// **Before then, the rank alone,** from the stage the peach draws: back
+    /// on the title from a past day, or while the word lists load. The count
+    /// comes with today's board. "Started" is left only for a day started
+    /// before this build remembered stages. It used to stand for every day
+    /// started, until a fresh install's walk on 24 October 2026 found the line
+    /// reading "Started" under a peach that had grown.
     private var stateLine: String {
         guard started else { return Vocabulary.markNoRecord }
-        guard let standing else { return Vocabulary.markIncomplete }
+        guard let standing else {
+            guard let stage = model.todaysStage else { return Vocabulary.markIncomplete }
+            if stage == .crown { return Vocabulary.crownName }
+            let rank = GrowthStage.allCases.firstIndex(of: stage) ?? 0
+            return Vocabulary.tierNames[min(rank, Vocabulary.tierNames.count - 1)]
+        }
         let rank = complete
             ? Vocabulary.crownName
             : Vocabulary.tierNames[min(standing.index, Vocabulary.tierNames.count - 1)]

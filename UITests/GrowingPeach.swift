@@ -41,6 +41,31 @@ final class GrowingPeach: XCTestCase {
         return probe.label
     }
 
+    /// Play's label once the board has given the line its count, cut before
+    /// the count: "Continue, Little Bud" from "Continue, Little Bud · 3 of 47
+    /// words". What the title should still say once today's board is not the
+    /// one in play.
+    private func uncounted(_ play: XCUIElement) -> String {
+        let counted = expectation(for: NSPredicate(format: "label CONTAINS %@", " \u{00B7} "),
+                                  evaluatedWith: play)
+        XCTAssertEqual(XCTWaiter().wait(for: [counted], timeout: 40), .completed,
+                       "today's line never gave its count: \(play.label)")
+        return play.label.components(separatedBy: " \u{00B7} ").first ?? play.label
+    }
+
+    /// Back on the title from a day at random, with Play reading `label`.
+    private func pastDayAndBack(_ app: XCUIApplication, expecting label: String) {
+        app.buttons["TitleRandomDay"].tap()
+        XCTAssertTrue(app.staticTexts["ArchiveDateRow"].waitForExistence(timeout: 10),
+                      "a day at random did not open a past board")
+        app.buttons["BoardHome"].tap()
+        let play = app.buttons["TitlePlay"]
+        XCTAssertTrue(play.waitForExistence(timeout: 10), "the way back did not open the title")
+        let reads = expectation(for: NSPredicate(format: "label == %@", label), evaluatedWith: play)
+        XCTAssertEqual(XCTWaiter().wait(for: [reads], timeout: 5), .completed,
+                       "Play lost today's rank: \(play.label), not \(label)")
+    }
+
     /// The probe once it has something: it reads "none" until the seed runs.
     private func firstChange(_ app: XCUIApplication) -> String {
         let probe = app.staticTexts["DebugGrowingPeach"]
@@ -99,18 +124,26 @@ final class GrowingPeach: XCTestCase {
     /// store. The board in play is the past day's, which has no words, so a
     /// title reading the board in play would say the sprout. The seed runs
     /// once, at launch, so it never reaches the past day.
+    ///
+    /// Play and the line under it stay crowned too: the button's word for a
+    /// full basket, and the crown's name.
     func testAPastDayLeavesTodaysStage() {
         let app = launch(["-showTitle", "1", "-seedBoard", "full"])
         XCTAssertTrue(says(app, Self.crown, timeout: 40), "today never reached the crown")
 
-        app.buttons["TitleRandomDay"].tap()
-        XCTAssertTrue(app.staticTexts["ArchiveDateRow"].waitForExistence(timeout: 10),
-                      "a day at random did not open a past board")
-        app.buttons["BoardHome"].tap()
-        XCTAssertTrue(app.buttons["TitlePlay"].waitForExistence(timeout: 10),
-                      "the way back did not open the title")
+        pastDayAndBack(app, expecting: uncounted(app.buttons["TitlePlay"]))
         XCTAssertTrue(says(app, Self.crown, timeout: 5),
                       "the title drew the past day's stage, not today's: \(peach(app).label)")
+    }
+
+    /// Back on the title from a past day, the line under Play still names
+    /// today's rank, the one the peach beside it draws, where it used to fall
+    /// back to "Started". Its count comes with today's board, so until then
+    /// the line is the rank alone. Found walking a fresh install, 24 October
+    /// 2026.
+    func testAPastDayLeavesTodaysRankUnderPlay() {
+        let app = launch(["-showTitle", "1", "-seedBoard", "3"])
+        pastDayAndBack(app, expecting: uncounted(app.buttons["TitlePlay"]))
     }
 
     /// A launch that opens on the board shows the splash while it loads, and
