@@ -23,7 +23,7 @@ final class ReminderEndToEnd: XCTestCase {
         let cal = Calendar.current
         let now = Date()
         let at = cal.date(byAdding: .minute, value: 2, to: now)!
-        let parts = cal.dateComponents([.day, .hour, .minute], from: at)
+        let parts = cal.dateComponents([.year, .month, .day, .hour, .minute], from: at)
         try XCTSkipIf(parts.day != cal.component(.day, from: now), "too close to midnight")
         let minutes = parts.hour! * 60 + parts.minute!
 
@@ -41,26 +41,38 @@ final class ReminderEndToEnd: XCTestCase {
         let allow = springboard.buttons["Allow"]
         if allow.waitForExistence(timeout: 10) { allow.tap() }
 
+        // The reminder two minutes out, handed to iOS. The probe says
+        // "allowed" until iOS refuses, so "on allowed" alone is also an alert
+        // still up, or one that never came: only the date proves the ask was
+        // answered. On 25 October 2026 a simulator whose notification service
+        // never answered passed "on allowed" and failed 200 seconds later as
+        // "no reminder came".
+        let stamp = String(format: "%04d-%02d-%02d %02d:%02d",
+                           parts.year!, parts.month!, parts.day!, parts.hour!, parts.minute!)
         let probe = app.staticTexts["DebugReminder"]
         XCTAssertTrue(probe.waitForExistence(timeout: 10), "no reminder probe")
         let deadline = Date().addingTimeInterval(10)
-        while !probe.label.hasPrefix("on allowed"), Date() < deadline {
+        while !probe.label.contains(stamp), Date() < deadline {
             RunLoop.current.run(until: Date().addingTimeInterval(0.25))
         }
-        XCTAssertTrue(probe.label.hasPrefix("on allowed"), "the reminder was not scheduled: \(probe.label)")
+        let scheduled = probe.label.contains(stamp)
+        XCTAssertTrue(scheduled, "the reminder was not scheduled for \(stamp): \(probe.label)")
         // The same day, recorded as shown by the seeded launch, so a launch
         // with no tap would open on the board: landing on the title is the
         // tap's doing.
         app.terminate()
 
-        let banner = springboard.descendants(matching: .any)
-            .matching(NSPredicate(format: "label CONTAINS %@", "still on the tree")).firstMatch
-        XCTAssertTrue(banner.waitForExistence(timeout: 200), "no reminder came")
-        banner.tap()
+        // Nothing scheduled, nothing to wait for: straight on to the reset.
+        if scheduled {
+            let banner = springboard.descendants(matching: .any)
+                .matching(NSPredicate(format: "label CONTAINS %@", "still on the tree")).firstMatch
+            XCTAssertTrue(banner.waitForExistence(timeout: 200), "no reminder came")
+            banner.tap()
 
-        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 30), "the tap did not open the game")
-        XCTAssertTrue(app.buttons["TitleSettings"].waitForExistence(timeout: 30),
-                      "a real reminder tapped from cold did not land on the title")
+            XCTAssertTrue(app.wait(for: .runningForeground, timeout: 30), "the tap did not open the game")
+            XCTAssertTrue(app.buttons["TitleSettings"].waitForExistence(timeout: 30),
+                          "a real reminder tapped from cold did not land on the title")
+        }
 
         // Nothing left scheduled: the reset turns the reminder off, and every
         // open clears iOS's pending list before scheduling anything. Hygiene,
