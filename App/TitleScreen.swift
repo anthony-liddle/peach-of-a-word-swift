@@ -78,7 +78,7 @@ struct TitleScreen: View {
         ZStack {
             Cute.pageBackground.ignoresSafeArea()
             TitleFit {
-                TitleTop(arrived: arrived, stage: shownStage)
+                TitleTop(arrived: arrived, stage: shownStage, grows: true)
             } lead: {
                 VStack(alignment: .leading, spacing: 10) {
                     ViewThatFits(in: .horizontal) {
@@ -212,6 +212,14 @@ struct TitleTop: View {
     var costume: Costume? = TitleTop.todaysCostume
     /// Today's stage, on the title; nil on the splash.
     var stage: GrowthStage? = nil
+    /// On the title, the peach may take some of a tall screen's spare height,
+    /// up to `tallest`, when `TitleColumn` offers it. The splash keeps 96pt.
+    var grows = false
+
+    /// The peach's size, as it has been since the title arrived (#93), and
+    /// the most a tall screen's title grows it to.
+    static let size: CGFloat = 96
+    static let tallest: CGFloat = 144
 
     static var todaysCostume: Costume? {
         boardCostume(storageDay: GameModel.todayStorageIndex, preview: GameModel.costumePreview)
@@ -256,7 +264,11 @@ struct TitleTop: View {
                     .accessibilityHidden(true)
             }
         }
-        .frame(width: 96, height: 96)
+        // Square, at 96pt unless offered more, so a column that offers
+        // nothing extra lays out exactly as a fixed 96pt frame did.
+        .aspectRatio(1, contentMode: .fit)
+        .frame(minHeight: Self.size, idealHeight: Self.size,
+               maxHeight: grows ? Self.tallest : Self.size)
         .scaleEffect(arrived ? 1 : 0.88)
         .opacity(arrived ? 1 : 0)
     }
@@ -446,10 +458,8 @@ struct TitleFit<Content: View, Lead: View, Foot: View, Extras: View>: View {
 
     var body: some View {
         ViewThatFits(in: .vertical) {
-            VStack(spacing: 0) {
-                Spacer(minLength: 8)
+            TitleColumn {
                 content
-                Spacer(minLength: 16)
                 lead
                 foot
                 extras.padding(.top, 14)
@@ -473,6 +483,61 @@ struct TitleFit<Content: View, Lead: View, Foot: View, Extras: View>: View {
                     .padding(.vertical, 10)
                     .background(Cute.pageFoot.ignoresSafeArea(edges: .bottom))
             }
+        }
+    }
+}
+
+/// The fixed title's column: the top, then the date and the week, Play and its
+/// line, and the pills and links, in that order and nothing else.
+///
+/// **Up to `evenShare` of spare height, it lays out as the spacers did:** half
+/// above the peach and half between "Pick the peaches" and the date, at least
+/// 8pt and 16pt. Its ideal height is the spacers' too, so `ViewThatFits`
+/// chooses between the branches exactly as before.
+///
+/// **Past it, the excess no longer opens one band in the middle.** On an
+/// iPhone 18 Pro Max at L the spacers left 169pt between the line and the
+/// date, with the controls held to the bottom. Now a third of the excess grows
+/// the peach, up to `TitleTop.tallest`. Of the rest, a quarter widens the
+/// band, but never by more than `bandGrowth`, and a third of what remains goes
+/// under the links, the rest above the peach. That Pro Max's band is 112pt,
+/// its peach 144pt; an SE never has the spare, so it lays out as it did.
+struct TitleColumn: Layout {
+    static let aboveMinimum: CGFloat = 8
+    static let bandMinimum: CGFloat = 16
+    static let evenShare: CGFloat = 160
+    static let bandGrowth: CGFloat = 32
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let sizes = subviews.map { $0.sizeThatFits(ProposedViewSize(width: proposal.width, height: nil)) }
+        let ideal = sizes.map(\.height).reduce(0, +) + Self.aboveMinimum + Self.bandMinimum
+        return CGSize(width: proposal.width ?? sizes.map(\.width).max() ?? 0,
+                      height: max(proposal.height ?? ideal, ideal))
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews,
+                       cache: inout ()) {
+        let width = ProposedViewSize(width: bounds.width, height: nil)
+        var heights = subviews.map { $0.sizeThatFits(width).height }
+        let spare = max(0, bounds.height - heights.reduce(0, +))
+        var band = max(Self.bandMinimum, spare / 2)
+        var below: CGFloat = 0
+        if spare > Self.evenShare, let top = subviews.first {
+            let excess = spare - Self.evenShare
+            let offered = ProposedViewSize(width: bounds.width, height: heights[0] + excess / 3)
+            let grown = max(heights[0], top.sizeThatFits(offered).height)
+            let rest = excess - (grown - heights[0])
+            heights[0] = grown
+            let widened = min(rest / 4, Self.bandGrowth)
+            band = Self.evenShare / 2 + widened
+            below = (rest - widened) / 3
+        }
+        let above = max(Self.aboveMinimum, bounds.height - heights.reduce(0, +) - band - below)
+        var y = bounds.minY + above
+        for (index, subview) in subviews.enumerated() {
+            subview.place(at: CGPoint(x: bounds.midX, y: y), anchor: .top,
+                          proposal: ProposedViewSize(width: bounds.width, height: heights[index]))
+            y += heights[index] + (index == 0 ? band : 0)
         }
     }
 }
