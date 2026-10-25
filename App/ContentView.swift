@@ -554,7 +554,12 @@ struct ContentView: View {
             randomDay: {
                 Task { if await model.openRandomPastDay() { leaveTitle() } }
             },
-            howToPlay: { howToPlay = .fromLink },
+            // Read from the link, it has been seen: Play then goes straight
+            // to the board rather than showing the same card again, unasked.
+            howToPlay: {
+                HowToPlayFirstRun.markSeen()
+                howToPlay = .fromLink
+            },
             settings: { settingsShown = true }
         )
     }

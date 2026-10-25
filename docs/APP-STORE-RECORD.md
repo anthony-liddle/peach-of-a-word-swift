@@ -88,7 +88,7 @@ App Store Connect will not accept it. Distribution runs through Xcode Cloud,
 which carries its own signing, and that is the only path a build reaches
 TestFlight by.
 
-## Age rating: 9+
+## Age rating: 13+
 
 Apple replaced the old tiers in 2025. 12+ and 17+ are gone, replaced by 13+,
 16+ and 18+, and every app had to answer a reworked question set by
@@ -96,18 +96,22 @@ Apple replaced the old tiers in 2025. 12+ and 17+ are gone, replaced by 13+,
 questions answered Infrequent / Frequent / Not Present, plus capability
 questions answered Present / Not Present.
 
+**Answered for the 1.0 resubmission, 25 October 2026** (Antoine). Until then
+it was 9+, with Profanity the one Infrequent answer, as answered on
+21 August 2026; that table is in this file's history.
+
 | Question | Answer |
 |---|---|
 | Cartoon or Fantasy Violence | Not Present |
 | Realistic Violence | Not Present |
 | Prolonged Graphic or Sadistic Realistic Violence | Not Present |
-| Guns or Other Weapons | Not Present |
-| Mature or Suggestive Themes | Not Present |
+| **Guns or Other Weapons** | **Infrequent** |
+| **Mature or Suggestive Themes** | **Infrequent** |
 | Sexual Content or Nudity | Not Present |
 | Graphic Sexual Content and Nudity | Not Present |
 | **Profanity or Crude Humor** | **Infrequent** |
 | Horror/Fear Themes | Not Present |
-| Alcohol, Tobacco, or Drug Use or References | Not Present |
+| **Alcohol, Tobacco, or Drug Use or References** | **Infrequent** |
 | Medical or Treatment Information | Not Present |
 | Health or Wellness Topics | Not Present |
 | Gambling, Simulated Gambling, Contests, Loot Boxes | Not Present |
@@ -116,9 +120,12 @@ questions answered Present / Not Present.
 | User-Generated Content | Not Present |
 | Social Media, Messaging and Chat, Advertising | Not Present |
 
-One Infrequent answer, and it is what makes this 9+ rather than 4+.
+Four Infrequent answers. Alcohol, Tobacco, or Drug Use or References is the
+one that makes this 13+; the other three rate 9+ at Infrequent. Values from
+Apple's "Age ratings values and definitions", read 25 October 2026, for
+regions without their own requirements.
 
-### Profanity: why Infrequent, which is the whole rating
+### Profanity: why Infrequent
 
 Nothing profane is ever displayed unprompted. The found list renders only what
 the player found, the summary shows counts, and the day's set is never
@@ -146,28 +153,49 @@ denylist itself is complete and verified, 2,888 deny rows from
 `vendor/lexicon/dictionary-patch.tsv`, of which zero survive in either shipped
 list. Two different questions, and only the slur one is answered by the data.
 
-### The two arguable answers
+### References: Infrequent, on the literal reading
 
-Both rest on the same reading: **Apple's content questions ask what an app
-depicts, and a dictionary definition is not a depiction.** Recorded here
-because the reading is defensible rather than obvious, and someone should be
-able to find the reasoning if it is ever questioned.
+Three questions ask about references, in Apple's own words:
+- **Alcohol, Tobacco, or Drug Use or References:** "References to or
+  depictions of the consumption of alcohol, tobacco products, or other licit
+  or illicit substances."
+- **Guns or Other Weapons:** "References to or depictions of guns, weapons, or
+  objects that may cause bodily harm."
+- **Mature or Suggestive Themes:** "Content that implies or indirectly
+  references sexual or mature topics without being explicit".
 
-**Alcohol, Tobacco, or Drug Use or References: answered Not Present.** This is
-the closest call on the form, because the category says "or References" and
-the app does display references. `Data/etymology.tsv` is shown on the reveal
-card without being asked for, and among its 799 rows `drinking` and `hangover`
-carry definitions mentioning alcohol, while `medicine`, `pharmacy` and
-`antidote` mention drugs in the pharmaceutical sense. Read literally,
-"References" is satisfied. Read as intended, the category is about use and
-depiction, and defining a word is neither. If a reviewer disagrees, this is
-the answer they will disagree with, and Infrequent would move the rating to 9+
-where it already sits, so the exposure is a correction rather than a problem.
+The app depicts none of them. It defines words, and a definition that names a
+thing refers to it. The reveal card shows a source word's definition
+unasked, and a few source words carry one of these themes: `drinking` and
+`hangover` mention alcohol, `medicine`, `pharmacy` and `antidote` mention
+drugs, and `breeding` is "Propagation of offspring through sexual
+reproduction." Any word a player finds opens its definition with a tap, and the Submission Kit's scan of 25 September 2026
+counted 175 reachable definitions mentioning alcohol or drugs and 113
+mentioning a weapon.
 
-**Violence: answered Not Present.** `murderer` is a source word, and its
-reveal card reads "A person who commits murder." Same reasoning and a clearer
-case: the app depicts nothing, it defines a word. No violence is shown,
-described in action, or performed by anyone.
+**Until 25 October these three were answered Not Present,** on the reading
+that Apple's content questions ask what an app depicts, and a definition is
+not a depiction. That reading is defensible, and it is the one a reviewer
+could disagree with. **They are now Infrequent, all three on the same literal
+reading of "references", so the form reads one way throughout.**
+Under-declaring is what gets a build pulled, and 13+ costs this app nothing.
+
+**Infrequent, not Frequent:** the references come from typing a word, or from
+the odd source word's card, and are never a theme of the game.
+
+**Corrected here:** this file used to say Infrequent alcohol references "would
+move the rating to 9+ where it already sits". Under the 2025 table they rate
+13+. The Submission Kit found the error on 25 September 2026.
+
+### Violence: answered Not Present
+
+The violence questions ask about violence shown, not referred to: Realistic
+Violence is "Aggressive physical conflict or harm involving humans in lifelike
+situations". `murderer` was a source word when this was first answered, its
+card reading "A person who commits murder."; it has since left the calendar.
+The app depicts nothing, it defines a word. No violence is shown, described
+in action, or performed by anyone. Sexual Content or Nudity, "Non-explicit
+depictions of sexual behavior", is Not Present on the same reasoning.
 
 ### User-generated content: answered Not Present
 

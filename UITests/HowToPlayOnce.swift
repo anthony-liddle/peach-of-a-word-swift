@@ -1,7 +1,8 @@
 import XCTest
 
 /// How to play: once, unasked, on a phone that has never played; never unasked
-/// on one that has; and always from the title's link.
+/// on one that has, or on one that has read it from the title's link; and
+/// always from the link.
 ///
 /// **Two launches.** A fresh install taps Play and gets the card, whose "Pick
 /// the peaches" goes on to the board; back at the title, Play goes straight to
@@ -38,6 +39,27 @@ final class HowToPlayOnce: XCTestCase {
         tapPlay(app)
         XCTAssertTrue(tile(app).waitForExistence(timeout: 10), "Play did not open the board")
         XCTAssertFalse(done.exists, "the card came back unasked")
+    }
+
+    /// Read from the link first, the card counts as seen: Play goes straight to
+    /// the board. A fresh install's walk-through found the same card twice, the
+    /// second time unasked, which reads as the first not having taken.
+    func testAFreshInstallThatReadItFromTheLinkIsNotShownItAgain() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-showTitle", "1", "-resetProgress", "1",
+                               "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryL"]
+        app.launch()
+        let link = app.buttons["TitleHowToPlay"]
+        XCTAssertTrue(link.waitForExistence(timeout: 30), "no How to play on the title")
+        link.tap()
+        let done = app.buttons["HowToPlayDone"]
+        XCTAssertTrue(done.waitForExistence(timeout: 10), "the link did not open the card")
+        done.tap()
+        XCTAssertTrue(done.waitForNonExistence(timeout: 10), "Close did not close the card")
+
+        tapPlay(app)
+        XCTAssertTrue(tile(app).waitForExistence(timeout: 10), "Play did not open the board")
+        XCTAssertFalse(done.exists, "the card read from the link came back unasked")
     }
 
     func testAPhoneWithProgressSeesItOnlyWhenAsked() {

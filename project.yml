@@ -120,6 +120,17 @@ targets:
         UIUserInterfaceStyle: Light
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
+        # Every way up on an iPad, where App Review often runs iPhone apps.
+        # iPadOS 27 gives the app a phone-shaped window there, and with
+        # portrait alone, turning the iPad to landscape drew the board sideways
+        # inside it, squeezed to the window's width. Allowed every way, the
+        # window stays upright and lays out as a phone. An iPhone keeps
+        # portrait only. Held by `OrientationTests`.
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
         # Bundled fonts must be declared here or they are copied into the app
         # and silently never registered. Both are variable fonts carrying named
         # instances (Fredoka-SemiBold, Nunito-SemiBold and so on), which is what
