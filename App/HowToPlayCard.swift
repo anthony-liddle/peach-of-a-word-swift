@@ -68,7 +68,8 @@ struct HowToPlayCard: View {
 ///
 /// **Judged at the tap on Play, from the store,** not at launch: a phone with
 /// any stored day, outcome or streak has played, and never sees the card
-/// unasked. Seen once, it is never shown unasked again.
+/// unasked. Seen once, from Play or from the title's link, it is never shown
+/// unasked again.
 enum HowToPlayFirstRun {
     static let key = "howToPlaySeen"
 
