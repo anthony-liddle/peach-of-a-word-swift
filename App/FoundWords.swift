@@ -11,6 +11,17 @@ enum WordCategory: Hashable {
     case rare
     case mythic
 
+    /// A find's rung as it is drawn. The source word is a set word to the
+    /// engine, so only `classifyFound`, which knows the board, can split it out.
+    init(_ rung: Rung) {
+        self = switch rung {
+        case .set: .set
+        case .uncommon: .uncommon
+        case .rare: .rare
+        case .mythic: .mythic
+        }
+    }
+
     /// True for an off-page ladder word: shown with inline points, marked by
     /// shape, and never counted in a group's "X of Y".
     var isOffPage: Bool {
@@ -104,13 +115,7 @@ struct LengthGroup: Identifiable {
 func classifyFound(_ found: [String], in puzzle: Puzzle) -> [FoundWord] {
     found.map { word in
         let rung = classifyWord(word, in: puzzle)
-        let byRung: WordCategory = switch rung {
-        case .set: .set
-        case .uncommon: .uncommon
-        case .rare: .rare
-        case .mythic: .mythic
-        }
-        let category: WordCategory = word == puzzle.sourceWord ? .source : byRung
+        let category = word == puzzle.sourceWord ? .source : WordCategory(rung)
         // Scored by the single rarity-aware path, so a chip's inline points
         // match the bar and the total rather than being a local sum.
         return FoundWord(word: word, category: category, score: findScore(word, rung: rung))
@@ -157,7 +162,16 @@ struct RarityMark: View {
     /// What the source word's peach is wearing, if anything.
     var costume: Costume? = nil
     @Environment(\.peachCostume) private var worn
-    @ScaledMetric(relativeTo: .body) private var size: CGFloat = 13
+    @ScaledMetric private var size: CGFloat
+
+    /// 13pt beside the found list's 17pt words. The well's line is smaller
+    /// and scales with `.callout`, so it asks for its own size.
+    init(category: WordCategory, costume: Costume? = nil,
+         size: CGFloat = 13, relativeTo style: Font.TextStyle = .body) {
+        self.category = category
+        self.costume = costume
+        _size = ScaledMetric(wrappedValue: size, relativeTo: style)
+    }
 
     var body: some View {
         Group {
@@ -187,11 +201,35 @@ struct RarityMark: View {
 /// set a little longer than this, so the sweep ends before the chip forgets.
 private let glintSweepSeconds = 0.9
 
+extension RarityMark {
+    /// A new Mythic find's glint on this mark: the halo behind it and the
+    /// light across it, masked to the mark itself. The found list's chip and
+    /// the well's line both glint through here, so they play the same glint,
+    /// at the same time, from the model's one `glint`.
+    ///
+    /// `seq` is the glint's count, nil for no glint. `place` names where it
+    /// plays, for `-exposeGlint`'s record of the glints drawn.
+    func glinting(_ seq: Int?, in place: String) -> some View {
+        background { if let seq { GlintHalo().id(seq) } }
+            .overlay {
+                if let seq { GlintSweep(place: place, seq: seq).id(seq).mask(self) }
+            }
+    }
+}
+
 /// A new Mythic find's glint, the light: one band of white crossing the gem,
 /// masked to its shape by the chip, then gone. Started when it appears, which
 /// is when the model sets the glint, and `.id` makes each glint a new one.
 struct GlintSweep: View {
+    /// Where it plays and which glint it is, recorded as it starts in Debug,
+    /// so `MythicGlint` can see what was drawn, where the model's own list
+    /// can only say what was asked for.
+    var place = ""
+    var seq = 0
     @State private var crossed = false
+    #if DEBUG
+    @Environment(\.glintDrawn) private var drawn
+    #endif
 
     var body: some View {
         GeometryReader { geo in
@@ -205,10 +243,28 @@ struct GlintSweep: View {
         .allowsHitTesting(false)
         .accessibilityHidden(true)
         .onAppear {
+            #if DEBUG
+            drawn?("\(place) \(seq)")
+            #endif
             withAnimation(.easeOut(duration: glintSweepSeconds)) { crossed = true }
         }
     }
 }
+
+#if DEBUG
+private struct GlintDrawnKey: EnvironmentKey {
+    static let defaultValue: (@MainActor @Sendable (String) -> Void)? = nil
+}
+
+extension EnvironmentValues {
+    /// Where each glint's sweep starts, set at the root in Debug. See
+    /// `GlintSweep`.
+    var glintDrawn: (@MainActor @Sendable (String) -> Void)? {
+        get { self[GlintDrawnKey.self] }
+        set { self[GlintDrawnKey.self] = newValue }
+    }
+}
+#endif
 
 /// A new Mythic find's glint, the halo: a soft ring of the discovery purple
 /// behind the gem that opens and fades as the light crosses it.
