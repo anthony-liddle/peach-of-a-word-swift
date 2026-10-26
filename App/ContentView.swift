@@ -254,6 +254,11 @@ struct ContentView: View {
                         .font(.caption2)
                         .accessibilityIdentifier("DebugGlint")
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+                    // And where each glint was drawn: "list 1,well 1".
+                    Text(model.glintsDrawn.isEmpty ? "none" : model.glintsDrawn.joined(separator: ","))
+                        .font(.caption2)
+                        .accessibilityIdentifier("DebugGlintDrawn")
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
                 }
                 // `-exposeReminder 1` prints the switch, whether iOS said no,
                 // and every date last handed to iOS, so `DailyReminder` can
@@ -293,6 +298,10 @@ struct ContentView: View {
         // What the peach wears on this board, for the source word's mark and
         // the confetti; the card sheet takes it again below.
         .environment(\.peachCostume, model.costume)
+        #if DEBUG
+        // Each glint's sweep as it starts, for `-exposeGlint 1`.
+        .environment(\.glintDrawn) { [model] in model.glintsDrawn.append($0) }
+        #endif
         .sheet(item: $model.moment) { moment in
             Group {
                 switch moment {
@@ -693,7 +702,7 @@ struct ContentView: View {
             // Feedback lives INSIDE the well now, not in a row of its own
             // beneath it. See `ComposingStick`.
             ComposingStick(word: model.composedWord, feedback: model.feedback,
-                               feedbackSeq: model.feedbackSeq)
+                               feedbackSeq: model.feedbackSeq, glint: model.glint)
                 .padding(.top, 12)
             TypeCase(model: model, commitOnTouchDown: true)
                 .padding(.top, 8)
@@ -763,7 +772,7 @@ struct ContentView: View {
             VStack(spacing: 14) {
                 header
                 ComposingStick(word: model.composedWord, feedback: model.feedback,
-                               feedbackSeq: model.feedbackSeq)
+                               feedbackSeq: model.feedbackSeq, glint: model.glint)
                 TypeCase(model: model, commitOnTouchDown: false)
                 foundList
             }
@@ -1104,6 +1113,8 @@ private struct ComposingStick: View {
     /// shake. This is the same fix in the shape this app already had lying
     /// around for the spoken announcement.
     var feedbackSeq: Int = 0
+    /// A new Mythic find's glint, from the model. See `GameModel.glint`.
+    var glint: GameModel.Glint? = nil
     @ScaledMetric(relativeTo: .title) private var height: CGFloat = 58
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -1111,6 +1122,19 @@ private struct ComposingStick: View {
 
     private var shape: RoundedRectangle {
         RoundedRectangle(cornerRadius: Cute.cardRadius, style: .continuous)
+    }
+
+    /// The glint's count when this line is the Mythic find that set it, so
+    /// its mark glints with the found list's; nil for every other line.
+    ///
+    /// **The line's own find, not just a glint that is set.** The model keeps
+    /// the glint a moment past its sweep, and a Rare find made inside that
+    /// moment shows its own mark here, freshly drawn, which a glint keyed on
+    /// the model alone would play over.
+    private var glintSeq: Int? {
+        guard case .accepted(let word, _, .mythic) = feedback,
+              let glint, glint.word == word else { return nil }
+        return glint.seq
     }
 
     /// Inherited from `MessageLine` unchanged: a find is the accent, an
@@ -1149,6 +1173,7 @@ private struct ComposingStick: View {
                     if let rung = line.mark {
                         RarityMark(category: WordCategory(rung),
                                    size: 13, relativeTo: .callout)
+                            .glinting(glintSeq, in: "well")
                     }
                     Text(line.shown)
                         .font(CuteFont.body(15, relativeTo: .callout))

@@ -28,8 +28,15 @@ final class MarkInTheWell: XCTestCase {
     /// Spell a word on the rack and pick it. Each letter's first unpicked tile.
     static func pick(_ word: String, in app: XCUIApplication) {
         for letter in word {
-            app.buttons.matching(NSPredicate(format: "label == %@", "Letter \(letter)"))
-                .firstMatch.tap()
+            let tile = app.buttons.matching(
+                NSPredicate(format: "label == %@", "Letter \(letter)")).firstMatch
+            guard tile.waitForExistence(timeout: 5) else {
+                let rack = app.buttons.allElementsBoundByIndex.map { $0.label }
+                    .filter { $0.hasPrefix("Letter ") }
+                XCTFail("no unpicked \(letter) for \(word): \(rack)")
+                return
+            }
+            tile.tap()
         }
         app.buttons["Pick word"].firstMatch.tap()
     }

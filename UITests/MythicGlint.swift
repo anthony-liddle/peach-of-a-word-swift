@@ -51,6 +51,76 @@ final class MythicGlint: XCTestCase {
         XCTAssertEqual(glinted(app), "none", "a Mythic glinted under Reduce Motion")
     }
 
+    // MARK: - The well
+
+    /// Where each glint was drawn, "list 1,well 1", or "none".
+    private func drawn(_ app: XCUIApplication) -> String {
+        let probe = app.staticTexts["DebugGlintDrawn"]
+        XCTAssertTrue(probe.waitForExistence(timeout: 40), "no drawn-glint probe")
+        return probe.label
+    }
+
+    /// 24 October 2026's board, `literary`, as today, played by tapping.
+    /// TEL is Mythic there, ARET Rare and LAY in the basket.
+    private func launchLiterary(_ extra: [String] = []) -> XCUIApplication {
+        let app = XCUIApplication()
+        app.launchArguments = ["-resetProgress", "1",
+                               "-dayOffset", MarkInTheWell.octoberTwentyFourth,
+                               "-exposeGlint", "1",
+                               "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryL"]
+            + extra
+        app.launch()
+        XCTAssertTrue(LayoutBudget.rackTile(app).waitForExistence(timeout: 40), "no rack")
+        return app
+    }
+
+    private func found(_ word: String, _ rung: String, in app: XCUIApplication) {
+        MarkInTheWell.pick(word, in: app)
+        let chip = app.buttons.matching(
+            NSPredicate(format: "label BEGINSWITH %@", "\(word), \(rung), ")).firstMatch
+        XCTAssertTrue(chip.waitForExistence(timeout: 10), "\(word) was not found")
+    }
+
+    /// The well's mark glints with the list's, the same glint at the same time.
+    func testAMythicFoundByPlayGlintsInTheWellAndTheList() {
+        let app = launchLiterary()
+        found("tel", "Mythic", in: app)
+        let places = drawn(app).split(separator: ",").map(String.init)
+        XCTAssertTrue(places.contains("well 1"), "the well's mark did not glint: \(places)")
+        XCTAssertTrue(places.contains("list 1"), "the list's mark did not glint: \(places)")
+    }
+
+    func testNothingGlintsInTheWellUnderReduceMotion() {
+        let app = launchLiterary(["-reduceMotion", "1"])
+        found("tel", "Mythic", in: app)
+        XCTAssertEqual(drawn(app), "none", "a mark glinted under Reduce Motion")
+    }
+
+    /// Only the line of the find just made. With the glint held open, the
+    /// lines after TEL's, a rejection, a basket word and a Rare find, all come
+    /// while it is still set, and none of them glints.
+    func testOnlyTheMythicFindsOwnLineGlints() {
+        let app = launchLiterary(["-holdGlint", "60"])
+        found("tel", "Mythic", in: app)
+        MarkInTheWell.pick("lyt", in: app)         // not a word
+        found("lay", "on the page", in: app)
+        found("aret", "Rare", in: app)
+        let wells = drawn(app).split(separator: ",").filter { $0.hasPrefix("well") }
+        XCTAssertEqual(wells, ["well 1"], "the well should glint for TEL's line alone")
+    }
+
+    /// TEL's line, redrawn while its glint is still set, does not play it
+    /// again: the app sent to the background and brought back.
+    func testTheWellsLineRedrawnDoesNotGlintAgain() {
+        let app = launchLiterary(["-holdGlint", "60"])
+        found("tel", "Mythic", in: app)
+        XCUIDevice.shared.press(.home)
+        app.activate()
+        XCTAssertTrue(LayoutBudget.rackTile(app).waitForExistence(timeout: 20), "no rack")
+        let wells = drawn(app).split(separator: ",").filter { $0.hasPrefix("well") }
+        XCTAssertEqual(wells, ["well 1"], "the well should glint once, for TEL")
+    }
+
     /// Found, then the app opened again on the same board: the Mythic is in
     /// the list from the start, and has had its glint.
     func testAMythicAlreadyInTheListDoesNotGlint() {

@@ -201,11 +201,35 @@ struct RarityMark: View {
 /// set a little longer than this, so the sweep ends before the chip forgets.
 private let glintSweepSeconds = 0.9
 
+extension RarityMark {
+    /// A new Mythic find's glint on this mark: the halo behind it and the
+    /// light across it, masked to the mark itself. The found list's chip and
+    /// the well's line both glint through here, so they play the same glint,
+    /// at the same time, from the model's one `glint`.
+    ///
+    /// `seq` is the glint's count, nil for no glint. `place` names where it
+    /// plays, for `-exposeGlint`'s record of the glints drawn.
+    func glinting(_ seq: Int?, in place: String) -> some View {
+        background { if let seq { GlintHalo().id(seq) } }
+            .overlay {
+                if let seq { GlintSweep(place: place, seq: seq).id(seq).mask(self) }
+            }
+    }
+}
+
 /// A new Mythic find's glint, the light: one band of white crossing the gem,
 /// masked to its shape by the chip, then gone. Started when it appears, which
 /// is when the model sets the glint, and `.id` makes each glint a new one.
 struct GlintSweep: View {
+    /// Where it plays and which glint it is, recorded as it starts in Debug,
+    /// so `MythicGlint` can see what was drawn, where the model's own list
+    /// can only say what was asked for.
+    var place = ""
+    var seq = 0
     @State private var crossed = false
+    #if DEBUG
+    @Environment(\.glintDrawn) private var drawn
+    #endif
 
     var body: some View {
         GeometryReader { geo in
@@ -219,10 +243,28 @@ struct GlintSweep: View {
         .allowsHitTesting(false)
         .accessibilityHidden(true)
         .onAppear {
+            #if DEBUG
+            drawn?("\(place) \(seq)")
+            #endif
             withAnimation(.easeOut(duration: glintSweepSeconds)) { crossed = true }
         }
     }
 }
+
+#if DEBUG
+private struct GlintDrawnKey: EnvironmentKey {
+    static let defaultValue: (@MainActor @Sendable (String) -> Void)? = nil
+}
+
+extension EnvironmentValues {
+    /// Where each glint's sweep starts, set at the root in Debug. See
+    /// `GlintSweep`.
+    var glintDrawn: (@MainActor @Sendable (String) -> Void)? {
+        get { self[GlintDrawnKey.self] }
+        set { self[GlintDrawnKey.self] = newValue }
+    }
+}
+#endif
 
 /// A new Mythic find's glint, the halo: a soft ring of the discovery purple
 /// behind the gem that opens and fades as the light crosses it.

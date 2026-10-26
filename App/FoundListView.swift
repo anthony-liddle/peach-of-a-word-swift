@@ -138,12 +138,7 @@ struct WordChip: View {
                 RarityMark(category: found.category)
                     // Over the mark and behind it, never in the row, so the
                     // chip's layout is the same while it glints.
-                    .background { if let glint { GlintHalo().id(glint) } }
-                    .overlay {
-                        if let glint {
-                            GlintSweep().id(glint).mask(RarityMark(category: found.category))
-                        }
-                    }
+                    .glinting(glint, in: "list")
                 // The web sets the source word in a semibold oblique and every
                 // off-page rung in the discovery ink; the app painted all of
                 // them `ink`, so the ladder's colour stopped at the mark. See

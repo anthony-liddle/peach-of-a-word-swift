@@ -212,6 +212,11 @@ final class GameModel {
     /// `-exposeGlint 1` can show a test which finds did, or that none did.
     private(set) var glinted: [String] = []
 
+    /// Every glint's sweep as it started, oldest first, as "list 1" or
+    /// "well 1": where it played, and its count. What was drawn, where
+    /// `glinted` is what was asked for. Written by `GlintSweep`.
+    var glintsDrawn: [String] = []
+
     /// Every change of the title's peach while the title was up, oldest
     /// first, as "from>to animated" or "from>to cut", so
     /// `-exposeGrowingPeach 1` can show a test how each was drawn.
@@ -240,6 +245,16 @@ final class GameModel {
     /// How long a glint stays set: its sweep, and a little after.
     static let glintSeconds = 1.2
 
+    /// `glintSeconds`, or in Debug, `-holdGlint <seconds>`: a glint held set
+    /// long enough for a test to make a second find inside it.
+    private static var glintHold: Double {
+        #if DEBUG
+        let held = UserDefaults.standard.double(forKey: "holdGlint")
+        if held > 0 { return held }
+        #endif
+        return glintSeconds
+    }
+
     /// Reduce Motion, as the system has it, or `-reduceMotion 1` in Debug, so a
     /// test can ask for it.
     static var reduceMotion: Bool {
@@ -258,7 +273,7 @@ final class GameModel {
         glinted.append(word)
         #endif
         Task { [weak self] in
-            try? await Task.sleep(for: .seconds(Self.glintSeconds))
+            try? await Task.sleep(for: .seconds(Self.glintHold))
             if self?.glint == mine { self?.glint = nil }
         }
     }
