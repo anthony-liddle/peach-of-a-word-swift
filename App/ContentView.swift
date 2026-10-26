@@ -354,8 +354,8 @@ struct ContentView: View {
         // player who cannot see the line is exactly the player who has no way
         // to notice they submitted it again. See `GameModel.feedbackSeq`.
         .onChange(of: model.feedbackSeq) {
-            guard let message = model.feedback.message else { return }
-            AccessibilityNotification.Announcement(message).post()
+            guard let line = model.feedback.line else { return }
+            AccessibilityNotification.Announcement(line.spoken).post()
         }
         // The calendar of past days.
         //
@@ -1130,21 +1130,43 @@ private struct ComposingStick: View {
             shape.fill(Cute.paperDeep)
             shape.stroke(Cute.tileEdge, lineWidth: 1)
 
-            if word.isEmpty, let message = feedback.message {
-                Text(message)
-                    .font(CuteFont.body(15, relativeTo: .callout))
-                    .foregroundStyle(tint)
-                    .multilineTextAlignment(.center)
-                    // Two lines, and the same 0.6 floor the row used. Dropping
-                    // the floor further would put a 24pt glyph in front of
-                    // someone who asked for 43, which looks like it worked.
-                    .lineLimit(2)
-                    .minimumScaleFactor(0.6)
-                    // The well is full content width, so this keeps nearly all
-                    // of the width the row had: 330pt of 354 on a 390pt phone
-                    // against the row's 354, bought back several times over by
-                    // the second line.
-                    .padding(.horizontal, 12)
+            if word.isEmpty, let line = feedback.line {
+                // An Uncommon, Rare or Mythic find leads with the found list's
+                // mark for its rarity, in its colour: `❖ tel, 5 points`.
+                //
+                // **Beside the text, not inside it,** so the mark stays with
+                // the word on every line count: when the line wraps, the text
+                // wraps in its own column and the mark stays at the first
+                // line's baseline. The text keeps the width first, so if
+                // the line has to give way, the word and its points shrink to
+                // fit before the mark could push them.
+                //
+                // **Leading when there is a mark.** Centred, a wrapped
+                // "reseaus, / 15 points" set the shorter first line in from
+                // its mark, a gap at AX5 on both phones. Leading, the word
+                // starts at its mark on every line count.
+                HStack(alignment: .firstTextBaseline, spacing: 5) {
+                    if let rung = line.mark {
+                        RarityMark(category: WordCategory(rung),
+                                   size: 13, relativeTo: .callout)
+                    }
+                    Text(line.shown)
+                        .font(CuteFont.body(15, relativeTo: .callout))
+                        .foregroundStyle(tint)
+                        .multilineTextAlignment(line.mark == nil ? .center : .leading)
+                        // Two lines, and the same 0.6 floor the row used.
+                        // Dropping the floor further would put a 24pt glyph in
+                        // front of someone who asked for 43, which looks like
+                        // it worked.
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.6)
+                        .layoutPriority(1)
+                }
+                // The well is full content width, so this keeps nearly all of
+                // the width the row had: 330pt of 354 on a 390pt phone against
+                // the row's 354, bought back several times over by the second
+                // line.
+                .padding(.horizontal, 12)
             } else if word.isEmpty {
                 // Obliqued, not `.italic()`. The web sets `.stick__empty` in
                 // italic and this line claimed to match it for months while

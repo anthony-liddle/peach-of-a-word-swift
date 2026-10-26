@@ -11,6 +11,17 @@ enum WordCategory: Hashable {
     case rare
     case mythic
 
+    /// A find's rung as it is drawn. The source word is a set word to the
+    /// engine, so only `classifyFound`, which knows the board, can split it out.
+    init(_ rung: Rung) {
+        self = switch rung {
+        case .set: .set
+        case .uncommon: .uncommon
+        case .rare: .rare
+        case .mythic: .mythic
+        }
+    }
+
     /// True for an off-page ladder word: shown with inline points, marked by
     /// shape, and never counted in a group's "X of Y".
     var isOffPage: Bool {
@@ -104,13 +115,7 @@ struct LengthGroup: Identifiable {
 func classifyFound(_ found: [String], in puzzle: Puzzle) -> [FoundWord] {
     found.map { word in
         let rung = classifyWord(word, in: puzzle)
-        let byRung: WordCategory = switch rung {
-        case .set: .set
-        case .uncommon: .uncommon
-        case .rare: .rare
-        case .mythic: .mythic
-        }
-        let category: WordCategory = word == puzzle.sourceWord ? .source : byRung
+        let category = word == puzzle.sourceWord ? .source : WordCategory(rung)
         // Scored by the single rarity-aware path, so a chip's inline points
         // match the bar and the total rather than being a local sum.
         return FoundWord(word: word, category: category, score: findScore(word, rung: rung))
@@ -157,7 +162,16 @@ struct RarityMark: View {
     /// What the source word's peach is wearing, if anything.
     var costume: Costume? = nil
     @Environment(\.peachCostume) private var worn
-    @ScaledMetric(relativeTo: .body) private var size: CGFloat = 13
+    @ScaledMetric private var size: CGFloat
+
+    /// 13pt beside the found list's 17pt words. The well's line is smaller
+    /// and scales with `.callout`, so it asks for its own size.
+    init(category: WordCategory, costume: Costume? = nil,
+         size: CGFloat = 13, relativeTo style: Font.TextStyle = .body) {
+        self.category = category
+        self.costume = costume
+        _size = ScaledMetric(wrappedValue: size, relativeTo: style)
+    }
 
     var body: some View {
         Group {
