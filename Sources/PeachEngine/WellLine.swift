@@ -20,6 +20,13 @@ public struct WellLine: Equatable, Sendable {
     /// What a screen reader hears.
     public let spoken: String
 
+    /// What the line is called as a button: the spoken form without its
+    /// closing period, since a control's name is not a sentence. The web's
+    /// `name`, held to the same fixture.
+    public var name: String {
+        spoken.hasSuffix(".") ? String(spoken.dropLast()) : spoken
+    }
+
     /// A line that says the same thing to the eye and the ear: the source
     /// word's, and every rejection.
     public init(plain text: String) {

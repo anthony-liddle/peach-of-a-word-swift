@@ -12,15 +12,20 @@ struct WellLineTests {
     /// `src/ui/wellLine.test.ts`.** Change one and change the other, or the
     /// two platforms' lines can drift apart with both suites still green.
     /// The spoken form here is the find alone: the web adds " New rank." or
-    /// the completion line after it, which this app says elsewhere.
+    /// the completion line after it, which this app says elsewhere. The name
+    /// is what the line is called as a button.
     static let fixture: [(word: String, points: Int, rung: Rung,
-                          mark: Rung?, shown: String, spoken: String)] = [
-        ("tel", 5, .mythic, .mythic, "tel, 5 points", "Mythic find: tel, 5 points."),
-        ("relit", 9, .mythic, .mythic, "relit, 9 points", "Mythic find: relit, 9 points."),
-        ("aret", 5, .rare, .rare, "aret, 5 points", "Rare find: aret, 5 points."),
-        ("airt", 4, .uncommon, .uncommon, "airt, 4 points", "Uncommon find: airt, 4 points."),
-        ("early", 5, .set, nil, "early, 5 points", "early, 5 points."),
-        ("lay", 1, .set, nil, "lay, 1 point", "lay, 1 point."),
+                          mark: Rung?, shown: String, spoken: String, name: String)] = [
+        ("tel", 5, .mythic, .mythic, "tel, 5 points", "Mythic find: tel, 5 points.",
+         "Mythic find: tel, 5 points"),
+        ("relit", 9, .mythic, .mythic, "relit, 9 points", "Mythic find: relit, 9 points.",
+         "Mythic find: relit, 9 points"),
+        ("aret", 5, .rare, .rare, "aret, 5 points", "Rare find: aret, 5 points.",
+         "Rare find: aret, 5 points"),
+        ("airt", 4, .uncommon, .uncommon, "airt, 4 points", "Uncommon find: airt, 4 points.",
+         "Uncommon find: airt, 4 points"),
+        ("early", 5, .set, nil, "early, 5 points", "early, 5 points.", "early, 5 points"),
+        ("lay", 1, .set, nil, "lay, 1 point", "lay, 1 point.", "lay, 1 point"),
     ]
 
     @Test("matches the web's lines, character for character, on the same finds")
@@ -30,7 +35,20 @@ struct WellLineTests {
             #expect(line.mark == find.mark, "\(find.word)")
             #expect(line.shown == find.shown, "\(find.word)")
             #expect(line.spoken == find.spoken, "\(find.word)")
+            #expect(line.name == find.name, "\(find.word)")
         }
+    }
+
+    /// A button's name is not a sentence, so it is the spoken form without its
+    /// closing period. The source word's line keeps its exclamation.
+    @Test("names the line as a button by its spoken form, without the period")
+    func nameIsTheSpokenForm() {
+        for find in Self.fixture {
+            let line = WellLine(find: find.word, points: find.points, rung: find.rung)
+            #expect(line.name == String(line.spoken.dropLast()), "\(find.word)")
+        }
+        #expect(WellLine(plain: "You found the Peach of a Word!").name
+                == "You found the Peach of a Word!")
     }
 
     @Test("an Uncommon, Rare or Mythic find leads with its own mark",

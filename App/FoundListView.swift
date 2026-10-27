@@ -185,8 +185,12 @@ struct WordChip: View {
             + (found.category == .source ? costume.map { "the peach \($0.spoken), " } ?? "" : "")
             + counted(found.score, "point")
         )
-        .accessibilityHint("Shows the definition")
+        .accessibilityHint(Self.hint)
     }
+
+    /// What a chip does, as VoiceOver hints it. The well's line says the same,
+    /// since a tap on it opens the same card.
+    static let hint = "Shows the definition"
 }
 
 struct FoundListView: View {
