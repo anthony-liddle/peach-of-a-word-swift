@@ -260,6 +260,14 @@ struct ContentView: View {
                         .accessibilityIdentifier("DebugGlintDrawn")
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
                 }
+                // `-exposeAnnounced 1` lists the well's announcements since
+                // launch, so `TapTheWell` can hold a find to one.
+                if UserDefaults.standard.bool(forKey: "exposeAnnounced") {
+                    Text(model.announced.isEmpty ? "none" : model.announced.joined(separator: " | "))
+                        .font(.caption2)
+                        .accessibilityIdentifier("DebugAnnounced")
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                }
                 // `-exposeReminder 1` prints the switch, whether iOS said no,
                 // and every date last handed to iOS, so `DailyReminder` can
                 // hold the schedule to the days played and to the time.
@@ -365,6 +373,9 @@ struct ContentView: View {
         .onChange(of: model.feedbackSeq) {
             guard let line = model.feedback.line else { return }
             AccessibilityNotification.Announcement(line.spoken).post()
+            #if DEBUG
+            model.announced.append(line.spoken)
+            #endif
         }
         // The calendar of past days.
         //
@@ -1153,6 +1164,13 @@ private struct ComposingStick: View {
         return glint.seq
     }
 
+    /// The line a tap opens a card from: a find's, while it shows. Nil for
+    /// the placeholder, a rejection and the letters being picked.
+    private var opensCard: WellLine? {
+        guard word.isEmpty, onOpen != nil else { return nil }
+        return feedback.line
+    }
+
     /// Inherited from `MessageLine` unchanged: a find is the accent, an
     /// off-page find the discovery purple, a rejection the faint ink that says
     /// "nothing happened" without shouting about it.
@@ -1295,10 +1313,30 @@ private struct ComposingStick: View {
         // next swipe, is what the old row's `accessibilityHidden(true)` was
         // avoiding. The label describes the composing state, which is what this
         // element is.
+        //
+        // **While the line reports a find, the well is that find's button,**
+        // named by what the announcement said, without its closing period,
+        // and hinted as a chip is. It is the same element throughout, changing
+        // its label and its trait rather than a button appearing inside it,
+        // and nothing moves VoiceOver's focus to it, so the find is still
+        // heard once, as it lands. A player who swipes to the well now finds a
+        // control there, and the explicit action is what a double tap runs,
+        // since the button inside is one of the children ignored.
+        //
+        // **The action is always there, and the trait says whether it does
+        // anything.** An action makes the element a button to VoiceOver, so
+        // the trait is taken off again whenever there is no card to open.
+        // Attaching the action only with a card was tried and was worse:
+        // switching it on with a Mythic find rebuilt the well, and TEL's
+        // mark glinted twice (`MythicGlint`).
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(word.isEmpty
+        .accessibilityLabel(opensCard.map(\.name) ?? (word.isEmpty
             ? "No letters picked yet"
-            : "Picked so far: \(word.map(String.init).joined(separator: " "))")
+            : "Picked so far: \(word.map(String.init).joined(separator: " "))"))
+        .accessibilityHint(opensCard == nil ? "" : WordChip.hint)
+        .accessibilityAction { if opensCard != nil { onOpen?() } }
+        .accessibilityAddTraits(opensCard == nil ? [] : .isButton)
+        .accessibilityRemoveTraits(opensCard == nil ? .isButton : [])
         // So a test can find the well whatever it is showing.
         .accessibilityIdentifier("ComposingWell")
     }

@@ -241,6 +241,11 @@ final class GameModel {
     /// `glinted` is what was asked for. Written by `GlintSweep`.
     var glintsDrawn: [String] = []
 
+    /// Every announcement of the well's line posted since launch, oldest
+    /// first, so `-exposeAnnounced 1` can show a test that a find is said
+    /// once. Posted, not heard: the tree cannot hear VoiceOver.
+    var announced: [String] = []
+
     /// Every change of the title's peach while the title was up, oldest
     /// first, as "from>to animated" or "from>to cut", so
     /// `-exposeGrowingPeach 1` can show a test how each was drawn.

@@ -4,11 +4,11 @@ import XCTest
 /// the well keeps its height, and a fixed rack stays where it was.
 ///
 /// **The mark adds width to the row with the least room,** so this measures
-/// rather than trusts the fixed frame. The line itself is not in the tree (the
-/// well ignores its children, and says the find by announcement), so the well
-/// is measured by the label it carries when no letters are picked, before and
-/// after the find. Its pictures, one per size, are written when `MATRIX_SHOTS`
-/// names a directory (passed as `TEST_RUNNER_MATRIX_SHOTS`).
+/// rather than trusts the fixed frame. The well is found by its identifier,
+/// since a find's line makes it a button named by the find. The line is also
+/// its tap target, which has to reach 44pt without the well growing. Its
+/// pictures, one per size, are written when `MATRIX_SHOTS` names a directory
+/// (passed as `TEST_RUNNER_MATRIX_SHOTS`).
 ///
 /// On 24 October 2026's board, `literary`, opened as today. TEL is Mythic
 /// there, and spelled by tapping its tiles, as a player would.
@@ -51,7 +51,7 @@ final class MarkInTheWell: XCTestCase {
             ]
             app.launch()
 
-            let well = app.descendants(matching: .any)["No letters picked yet"].firstMatch
+            let well = app.descendants(matching: .any)["ComposingWell"].firstMatch
             let tile = LayoutBudget.rackTile(app)
             XCTAssertTrue(well.waitForExistence(timeout: 30), "\(size): no well")
             XCTAssertTrue(tile.waitForExistence(timeout: 10), "\(size): no rack")
@@ -66,14 +66,19 @@ final class MarkInTheWell: XCTestCase {
 
             XCTAssertEqual(after.well, before.well, accuracy: 0.01,
                            "\(size): the Mythic line changed the well's height")
+            // The line is a button, and the button inside the well is what
+            // takes the tap: the well less its slab.
+            XCTAssertTrue(app.buttons["ComposingWell"].exists, "\(size): the line is not a button")
+            let target = well.buttons.firstMatch.frame.height
+            XCTAssertGreaterThanOrEqual(target, 44, "\(size): the line's target is under 44pt")
             // A scrolling layout may scroll to reach a tile, which moves it
             // without anything having pushed it. Only a fixed rack must stay.
             if fixed {
                 XCTAssertEqual(after.rack, before.rack, accuracy: 0.01,
                                "\(size): the Mythic line moved the rack")
             }
-            report.append(String(format: "%@ well=%.2f→%.2f rack=%@", size,
-                                 before.well, after.well, fixed ? "fixed" : "scrolls"))
+            report.append(String(format: "%@ well=%.2f→%.2f target=%.2f rack=%@", size,
+                                 before.well, after.well, target, fixed ? "fixed" : "scrolls"))
             if let dir = ProcessInfo.processInfo.environment["MATRIX_SHOTS"] {
                 let url = URL(fileURLWithPath: dir).appendingPathComponent("well-\(size).png")
                 try? app.screenshot().pngRepresentation.write(to: url)

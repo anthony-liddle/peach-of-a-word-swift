@@ -191,4 +191,68 @@ final class TapTheWell: XCTestCase {
         XCTAssertLessThan(tile.frame.minY, before - 20, "a swipe from the line did not scroll the page")
         XCTAssertEqual(picked(app), [], "a swipe from the line placed a letter")
     }
+
+    // MARK: - To VoiceOver
+
+    /// What was announced since launch, oldest first, by `-exposeAnnounced 1`.
+    private func announced(_ app: XCUIApplication) -> [String] {
+        let probe = app.staticTexts["DebugAnnounced"]
+        XCTAssertTrue(probe.waitForExistence(timeout: 10), "no announcement probe")
+        return probe.label == "none" ? [] : probe.label.components(separatedBy: " | ")
+    }
+
+    /// The well is its find's button while it shows one, named by what was
+    /// announced; at other times it is the composing well it always was, and
+    /// no button. Its hint, "Shows the definition", is the chips' own, which
+    /// the tree does not carry; the report's VoiceOver pass hears it.
+    func testTheLineIsAButtonOnlyWhileItShowsAFind() {
+        let app = launch()
+        let button = app.buttons["ComposingWell"]
+        XCTAssertTrue(well(app).waitForExistence(timeout: 10), "no well")
+        XCTAssertFalse(button.exists, "the placeholder is a button")
+
+        MarkInTheWell.pick("lyt", in: app)         // not a word
+        XCTAssertFalse(button.waitForExistence(timeout: 2), "a rejection is a button")
+
+        found("tel", "Mythic", in: app)
+        XCTAssertTrue(button.waitForExistence(timeout: 5), "TEL's line is not a button")
+        XCTAssertEqual(button.label, "Mythic find: tel, 5 points")
+
+        app.buttons["Letter a"].firstMatch.tap()
+        XCTAssertTrue(button.waitForNonExistence(timeout: 5),
+                      "the well stayed a button once a letter was picked")
+        XCTAssertEqual(well(app).label, "Picked so far: a")
+    }
+
+    /// The source word's line is a button too, named by what it shows.
+    func testTheSourceWordsLineIsAButtonNamedByWhatItShows() {
+        let app = launch()
+        MarkInTheWell.pick("literary", in: app)
+        XCTAssertTrue(crownCard(app).waitForExistence(timeout: 10), "finding LITERARY opened no reveal card")
+        wayOut(app).tap()
+        XCTAssertTrue(crownCard(app).waitForNonExistence(timeout: 10), "the reveal card did not close")
+        let button = app.buttons["ComposingWell"]
+        XCTAssertTrue(button.waitForExistence(timeout: 5), "the source word's line is not a button")
+        XCTAssertEqual(button.label, "You found the Peach of a Word!")
+    }
+
+    /// **A find is said once,** by the announcement posted as it lands, and
+    /// opening its card from the line and closing it says nothing more. The
+    /// tree cannot hear VoiceOver, so this holds the app to the announcements
+    /// it posts; whether VoiceOver's focus stays put is the report's check.
+    func testAFindIsAnnouncedOnce() {
+        let app = launch(["-exposeAnnounced", "1"])
+        found("tel", "Mythic", in: app)
+        XCTAssertEqual(announced(app), ["Mythic find: tel, 5 points."])
+
+        well(app).tap()
+        XCTAssertTrue(wayOut(app).waitForExistence(timeout: 10), "the line opened no card")
+        wayOut(app).tap()
+        XCTAssertTrue(wayOut(app).waitForNonExistence(timeout: 10), "the card did not close")
+        XCTAssertEqual(announced(app), ["Mythic find: tel, 5 points."],
+                       "opening and closing the card said the find again")
+
+        found("aret", "Rare", in: app)
+        XCTAssertEqual(announced(app), ["Mythic find: tel, 5 points.", "Rare find: aret, 5 points."])
+    }
 }
