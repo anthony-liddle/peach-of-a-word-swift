@@ -653,6 +653,14 @@ final class GameModel {
         // the number is plausible, just answering a different question.
         streak = storage.currentStreak(todayIndex: Self.todayStorageIndex)
 
+        // **The day's outcome is brought up to the board before anything reads
+        // it.** The board was just recomputed from the word lists and the
+        // outcome was written by the last find, so a change to the lists can
+        // leave the board a full basket over a day the calendar draws finished.
+        // Raised, never lowered, on the day it already carries, and with no card:
+        // the line below then reads it as seen. See `raiseOutcomeOnOpening`.
+        storage.raiseOutcomeOnOpening(dayIndex: storageDay, found: found, puzzle: p)
+
         // A day already complete has had its moment. Only the transition
         // celebrates.
         //
