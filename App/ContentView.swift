@@ -702,7 +702,8 @@ struct ContentView: View {
             // Feedback lives INSIDE the well now, not in a row of its own
             // beneath it. See `ComposingStick`.
             ComposingStick(word: model.composedWord, feedback: model.feedback,
-                               feedbackSeq: model.feedbackSeq, glint: model.glint)
+                               feedbackSeq: model.feedbackSeq, glint: model.glint,
+                               onOpen: wellOpens)
                 .padding(.top, 12)
             TypeCase(model: model, commitOnTouchDown: true)
                 .padding(.top, 8)
@@ -772,7 +773,8 @@ struct ContentView: View {
             VStack(spacing: 14) {
                 header
                 ComposingStick(word: model.composedWord, feedback: model.feedback,
-                               feedbackSeq: model.feedbackSeq, glint: model.glint)
+                               feedbackSeq: model.feedbackSeq, glint: model.glint,
+                               onOpen: wellOpens, slideCancelsTap: false)
                 TypeCase(model: model, commitOnTouchDown: false)
                 foundList
             }
@@ -835,6 +837,12 @@ struct ContentView: View {
                 #endif
             }
         }
+    }
+
+    /// What a tap on the well's line does: open its find's card, while the
+    /// line reports one. See `GameModel.revealWellFind`.
+    private var wellOpens: (() -> Void)? {
+        model.wellFind == nil ? nil : { model.revealWellFind() }
     }
 
     private var foundList: some View {
@@ -1115,6 +1123,14 @@ private struct ComposingStick: View {
     var feedbackSeq: Int = 0
     /// A new Mythic find's glint, from the model. See `GameModel.glint`.
     var glint: GameModel.Glint? = nil
+    /// What a tap on the line does: open its find's card, the one the find's
+    /// chip opens. Nil while the line reports no find, so the placeholder, a
+    /// rejection and the letters being picked are not buttons at all. See
+    /// `GameModel.revealWellFind`.
+    var onOpen: (() -> Void)? = nil
+    /// Whether a slide cancels a tap on the line, which the fixed layout
+    /// needs and the scrolling one must not have. See `LineTap`.
+    var slideCancelsTap = true
     @ScaledMetric(relativeTo: .title) private var height: CGFloat = 58
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -1149,49 +1165,72 @@ private struct ComposingStick: View {
         }
     }
 
+    /// The line itself, the mark and the words.
+    private func lineView(_ line: WellLine) -> some View {
+        // An Uncommon, Rare or Mythic find leads with the found list's
+        // mark for its rarity, in its colour: `❖ tel, 5 points`.
+        //
+        // **Beside the text, not inside it,** so the mark stays with
+        // the word on every line count: when the line wraps, the text
+        // wraps in its own column and the mark stays at the first
+        // line's baseline. The text keeps the width first, so if
+        // the line has to give way, the word and its points shrink to
+        // fit before the mark could push them.
+        //
+        // **Leading when there is a mark.** Centred, a wrapped
+        // "reseaus, / 15 points" set the shorter first line in from
+        // its mark, a gap at AX5 on both phones. Leading, the word
+        // starts at its mark on every line count.
+        HStack(alignment: .firstTextBaseline, spacing: 5) {
+            if let rung = line.mark {
+                RarityMark(category: WordCategory(rung),
+                           size: 13, relativeTo: .callout)
+                    .glinting(glintSeq, in: "well")
+            }
+            Text(line.shown)
+                .font(CuteFont.body(15, relativeTo: .callout))
+                .foregroundStyle(tint)
+                .multilineTextAlignment(line.mark == nil ? .center : .leading)
+                // Two lines, and the same 0.6 floor the row used.
+                // Dropping the floor further would put a 24pt glyph in
+                // front of someone who asked for 43, which looks like
+                // it worked.
+                .lineLimit(2)
+                .minimumScaleFactor(0.6)
+                .layoutPriority(1)
+        }
+        // The well is full content width, so this keeps nearly all of
+        // the width the row had: 330pt of 354 on a 390pt phone against
+        // the row's 354, bought back several times over by the second
+        // line.
+        .padding(.horizontal, 12)
+    }
+
     var body: some View {
         ZStack {
             shape.fill(Cute.paperDeep)
             shape.stroke(Cute.tileEdge, lineWidth: 1)
 
             if word.isEmpty, let line = feedback.line {
-                // An Uncommon, Rare or Mythic find leads with the found list's
-                // mark for its rarity, in its colour: `❖ tel, 5 points`.
-                //
-                // **Beside the text, not inside it,** so the mark stays with
-                // the word on every line count: when the line wraps, the text
-                // wraps in its own column and the mark stays at the first
-                // line's baseline. The text keeps the width first, so if
-                // the line has to give way, the word and its points shrink to
-                // fit before the mark could push them.
-                //
-                // **Leading when there is a mark.** Centred, a wrapped
-                // "reseaus, / 15 points" set the shorter first line in from
-                // its mark, a gap at AX5 on both phones. Leading, the word
-                // starts at its mark on every line count.
-                HStack(alignment: .firstTextBaseline, spacing: 5) {
-                    if let rung = line.mark {
-                        RarityMark(category: WordCategory(rung),
-                                   size: 13, relativeTo: .callout)
-                            .glinting(glintSeq, in: "well")
+                if let onOpen {
+                    // A find's line opens its card, as its chip does. The
+                    // whole well is the target, so it is far past 44pt at
+                    // every size and the well has not grown to make it. A
+                    // press dims the line as it dims a chip, and the well's
+                    // paper stays put.
+                    let button = Button(action: onOpen) {
+                        lineView(line)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .contentShape(shape)
                     }
-                    Text(line.shown)
-                        .font(CuteFont.body(15, relativeTo: .callout))
-                        .foregroundStyle(tint)
-                        .multilineTextAlignment(line.mark == nil ? .center : .leading)
-                        // Two lines, and the same 0.6 floor the row used.
-                        // Dropping the floor further would put a 24pt glyph in
-                        // front of someone who asked for 43, which looks like
-                        // it worked.
-                        .lineLimit(2)
-                        .minimumScaleFactor(0.6)
-                        .layoutPriority(1)
+                    if slideCancelsTap {
+                        button.buttonStyle(LineTap())
+                    } else {
+                        button.buttonStyle(.plain)
+                    }
+                } else {
+                    lineView(line)
                 }
-                // The well is full content width, so this keeps nearly all of
-                // the width the row had: 330pt of 354 on a 390pt phone against
-                // the row's 354, bought back several times over by the second
-                // line.
-                .padding(.horizontal, 12)
             } else if word.isEmpty {
                 // Obliqued, not `.italic()`. The web sets `.stick__empty` in
                 // italic and this line claimed to match it for months while
@@ -1260,6 +1299,69 @@ private struct ComposingStick: View {
         .accessibilityLabel(word.isEmpty
             ? "No letters picked yet"
             : "Picked so far: \(word.map(String.init).joined(separator: " "))")
+        // So a test can find the well whatever it is showing.
+        .accessibilityIdentifier("ComposingWell")
+    }
+}
+
+/// How far a pressed line dims: the found list's chips' own press, so the two
+/// read as one idea. `.plain` draws a chip at 0.75 while it is held, measured
+/// off a held chip on 26 October 2026, alike in all three channels.
+private let linePressedOpacity = 0.75
+
+/// The well's line as a button in the fixed layout: a chip's press, and a tap
+/// that a slide cancels.
+///
+/// **A slide off the line opens nothing.** `Button` fires on a lift well
+/// outside itself, the system's allowance for a thumb that drifts, and the
+/// rack's first row sits 8pt under the well, inside that reach. So with a
+/// plain button, a fast stroke from the line into the rack opened the find's
+/// card mid-play, with the finger on a tile. Here a touch that strays more
+/// than a tap's allowance, 10pt, is not a tap, wherever it lifts.
+///
+/// **The fixed layout only.** In the scrolling layout the well is inside the
+/// page's scroll view, which already cancels a plain button on a drag, and a
+/// gesture of this kind there would stop the page scrolling from the well,
+/// as `RackScrollTests` measured for the rack. See `TypeCase`.
+private struct LineTap: PrimitiveButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        Press(configuration: configuration)
+    }
+
+    private struct Press: View {
+        let configuration: Configuration
+        /// Where this stroke began, so a new stroke clears `strayed`, even
+        /// after one the system cancelled before it could end.
+        @State private var start: CGPoint?
+        @State private var strayed = false
+        @State private var pressed = false
+        private static let allowance: CGFloat = 10
+
+        private static func travel(_ stroke: DragGesture.Value) -> CGFloat {
+            hypot(stroke.translation.width, stroke.translation.height)
+        }
+
+        var body: some View {
+            configuration.label
+                .opacity(pressed ? linePressedOpacity : 1)
+                .gesture(
+                    DragGesture(minimumDistance: 0)
+                        .onChanged { stroke in
+                            if stroke.startLocation != start {
+                                start = stroke.startLocation
+                                strayed = false
+                            }
+                            if Self.travel(stroke) > Self.allowance { strayed = true }
+                            pressed = !strayed
+                        }
+                        .onEnded { stroke in
+                            let tap = !strayed && Self.travel(stroke) <= Self.allowance
+                            pressed = false
+                            start = nil
+                            if tap { configuration.trigger() }
+                        }
+                )
+        }
     }
 }
 

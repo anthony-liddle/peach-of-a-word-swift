@@ -189,6 +189,30 @@ final class GameModel {
             : .definition(word: found.word, category: found.category)
     }
 
+    /// The find the well's line reports, whose card a tap on the line opens:
+    /// the word of an ordinary find, or the board's source word. Nil for the
+    /// placeholder and a rejection, which report no find.
+    var wellFind: String? {
+        switch feedback {
+        case .accepted(let word, _, _): word
+        case .sourceFound: puzzle?.sourceWord
+        case .none, .rejected: nil
+        }
+    }
+
+    /// Open the card for the find the well's line reports, as its chip would.
+    ///
+    /// **Through `revealFound`, from the chip's own classification.** The line
+    /// carries a rung, and a card built from that would be a second way of
+    /// deciding which card a word gets, free to disagree with the chip's.
+    /// `classifyFound` is what the chip is drawn from, so the line opens the
+    /// card the chip opens: the quiet one, or the crown's for the source word.
+    func revealWellFind() {
+        guard let puzzle, let word = wellFind,
+              let find = classifyFound([word], in: puzzle).first else { return }
+        revealFound(find)
+    }
+
     /// True once completion has been celebrated, so it fires on the transition
     /// and never again.
     ///
