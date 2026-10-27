@@ -896,6 +896,17 @@ final class GameModel {
         if let spec = UserDefaults.standard.string(forKey: "seedBoard") {
             seedBoard(spec)
         }
+        // `-seedOutcome cleared` writes the board's day as reached only that
+        // far, on the day itself, and leaves its words alone: a record below
+        // its board, which a word demoted out of the basket leaves behind and
+        // no find can write. After `-seedBoard`, so the seed's own record is
+        // the one replaced. `played`, `cleared` or `basket`.
+        if let name = UserDefaults.standard.string(forKey: "seedOutcome"),
+           let reached = ["played": DayOutcome.played, "cleared": DayOutcome.cleared,
+                          "basket": DayOutcome.basket][name],
+           let day = storageDayIndex {
+            storage.recordOutcome(dayIndex: day, DayOutcome(reached: reached, on: day, fromStreak: false))
+        }
         // `-findSource 1` finds the board's source word through the tile path,
         // after any seed, so a test can watch the submit that finds it without
         // knowing the day's word. `-tapWords` runs before the seed and needs
