@@ -1,1 +1,1 @@
-New in this build: after you find a word, tap its line above the letters to open its card, the same one you get by tapping the word in your list, without scrolling to it. When you find the peach of a word, tapping "You found the Peach of a Word!" brings its card back. Is the line easy to tap, and has a tap meant for a letter ever opened a card instead? And still: do a find's buzz and its sound feel like one moment or two?
+Calendar data update. No change to how the game plays.
