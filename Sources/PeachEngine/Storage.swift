@@ -739,6 +739,49 @@ extension GameStorage {
         writeOutcomes(state)
     }
 
+    /// Raise a day's outcome to what its board shows, as the board opens.
+    ///
+    /// **The board is recomputed from the word lists every time it opens, and
+    /// the outcome is written only by a find**, so a change to the lists leaves
+    /// the two apart. A word demoted out of the basket made a board that was one
+    /// short a full basket: the board said so, the calendar went on drawing the
+    /// day finished, and the next find on it, any find, played the full basket
+    /// card and recorded the basket as caught up later, for a basket nobody had
+    /// just completed. Raised here, before `completionAlreadySeen` reads it, the
+    /// calendar agrees with the board and the card has already been seen.
+    ///
+    /// **Raised, never lowered.** The stored rung is the high-water mark, as it
+    /// is for a find, so a board that now recomputes below its record keeps the
+    /// record.
+    ///
+    /// **On the day it already carries.** A day finished on the day stays on the
+    /// day and one caught up later stays later: what moved is the lists, not
+    /// when it was played. A day with words and no record takes its own index,
+    /// as the back-fill gives one, since only play before the archive leaves
+    /// words without an outcome.
+    ///
+    /// **Not before the one-time back-fill.** It writes each day's first
+    /// outcome, the run's floor included, and passes over a day that already has
+    /// one, so a raise ahead of it would take the run's place.
+    ///
+    /// An empty board must not claim to have been played, the back-fill's rule
+    /// and live play's. Returns whether anything was written.
+    @discardableResult
+    public func raiseOutcomeOnOpening(dayIndex: Int, found: [String], puzzle: Puzzle) -> Bool {
+        guard !found.isEmpty else { return false }
+        var state = readOutcomes()
+        guard state.backFilled else { return false }
+
+        let key = String(dayIndex)
+        let reached = rungReached(computeTier(found: Set(found), puzzle: puzzle))
+        let stored = state.days[key]
+        if let stored, stored.reached >= reached { return false }
+
+        state.days[key] = DayOutcome(reached: reached, on: stored?.on ?? dayIndex, fromStreak: false)
+        writeOutcomes(state)
+        return true
+    }
+
     /// Replace the whole map, keeping the back-fill marker.
     ///
     /// **A replace, deliberately, not a merge.** The one caller that wants this

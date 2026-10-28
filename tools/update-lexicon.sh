@@ -49,7 +49,7 @@ REPO="anthony-liddle/orchard"
 # somebody look at the numbers rather than inherit them. Expect those tests to
 # fail on a bump; read the diff before editing them, and never loosen one to
 # make a bump quiet.
-VERSION="v1.9.1"
+VERSION="v1.10.0"
 
 # ---------------------------------------------------------------------------
 # THE ARCHIVES THIS REPOSITORY TAKES FROM A RELEASE.
@@ -120,9 +120,9 @@ VERSION="v1.9.1"
 # download, a verification and a home in Data/, because the loop below already
 # does all three for every name it finds there.
 ARCHIVES=(
-  "lexicon.tar.gz|b82177811fed4287c9dfcd21454de6acb849e8a1890059b120d69287e752362b|lexicon|enable.txt:98d038730d9046da39c09e834bfe44ad948e5809c54ab2f926106b576c1844a1,scowl95-additions.txt:ffa1a153e2c48a085383bebc0a9a1ae6323756b62e605b07ccf59ea3b6352d38,common-pool.txt:10fa33188c8de4fc0d047f0993165365e12d6e739e1072a1275ee94c1fab928f,beyond-size-70.txt:1c164693fa9d6963d1cc915aa3f65fdc1122ed706c368d8490e094c44ba956d2,beyond-size-95.txt:e9a0eabad9dbea44cffb7ce995df516c68938a33ca15ed2e451f18aaa027b8cd,gloss-provenance.tsv:0b6719c97fc47e0acce41072634b2fff1ca23606d051e2d7fa329a07821481ff"
-  "etymology.tar.gz|25dd2d195bdc48ac39c1781c221d0f39d3ae962898722749ae02159112ce12c6|etymology|etymology.tsv:c53342410c7b75dd63f27a3cc042a2427feb7a6ca6e30b619ab25eba6b17cd7e"
-  "definitions.tar.gz|4094cffa448138f99a15ae681722ce4e8e298515f4474cdf68b23665cd18362b|definitions|definitions.tsv:27074502cd3230097327455676ffc51e4a910ca6add48f7c1a4feefd7a0e4503"
+  "lexicon.tar.gz|4f701b93d811a1acfbea9049084543458442f5802b1878005bb1289243e6669e|lexicon|enable.txt:98d038730d9046da39c09e834bfe44ad948e5809c54ab2f926106b576c1844a1,scowl95-additions.txt:ffa1a153e2c48a085383bebc0a9a1ae6323756b62e605b07ccf59ea3b6352d38,common-pool.txt:3f07fce97aee84410efccd6aac3308d97a4c122f2a549fb6f943ad2539ddcfdf,beyond-size-70.txt:1c164693fa9d6963d1cc915aa3f65fdc1122ed706c368d8490e094c44ba956d2,beyond-size-95.txt:e9a0eabad9dbea44cffb7ce995df516c68938a33ca15ed2e451f18aaa027b8cd,gloss-provenance.tsv:0b6719c97fc47e0acce41072634b2fff1ca23606d051e2d7fa329a07821481ff"
+  "etymology.tar.gz|8240f6a9e66b2a5868ee3318a70f42edc16aca76232b7d50b0cc7c8304227858|etymology|etymology.tsv:dc8f5ba472cdb1aad03643226a9404d4e29f40d86a88e213538d9a38630c4f43"
+  "definitions.tar.gz|d84ed8b374bd120595654a96410f8f88e93c956a14b0c6d6bde9c74666475d23|definitions|definitions.tsv:1408a5d259e1b939619db50c761e42f02ba4ca6711db0c10e9acfa95ab1b0e03"
 )
 
 # Split one ARCHIVES row into the four globals the loops below read.

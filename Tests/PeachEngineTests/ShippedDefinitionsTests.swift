@@ -155,12 +155,17 @@ struct ShippedDefinitionsTests {
     /// exactly the event this pin exists to surface. The four named defects are
     /// untouched: none of `gin`, `ship`, `sector` or `meal` is among the 38, so
     /// their text comes from the generated corpus, which did not move.
+    ///
+    /// **`sector` left at v1.10.0, by a fix aimed at it.** Orchard's extractor
+    /// now strips Wiktionary's notes to its editors from every card, so its
+    /// "(Can we add an example for this sense?)" is gone, with fifteen others.
+    /// It is pinned the other way now. The other three are untouched.
     @Test("the known corpus defects are present and unpatched")
     func knownDefectsAreStillHere() {
         let definitions = readDefinitions()
         #expect(definitions["gin"]?.contains("non - aged") == true)
         #expect(definitions["ship"]?.contains("water - borne") == true)
-        #expect(definitions["sector"]?.contains("(Can we add an example for this sense?)") == true)
+        #expect(definitions["sector"] == "noun. A section.")
         #expect(definitions["meal"] == "noun. Correct quotes")
 
         let spacedHyphens = definitions.values.filter { $0.contains(" - ") }.count
