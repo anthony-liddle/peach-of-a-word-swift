@@ -12,9 +12,25 @@ import XCTest
 /// not to replace it. The second is the launch race below.
 final class RungSheetDefinitions: XCTestCase {
 
+    /// The `-dayOffset` that makes 27 October 2026 today: `fragment`'s board,
+    /// with eleven Mythic words.
+    ///
+    /// **Not today's board, because today's can have no Mythic word at all.**
+    /// Both tests open the Mythic rung, and twelve days of the calendar have
+    /// none to open. 28 October 2026, `rounding`, is one, and both tests failed
+    /// on it on CI with "no Mythic tally". A rung with nothing in it has no
+    /// tally, so on such a day these tests stopped before reaching the sheet.
+    static var octoberTwentySeventh: String {
+        let cal = Calendar.current
+        let target = cal.date(from: DateComponents(year: 2026, month: 10, day: 27))!
+        return String(cal.dateComponents([.day], from: cal.startOfDay(for: TestClock.now),
+                                          to: target).day!)
+    }
+
     private func launch(_ extra: [String]) -> XCUIApplication {
         let app = XCUIApplication()
-        app.launchArguments = ["-resetProgress", "1", "-seedBoard", "almost",
+        app.launchArguments = ["-resetProgress", "1", "-dayOffset", Self.octoberTwentySeventh,
+                               "-seedBoard", "almost",
                                "-UIPreferredContentSizeCategoryName",
                                "UICTContentSizeCategoryL"] + extra
         app.launch()
