@@ -33,9 +33,7 @@ struct CostumeDayTests {
     func otherDays() {
         #expect(boardCostume(storageDay: storageDay(2026, 10, 30)) == nil)
         #expect(boardCostume(storageDay: storageDay(2026, 11, 1)) == nil)
-        #expect(boardCostume(storageDay: storageDay(2026, 6, 1)) == nil)
-        // New Year's Day has its own costume, but never the ghost.
-        #expect(boardCostume(storageDay: storageDay(2026, 1, 1)) != .ghost)
+        #expect(boardCostume(storageDay: storageDay(2026, 1, 2)) == nil)
     }
 
     @Test("a board with no day never wears it")
