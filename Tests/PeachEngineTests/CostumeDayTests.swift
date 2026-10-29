@@ -19,8 +19,10 @@ struct CostumeDayTests {
     @Test("a row for each day, Halloween and the winter")
     func table() {
         #expect(costumeDays.map { [$0.month, $0.day, $0.weekday, $0.nth] }
-                == [[10, 31, nil, nil], [11, nil, 4, 4], [12, 24, nil, nil], [12, 31, nil, nil], [1, 1, nil, nil]])
-        #expect(costumeDays.map(\.costume.rawValue) == ["ghost", "pie-crust", "antlers", "top-hat", "top-hat"])
+                == [[10, 31, nil, nil], [11, nil, 4, 4], [12, 21, nil, nil], [12, 24, nil, nil],
+                    [12, 25, nil, nil], [12, 31, nil, nil], [1, 1, nil, nil]])
+        #expect(costumeDays.map(\.costume.rawValue)
+                == ["ghost", "pie-crust", "beanie", "antlers", "santa-hat", "top-hat", "top-hat"])
     }
 
     @Test("31 October's board wears it, in any year")
@@ -92,15 +94,19 @@ struct WinterDay: Sendable, CustomTestStringConvertible {
                                 [2029, 11, 22], [2030, 11, 28]]
 
     /// New Year's Eve and Day share the top hat, so they are one span: the day
-    /// before is 30 December and the day after 2 January. Christmas Eve's day
-    /// after is Christmas Day, which will have its own costume, so a day's
+    /// before is 30 December and the day after 2 January. Christmas Eve and
+    /// Christmas Day are neighbours, each in its own costume, so a day's
     /// neighbours are held to not wearing that day's costume rather than to
     /// wearing nothing.
     static let all = [
         WinterDay(name: "Thanksgiving", costume: "pie-crust", spoken: "wearing a pie crust hat",
                   days: thanksgivings, neighbours: either(thanksgivings)),
+        WinterDay(name: "The winter solstice", costume: "beanie", spoken: "wearing a knit beanie and scarf",
+                  days: every(12, 21), neighbours: either(every(12, 21))),
         WinterDay(name: "Christmas Eve", costume: "antlers", spoken: "wearing antlers and a red nose",
                   days: every(12, 24), neighbours: either(every(12, 24))),
+        WinterDay(name: "Christmas Day", costume: "santa-hat", spoken: "wearing a Santa hat",
+                  days: every(12, 25), neighbours: either(every(12, 25))),
         WinterDay(name: "New Year's Eve and Day", costume: "top-hat", spoken: "wearing a top hat",
                   days: years.flatMap { [[$0, 12, 31], [$0 + 1, 1, 1]] },
                   neighbours: years.flatMap { [[$0, 12, 30], [$0 + 1, 1, 2]] }),

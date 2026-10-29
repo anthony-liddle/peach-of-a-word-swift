@@ -13,8 +13,12 @@ final class WinterCostumesOnTheDay: XCTestCase {
     private static let days: [(name: String, on: @Sendable (Int) -> DateComponents, spoken: String)] = [
         ("Thanksgiving", { DateComponents(year: $0, month: 11, weekday: 5, weekdayOrdinal: 4) },
          "The peach is wearing a pie crust hat."),
+        ("21 December", { DateComponents(year: $0, month: 12, day: 21) },
+         "The peach is wearing a knit beanie and scarf."),
         ("24 December", { DateComponents(year: $0, month: 12, day: 24) },
          "The peach is wearing antlers and a red nose."),
+        ("25 December", { DateComponents(year: $0, month: 12, day: 25) },
+         "The peach is wearing a Santa hat."),
         ("31 December", { DateComponents(year: $0, month: 12, day: 31) },
          "The peach is wearing a top hat."),
         ("1 January", { DateComponents(year: $0, month: 1, day: 1) },
@@ -85,9 +89,8 @@ final class WinterCostumesOnTheDay: XCTestCase {
         }
     }
 
-    /// Two days before each is a plain day, now and once the solstice and
-    /// Christmas Day dress: the Tuesday before Thanksgiving, 22 December, and
-    /// 29 and 30 December.
+    /// Two days before each is a plain day: the Tuesday before Thanksgiving,
+    /// 19, 22 and 23 December, and 29 and 30 December.
     func testAnotherDaysBoardOnEachDayDoesNot() {
         for (name, on, _) in Self.days {
             let app = reveal(["-dayOffset", offset(to: next(on)), "-archiveDay", "2"])
