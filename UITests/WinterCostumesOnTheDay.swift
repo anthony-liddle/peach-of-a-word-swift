@@ -6,24 +6,29 @@ import XCTest
 /// on the day does not. The engine's `WinterCostumeDayTests` hold the dates;
 /// these hold the app to passing it the board's day, never today's.
 final class WinterCostumesOnTheDay: XCTestCase {
-    /// Each costume date, and what the reveal card's peach says on it. New
-    /// Year's Eve and Day share the top hat, so each is its own date here.
-    private static let days: [(month: Int, day: Int, spoken: String)] = [
-        (11, 26, "The peach is wearing a pie crust hat."),
-        (12, 24, "The peach is wearing antlers and a red nose."),
-        (12, 31, "The peach is wearing a top hat."),
-        (1, 1, "The peach is wearing a top hat."),
+    /// Each costume day, how to find it in a year, and what the reveal card's
+    /// peach says on it. Thanksgiving is the fourth Thursday of November,
+    /// worked out here by `Calendar` rather than by the engine's own rule. New
+    /// Year's Eve and Day share the top hat, so each is its own day here.
+    private static let days: [(name: String, on: @Sendable (Int) -> DateComponents, spoken: String)] = [
+        ("Thanksgiving", { DateComponents(year: $0, month: 11, weekday: 5, weekdayOrdinal: 4) },
+         "The peach is wearing a pie crust hat."),
+        ("24 December", { DateComponents(year: $0, month: 12, day: 24) },
+         "The peach is wearing antlers and a red nose."),
+        ("31 December", { DateComponents(year: $0, month: 12, day: 31) },
+         "The peach is wearing a top hat."),
+        ("1 January", { DateComponents(year: $0, month: 1, day: 1) },
+         "The peach is wearing a top hat."),
     ]
 
-    /// The next `month` and `day` on or after today, since a negative
-    /// `-dayOffset` is dropped; see `CostumeOnTheDay.nextHalloween`.
-    private func next(_ month: Int, _ day: Int) -> Date {
+    /// The next such day on or after today, since a negative `-dayOffset` is
+    /// dropped; see `CostumeOnTheDay.nextHalloween`.
+    private func next(_ on: (Int) -> DateComponents) -> Date {
         let cal = Calendar.current
         let today = cal.startOfDay(for: TestClock.now)
         let year = cal.component(.year, from: today)
-        let thisYear = cal.date(from: DateComponents(year: year, month: month, day: day))!
-        return thisYear >= today
-            ? thisYear : cal.date(from: DateComponents(year: year + 1, month: month, day: day))!
+        let thisYear = cal.date(from: on(year))!
+        return thisYear >= today ? thisYear : cal.date(from: on(year + 1))!
     }
 
     private func offset(to date: Date, plus days: Int = 0) -> String {
@@ -59,32 +64,33 @@ final class WinterCostumesOnTheDay: XCTestCase {
     }
 
     func testEachDaysBoardOnTheDayWearsIt() {
-        for (month, day, spoken) in Self.days {
-            let app = reveal(["-dayOffset", offset(to: next(month, day))])
+        for (name, on, spoken) in Self.days {
+            let app = reveal(["-dayOffset", offset(to: next(on))])
             waitForTheCard(app)
             XCTAssertTrue(peachSays(app, any: [spoken], timeout: 5),
-                          "\(day)/\(month)'s board did not say \"\(spoken)\"")
+                          "\(name)'s board did not say \"\(spoken)\"")
             app.terminate()
         }
     }
 
     func testEachDaysBoardReplayedLaterWearsIt() {
-        for (month, day, spoken) in Self.days {
-            let app = reveal(["-dayOffset", offset(to: next(month, day), plus: 5), "-archiveDay", "5"])
+        for (name, on, spoken) in Self.days {
+            let app = reveal(["-dayOffset", offset(to: next(on), plus: 5), "-archiveDay", "5"])
             XCTAssertTrue(app.buttons["Back to today"].waitForExistence(timeout: 30),
                           "the past board never opened")
             waitForTheCard(app)
             XCTAssertTrue(peachSays(app, any: [spoken], timeout: 5),
-                          "\(day)/\(month)'s board, replayed five days later, did not say \"\(spoken)\"")
+                          "\(name)'s board, replayed five days later, did not say \"\(spoken)\"")
             app.terminate()
         }
     }
 
     /// Two days before each is a plain day, now and once the solstice and
-    /// Christmas Day dress: 24 November, 22 December, 29 and 30 December.
+    /// Christmas Day dress: the Tuesday before Thanksgiving, 22 December, and
+    /// 29 and 30 December.
     func testAnotherDaysBoardOnEachDayDoesNot() {
-        for (month, day, _) in Self.days {
-            let app = reveal(["-dayOffset", offset(to: next(month, day)), "-archiveDay", "2"])
+        for (name, on, _) in Self.days {
+            let app = reveal(["-dayOffset", offset(to: next(on)), "-archiveDay", "2"])
             XCTAssertTrue(app.buttons["Back to today"].waitForExistence(timeout: 30),
                           "the past board never opened")
             waitForTheCard(app)
@@ -92,7 +98,7 @@ final class WinterCostumesOnTheDay: XCTestCase {
             // say "The peach is" as well, so that alone is not a costume.
             let anyCostume = Self.days.map(\.spoken) + ["The peach is in a ghost sheet."]
             XCTAssertFalse(peachSays(app, any: anyCostume, timeout: 3),
-                           "the board two days before \(day)/\(month), played on it, dressed the peach")
+                           "the board two days before \(name), played on it, dressed the peach")
             app.terminate()
         }
     }

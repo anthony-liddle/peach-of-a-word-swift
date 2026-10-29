@@ -281,8 +281,13 @@ public func costumeCommands(_ d: String) throws -> [CostumeCommand] {
 // MARK: - The table both apps hash
 
 /// The table as one canonical text, exactly as the web's
-/// `canonicalCostumeTable()` writes it: the costume's own line, then one line
-/// per part, fields joined by `|`, empty where unset.
+/// `canonicalCostumeTable()` writes it, the days included, so a day changed in
+/// one app fails the other's suite as a drawing does. Fields are joined by `|`,
+/// empty where unset:
+///
+/// - each costume's own line, then one line per part;
+/// - then one line per day, in `costumeDays`' order: month, day, weekday, nth,
+///   costume and occasion.
 public func canonicalCostumeTable() -> String {
     var lines: [String] = []
     for costume in Costume.allCases {
@@ -299,6 +304,16 @@ public func canonicalCostumeTable() -> String {
             ].joined(separator: "|"))
         }
     }
+    for d in costumeDays {
+        lines.append([
+            String(d.month),
+            d.day.map(String.init) ?? "",
+            d.weekday.map(String.init) ?? "",
+            d.nth.map(String.init) ?? "",
+            d.costume.rawValue,
+            d.occasion,
+        ].joined(separator: "|"))
+    }
     return lines.joined(separator: "\n")
 }
 
@@ -310,14 +325,55 @@ func jsNumber(_ n: Double) -> String {
 
 // MARK: - The days the peach dresses up
 
-/// A day the peach dresses up, and what it wears.
+/// A day the peach dresses up, and what it wears: a fixed date, or a day that
+/// moves, named by its weekday and which of the month's it is.
 public struct CostumeDay: Sendable, Equatable {
     public let month: Int  // 1 to 12
-    public let day: Int
+    /// The day of the month, for a fixed date.
+    public let day: Int?
+    /// For a day that moves: 0 for Sunday to 6 for Saturday, as the web's
+    /// `getUTCDay` counts, one less than `Calendar`'s weekday.
+    public let weekday: Int?
+    /// Which of the month's: 1 for the first.
+    public let nth: Int?
     public let costume: Costume
     /// What the day is, for whoever reads this table. Never shown.
     public let occasion: String
+
+    init(month: Int, day: Int, costume: Costume, occasion: String) {
+        self.month = month
+        self.day = day
+        self.weekday = nil
+        self.nth = nil
+        self.costume = costume
+        self.occasion = occasion
+    }
+
+    init(month: Int, weekday: Int, nth: Int, costume: Costume, occasion: String) {
+        self.month = month
+        self.day = nil
+        self.weekday = weekday
+        self.nth = nth
+        self.costume = costume
+        self.occasion = occasion
+    }
+
+    /// Whether it falls on `day` of its month in `year`.
+    func falls(year: Int, day: Int) -> Bool {
+        if let fixed = self.day { return fixed == day }
+        guard let date = utcCalendar.date(from: DateComponents(year: year, month: month, day: day))
+        else { return false }
+        return utcCalendar.component(.weekday, from: date) - 1 == weekday && (day + 6) / 7 == nth
+    }
 }
+
+private let thursday = 4
+
+private let utcCalendar: Foundation.Calendar = {
+    var utc = Foundation.Calendar(identifier: .gregorian)
+    utc.timeZone = TimeZone(identifier: "UTC")!
+    return utc
+}()
 
 /// The days the peach dresses up. Other occasions may follow; each is a row.
 /// The web's `COSTUME_DAYS` holds the same rows.
@@ -327,15 +383,15 @@ public struct CostumeDay: Sendable, Equatable {
 /// while any other day's board does not, even if it is played on the day.
 public let costumeDays: [CostumeDay] = [
     CostumeDay(month: 10, day: 31, costume: .ghost, occasion: "Halloween"),
-    CostumeDay(month: 11, day: 26, costume: .pieCrust, occasion: "Thanksgiving"),
+    CostumeDay(month: 11, weekday: thursday, nth: 4, costume: .pieCrust, occasion: "Thanksgiving"),
     CostumeDay(month: 12, day: 24, costume: .antlers, occasion: "Christmas Eve"),
     CostumeDay(month: 12, day: 31, costume: .topHat, occasion: "New Year's Eve"),
     CostumeDay(month: 1, day: 1, costume: .topHat, occasion: "New Year's Day"),
 ]
 
 /// The costume for a calendar date, or nil.
-public func costume(month: Int, day: Int) -> Costume? {
-    costumeDays.first { $0.month == month && $0.day == day }?.costume
+public func costume(year: Int, month: Int, day: Int) -> Costume? {
+    costumeDays.first { $0.month == month && $0.falls(year: year, day: day) }?.costume
 }
 
 /// The costume for a board, by the board's own day.
@@ -348,16 +404,14 @@ public func boardCostume(storageDay: Int?, preview: String? = nil) -> Costume? {
     if let preview {
         let parts = preview.split(separator: "-").compactMap { Int($0) }
         if parts.count == 3, preview.count == 10 {
-            return costume(month: parts[1], day: parts[2])
+            return costume(year: parts[0], month: parts[1], day: parts[2])
         }
     }
     guard let storageDay else { return nil }
-    var utc = Foundation.Calendar(identifier: .gregorian)
-    utc.timeZone = TimeZone(identifier: "UTC")!
-    guard let epoch = utc.date(from: DateComponents(
+    guard let epoch = utcCalendar.date(from: DateComponents(
               year: storageEpoch.year, month: storageEpoch.month, day: storageEpoch.day)),
-          let date = utc.date(byAdding: .day, value: storageDay, to: epoch)
+          let date = utcCalendar.date(byAdding: .day, value: storageDay, to: epoch)
     else { return nil }
-    let parts = utc.dateComponents([.month, .day], from: date)
-    return costume(month: parts.month ?? 0, day: parts.day ?? 0)
+    let parts = utcCalendar.dateComponents([.year, .month, .day], from: date)
+    return costume(year: parts.year ?? 0, month: parts.month ?? 0, day: parts.day ?? 0)
 }

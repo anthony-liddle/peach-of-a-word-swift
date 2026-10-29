@@ -18,7 +18,8 @@ struct CostumeDayTests {
 
     @Test("a row for each day, Halloween and the winter")
     func table() {
-        #expect(costumeDays.map { [$0.month, $0.day] } == [[10, 31], [11, 26], [12, 24], [12, 31], [1, 1]])
+        #expect(costumeDays.map { [$0.month, $0.day, $0.weekday, $0.nth] }
+                == [[10, 31, nil, nil], [11, nil, 4, 4], [12, 24, nil, nil], [12, 31, nil, nil], [1, 1, nil, nil]])
         #expect(costumeDays.map(\.costume.rawValue) == ["ghost", "pie-crust", "antlers", "top-hat", "top-hat"])
     }
 
@@ -50,18 +51,45 @@ struct CostumeDayTests {
     }
 }
 
+/// A board's day as the app keys it, for a date written as year, month and day.
+private func storageDay(on ymd: [Int]) -> Int {
+    var utc = Foundation.Calendar(identifier: .gregorian)
+    utc.timeZone = TimeZone(identifier: "UTC")!
+    let epoch = utc.date(from: DateComponents(year: storageEpoch.year,
+                                              month: storageEpoch.month, day: storageEpoch.day))!
+    let date = utc.date(from: DateComponents(year: ymd[0], month: ymd[1], day: ymd[2]))!
+    return utc.dateComponents([.day], from: epoch, to: date).day!
+}
+
 /// A winter costume day, by raw value so the suite reads the table as the web
 /// writes it.
 struct WinterDay: Sendable, CustomTestStringConvertible {
     let name: String
     let costume: String
     let spoken: String
-    /// Month, day, and how many years after the first day it falls.
+    /// Its boards, as year, month and day.
     let days: [[Int]]
-    let before: [Int]
-    let after: [Int]
+    /// The boards either side of them.
+    let neighbours: [[Int]]
 
     var testDescription: String { name }
+
+    static let years = 2026...2028
+
+    /// A fixed date in each of the years the suite tries.
+    static func every(_ month: Int, _ day: Int) -> [[Int]] {
+        years.map { [$0, month, day] }
+    }
+
+    /// The days either side of each date.
+    static func either(_ days: [[Int]]) -> [[Int]] {
+        days.flatMap { [[$0[0], $0[1], $0[2] - 1], [$0[0], $0[1], $0[2] + 1]] }
+    }
+
+    /// Thanksgiving, the fourth Thursday of November, in years that reach both
+    /// ends of its week: the 22nd in 2029 and the 28th in 2030.
+    static let thanksgivings = [[2026, 11, 26], [2027, 11, 25], [2028, 11, 23],
+                                [2029, 11, 22], [2030, 11, 28]]
 
     /// New Year's Eve and Day share the top hat, so they are one span: the day
     /// before is 30 December and the day after 2 January. Christmas Eve's day
@@ -70,11 +98,12 @@ struct WinterDay: Sendable, CustomTestStringConvertible {
     /// wearing nothing.
     static let all = [
         WinterDay(name: "Thanksgiving", costume: "pie-crust", spoken: "wearing a pie crust hat",
-                  days: [[11, 26, 0]], before: [11, 25, 0], after: [11, 27, 0]),
+                  days: thanksgivings, neighbours: either(thanksgivings)),
         WinterDay(name: "Christmas Eve", costume: "antlers", spoken: "wearing antlers and a red nose",
-                  days: [[12, 24, 0]], before: [12, 23, 0], after: [12, 25, 0]),
+                  days: every(12, 24), neighbours: either(every(12, 24))),
         WinterDay(name: "New Year's Eve and Day", costume: "top-hat", spoken: "wearing a top hat",
-                  days: [[12, 31, 0], [1, 1, 1]], before: [12, 30, 0], after: [1, 2, 1]),
+                  days: years.flatMap { [[$0, 12, 31], [$0 + 1, 1, 1]] },
+                  neighbours: years.flatMap { [[$0, 12, 30], [$0 + 1, 1, 2]] }),
     ]
 }
 
@@ -84,29 +113,18 @@ struct WinterDay: Sendable, CustomTestStringConvertible {
 /// to get right, and `WinterCostumesOnTheDay` holds it to them.
 @Suite("the winter's costume days")
 struct WinterCostumeDayTests {
-    private func storageDay(_ year: Int, _ day: [Int]) -> Int {
-        var utc = Foundation.Calendar(identifier: .gregorian)
-        utc.timeZone = TimeZone(identifier: "UTC")!
-        let epoch = utc.date(from: DateComponents(year: storageEpoch.year,
-                                                  month: storageEpoch.month, day: storageEpoch.day))!
-        let date = utc.date(from: DateComponents(year: year + day[2], month: day[0], day: day[1]))!
-        return utc.dateComponents([.day], from: epoch, to: date).day!
-    }
-
     @Test("the day's board wears it, in any year", arguments: WinterDay.all)
     func theDay(_ winter: WinterDay) {
-        for year in 2026...2028 {
-            for day in winter.days {
-                #expect(boardCostume(storageDay: storageDay(year, day))?.rawValue == winter.costume,
-                        "\(day) in \(year)")
-            }
+        for day in winter.days {
+            #expect(boardCostume(storageDay: storageDay(on: day))?.rawValue == winter.costume, "\(day)")
         }
     }
 
     @Test("the day before and the day after do not wear it", arguments: WinterDay.all)
     func neighbours(_ winter: WinterDay) {
-        #expect(boardCostume(storageDay: storageDay(2026, winter.before))?.rawValue != winter.costume)
-        #expect(boardCostume(storageDay: storageDay(2026, winter.after))?.rawValue != winter.costume)
+        for day in winter.neighbours {
+            #expect(boardCostume(storageDay: storageDay(on: day))?.rawValue != winter.costume, "\(day)")
+        }
     }
 
     @Test("a board with no day never wears it", arguments: WinterDay.all)
@@ -117,13 +135,44 @@ struct WinterCostumeDayTests {
     @Test("a preview date stands in for the board's", arguments: WinterDay.all)
     func preview(_ winter: WinterDay) {
         let day = winter.days[0]
-        let date = String(format: "%04d-%02d-%02d", 2026 + day[2], day[0], day[1])
-        #expect(boardCostume(storageDay: storageDay(2026, [11, 20, 0]), preview: date)?.rawValue
+        let date = String(format: "%04d-%02d-%02d", day[0], day[1], day[2])
+        #expect(boardCostume(storageDay: storageDay(on: [2026, 11, 20]), preview: date)?.rawValue
                 == winter.costume)
     }
 
     @Test("it says what the peach is wearing", arguments: WinterDay.all)
     func spoken(_ winter: WinterDay) {
         #expect(Costume(rawValue: winter.costume)?.spoken == winter.spoken)
+    }
+}
+
+/// Thanksgiving goes by the fourth Thursday of November, not a fixed date.
+/// The web holds the same in `src/ui/costumeDay.test.tsx`.
+@Suite("Thanksgiving goes by the fourth Thursday of November")
+struct ThanksgivingTests {
+    @Test("26 Nov 2026, 25 Nov 2027 and 23 Nov 2028 wear it")
+    func theThursdays() {
+        #expect(boardCostume(storageDay: storageDay(on: [2026, 11, 26])) == .pieCrust)
+        #expect(boardCostume(storageDay: storageDay(on: [2027, 11, 25])) == .pieCrust)
+        #expect(boardCostume(storageDay: storageDay(on: [2028, 11, 23])) == .pieCrust)
+    }
+
+    @Test("26 Nov 2027, the Friday after, does not")
+    func notTheFriday() {
+        #expect(boardCostume(storageDay: storageDay(on: [2027, 11, 26])) == nil)
+    }
+
+    @Test("the day before and the day after wear nothing, in any year")
+    func neighbours() {
+        for day in WinterDay.either(WinterDay.thanksgivings) {
+            #expect(boardCostume(storageDay: storageDay(on: day)) == nil, "\(day)")
+        }
+    }
+
+    @Test("a preview goes by the year's own Thursday")
+    func preview() {
+        let plain = storageDay(on: [2026, 11, 20])
+        #expect(boardCostume(storageDay: plain, preview: "2027-11-25") == .pieCrust)
+        #expect(boardCostume(storageDay: plain, preview: "2027-11-26") == nil)
     }
 }
