@@ -142,3 +142,5 @@ Both files are the package's own, byte for byte, so they say exactly what the
 package says. A test pins their hashes, and CI compares them with the package it
 resolves. Until a Licences screen in the app shows them, the bundle carries them
 here.
+
+<!-- Throwaway: a data-only change, to show which UI tests one runs. Never merged. -->
