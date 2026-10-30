@@ -77,12 +77,16 @@ final class DefinitionReveal: XCTestCase {
                       "tapping a set word opened no card")
     }
 
-    func testTappingAnUncommonOpensACard() {
+    /// On today's board, so it skips on a day with no Uncommon word. No day of
+    /// the calendar has none today, but a calendar or a dictionary release
+    /// could make one. **`try`, not `try?`,** which throws the skip away and
+    /// runs on into an empty list.
+    func testTappingAnUncommonOpensACard() throws {
         let app = seededApp()
         XCTAssertTrue(app.staticTexts["FoundSummaryCount"].waitForExistence(timeout: 30))
 
         let uncommon = chips(app, category: "Uncommon")
-        try? XCTSkipIf(uncommon.isEmpty, "today's rack seeded no uncommon finds")
+        try XCTSkipIf(uncommon.isEmpty, "today's rack seeded no uncommon finds")
         uncommon[0].tap()
 
         XCTAssertTrue(closeButton(app).waitForExistence(timeout: 10),
@@ -102,12 +106,16 @@ final class DefinitionReveal: XCTestCase {
     /// through to an empty string renders a rule and nothing under it, which is
     /// the outcome `parseDefinitions` drops empty glosses to avoid, and it
     /// would pass any test that only checked a card had opened.
-    func testEveryRareOpensACardThatSaysSomething() {
+    ///
+    /// On today's board, and skipped on a day with no Rare word, as the
+    /// Uncommon test is. With `try?` that day would pass instead, having
+    /// tapped nothing, since the loop below runs zero times.
+    func testEveryRareOpensACardThatSaysSomething() throws {
         let app = seededApp()
         XCTAssertTrue(app.staticTexts["FoundSummaryCount"].waitForExistence(timeout: 30))
 
         let rare = chips(app, category: "Rare")
-        try? XCTSkipIf(rare.isEmpty, "today's rack seeded no rare finds")
+        try XCTSkipIf(rare.isEmpty, "today's rack seeded no rare finds")
 
         for chip in rare.prefix(4) {
             chip.tap()
