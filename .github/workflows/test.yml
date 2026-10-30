@@ -8,6 +8,12 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+    # The defaults, plus a label going on or coming off, so `full-ui` takes
+    # effect without a push. Any label change restarts the run, through the
+    # concurrency group below, and the new run does all the work again: a
+    # label run that skipped its jobs would report those checks as skipped,
+    # which branch protection counts as passed, over the real run's result.
+    types: [opened, synchronize, reopened, labeled, unlabeled]
 
 # A second push to a PR makes the first run pointless. macOS runners are the
 # expensive kind, so cancel rather than queue.
@@ -19,6 +25,59 @@ permissions:
   contents: read
 
 jobs:
+  # What this run tests, decided before anything waits on a simulator.
+  #
+  # **The UI suite is split into shards by a committed map,**
+  # `.github/ui-tests/shards.txt`, and this checks it first: every UI test
+  # class in exactly one shard, and no shard naming a class that is gone. A new
+  # test class with no line in the map fails here, in seconds, rather than
+  # silently never running.
+  #
+  # **A change that touches only data runs a targeted set.** A pull request
+  # whose files are all under Data/, TestFlight/, docs/ or tools/, or are
+  # Markdown, runs the UI classes in `.github/ui-tests/data-only.txt`: the ones
+  # whose results read the calendar, the word lists, the definitions or the
+  # other files in Data/. Everything else runs the whole suite: any other
+  # file, a push to main, or the `full-ui` label on the pull request.
+  #
+  # On Ubuntu, because deciding needs no Xcode, and the free plan's five
+  # concurrent macOS jobs are the scarce thing here, shared by every run on the
+  # account.
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      scope: ${{ steps.choose.outputs.scope }}
+      why: ${{ steps.choose.outputs.why }}
+      tests: ${{ steps.choose.outputs.tests }}
+      shards: ${{ steps.choose.outputs.shards }}
+
+    steps:
+      # A pull request checks out its merge with the base branch, whose first
+      # parent is the base: those two commits are all the diff below needs.
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
+
+      - name: Every UI test class in exactly one shard
+        run: python3 .github/ui-tests/plan.py check
+
+      # `--no-renames`, so a file moved out of App/ into Data/ lists both
+      # paths, and the move counts as the code change it is.
+      - name: What this change runs
+        id: choose
+        env:
+          EVENT: ${{ github.event_name }}
+          LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+        run: |
+          set -euo pipefail
+          CHANGED="$RUNNER_TEMP/changed.txt"
+          : > "$CHANGED"
+          if [ "$EVENT" = pull_request ]; then
+            git diff --name-only --no-renames HEAD^1 HEAD > "$CHANGED"
+            echo "$(wc -l < "$CHANGED" | tr -d ' ') files changed"
+          fi
+          python3 .github/ui-tests/plan.py choose "$CHANGED" >> "$GITHUB_OUTPUT"
+
   test:
     # macOS, because building an iOS app needs Xcode. Pinned rather than
     # macos-latest: a runner image rolling forward to a new major Xcode is a
@@ -197,7 +256,7 @@ jobs:
             -xctestrun "$XCTESTRUN" \
             -destination 'platform=iOS Simulator,name=iPhone 17'
 
-  # The UI tests, on their own job.
+  # The UI tests, built once for every job that runs them.
   #
   # They are the only instrument that can perform a gesture, and they earned
   # their place three times in one session: they settled whether the touch-down
@@ -205,18 +264,22 @@ jobs:
   # a design premise, and detect which layout was chosen structurally rather
   # than by a height threshold a squeeze could fool.
   #
-  # Deliberately a separate job rather than folded into `test`. If they turn out
+  # Deliberately separate jobs rather than folded into `test`. If they turn out
   # to be flaky on a runner they fail on their own, and the check that gates
   # merging and the check that gates delivery stay unaffected. That also means
-  # this job is NOT a required status check until it has a track record, which
-  # is a decision to revisit rather than a permanent state.
+  # `ui-tests` is NOT a required status check until it has a track record,
+  # which is a decision to revisit rather than a permanent state.
   #
-  # The simulator is resolved at run time rather than named. A UI test needs a
-  # concrete device, so `generic/platform=iOS Simulator` will not do, and naming
-  # one failed on the first run: the runner had iPhone 17 and 17 Pro but not the
-  # 16 Pro that was asked for. Any name is a guess about a machine image that
-  # changes without notice, so the job asks the runner what it has.
-  ui-tests:
+  # **Built here, run in shards below.** One job on one simulator ran them all
+  # in sequence, 55 to 85 minutes a run in the week to 29 October 2026. Each
+  # shard downloads this build and runs `test-without-building`, so the suite
+  # compiles once however many simulators run it.
+  #
+  # Built for the runner's own iPhone simulator, by UDID, which every shard's
+  # runner also has: the image is the same, and `.xctestrun` names no device.
+  # Its own scheme, so this cannot accidentally pull the unit tests in or push
+  # the UI tests into the app scheme that Xcode Cloud runs.
+  ui-build:
     runs-on: macos-26
 
     steps:
@@ -228,28 +291,89 @@ jobs:
       - name: Generate the Xcode project
         run: ./ci_scripts/ci_post_clone.sh
 
-      # Its own scheme, so this cannot accidentally pull the unit tests in or
-      # push the UI tests into the app scheme that Xcode Cloud runs.
-      - name: UI tests
+      - name: Build the UI tests
         run: |
           set -euo pipefail
-          # First available iPhone simulator, by UDID. Fails loudly if the image
-          # somehow has none, rather than falling back to something that is not
-          # a phone.
           UDID=$(xcrun simctl list devices available \
             | awk -F'[()]' '/^ *iPhone/ {print $2; exit}')
-          if [ -z "$UDID" ]; then
-            echo "no iPhone simulator available on this runner" >&2
-            xcrun simctl list devices available >&2
-            exit 1
-          fi
-          echo "using simulator $UDID"
-          xcodebuild test \
+          [ -n "$UDID" ] || { echo "no iPhone simulator on this runner" >&2; exit 1; }
+          xcodebuild build-for-testing \
             -project PeachOfAWord.xcodeproj \
             -scheme PeachOfAWordUITests \
             -destination "id=$UDID" \
             -disableAutomaticPackageResolution \
-            -resultBundlePath .build/ui-tests.xcresult
+            -derivedDataPath "$RUNNER_TEMP/dd"
+
+      # Tarred, because an artifact keeps no file modes: unpacked from a plain
+      # upload, the app's executable is no longer executable. About 25 MB.
+      - name: Pack the build
+        run: tar -C "$RUNNER_TEMP/dd/Build" -czf "$RUNNER_TEMP/ui-test-build.tgz" Products
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ui-test-build
+          path: ${{ runner.temp }}/ui-test-build.tgz
+          retention-days: 1
+          compression-level: 0
+
+  # One shard of the UI tests: its classes from the map, on its own simulator.
+  #
+  # **How many shards is a measured choice,** not the most the plan allows:
+  # each one pays about three minutes to download, boot and start before its
+  # first test, and the free plan runs five macOS jobs at once across the
+  # account, so more shards stop helping well before the limit.
+  #
+  # `fail-fast: false`, so one shard failing does not cancel the others and
+  # their results still say what passed.
+  ui-shard:
+    needs: [plan, ui-build]
+    runs-on: macos-26
+    name: ui-shard-${{ matrix.shard }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.plan.outputs.shards) }}
+    env:
+      SHARD: ${{ matrix.shard }}
+      CLASSES: ${{ matrix.classes }}
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: ui-test-build
+          path: ${{ runner.temp }}
+
+      - name: Unpack the build
+        run: |
+          mkdir -p "$RUNNER_TEMP/dd/Build"
+          tar -C "$RUNNER_TEMP/dd/Build" -xzf "$RUNNER_TEMP/ui-test-build.tgz"
+
+      - name: Boot the simulator
+        run: .github/ui-tests/simulator.sh "$RUNNER_TEMP/dd/Build/Products"
+
+      - name: UI tests, this shard
+        run: |
+          set -euo pipefail
+          ONLY=()
+          for class in $CLASSES; do ONLY+=("-only-testing:PeachOfAWordUITests/$class"); done
+          echo "shard $SHARD: $CLASSES"
+          XCTESTRUN=$(ls "$RUNNER_TEMP"/dd/Build/Products/*.xctestrun | head -1)
+          xcodebuild test-without-building \
+            -xctestrun "$XCTESTRUN" \
+            -destination "id=$UDID" \
+            "${ONLY[@]}" \
+            -resultBundlePath ".build/ui-tests-$SHARD.xcresult"
+
+      # The bundle against the source, test by test: every test this shard's
+      # classes declare ran, and nothing else did. A filter that matched
+      # nothing would otherwise pass, having run nothing.
+      - name: Every test in the shard ran
+        if: ${{ !cancelled() }}
+        run: |
+          python3 .github/ui-tests/plan.py verify "$SHARD" ".build/ui-tests-$SHARD.xcresult" \
+            "$CLASSES" --out "$RUNNER_TEMP/ui-test-count-$SHARD.json"
 
       # The result bundle carries the failure detail and any screenshots, which
       # is most of the value when a UI test fails on a machine you cannot see.
@@ -257,9 +381,58 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: ui-test-results
-          path: .build/ui-tests.xcresult
+          name: ui-test-results-${{ matrix.shard }}
+          path: .build/ui-tests-${{ matrix.shard }}.xcresult
           retention-days: 7
+
+      - name: Keep the count
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ui-test-count-${{ matrix.shard }}
+          path: ${{ runner.temp }}/ui-test-count-${{ matrix.shard }}.json
+          retention-days: 7
+
+  # The UI tests' one result: green only when every shard ran and passed.
+  #
+  # **The name is the old job's on purpose.** Reports, prompts and habits say
+  # "`ui-tests` is green" and mean the whole UI suite passed; with this, they
+  # still do, or, for a data-only change, the targeted set did, which the
+  # summary says. On Ubuntu, since it only reads the shards' results.
+  ui-tests:
+    needs: [plan, ui-build, ui-shard]
+    if: always()
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v8
+        if: needs.ui-shard.result != 'skipped'
+        continue-on-error: true
+        with:
+          pattern: ui-test-count-*
+          path: ${{ runner.temp }}/counts
+          merge-multiple: true
+
+      - name: Every shard passed, and every test ran
+        env:
+          PLAN: ${{ needs.plan.result }}
+          BUILD: ${{ needs.ui-build.result }}
+          SHARDS: ${{ needs.ui-shard.result }}
+          SCOPE: ${{ needs.plan.outputs.scope }}
+          WHY: ${{ needs.plan.outputs.why }}
+          TESTS: ${{ needs.plan.outputs.tests }}
+        run: |
+          set -uo pipefail
+          echo "plan $PLAN, build $BUILD, shards $SHARDS"
+          counted=0
+          python3 .github/ui-tests/plan.py summary "$RUNNER_TEMP/counts" \
+            > "$RUNNER_TEMP/summary.md" || counted=1
+          tee -a "$GITHUB_STEP_SUMMARY" < "$RUNNER_TEMP/summary.md"
+          [ "$PLAN" = success ] && [ "$BUILD" = success ] && [ "$SHARDS" = success ] \
+            || { echo "a UI test job did not pass" >&2; exit 1; }
+          exit "$counted"
 
   # The UI tests that touch the day, with the simulator in a zone whose date is
   # not UTC's.
@@ -275,56 +448,56 @@ jobs:
   # No `swift test` here: no engine test reads the ambient zone, since
   # `dayIndex` takes its zone as an argument, so a shifted `TZ` would test
   # nothing.
+  #
+  # From the same build as the shards, and run in full for a data-only change
+  # too: all three classes read the day, and `ArchiveBeaFirstOpen` the archive.
   ui-tests-off-utc:
+    needs: ui-build
     runs-on: macos-26
+    env:
+      CLASSES: TodayIsTheLocalDate DayRollsOverOnForeground ArchiveBeaFirstOpen
 
     steps:
       - uses: actions/checkout@v7
 
-      - name: Generate the Xcode project
-        run: ./ci_scripts/ci_post_clone.sh
+      - uses: actions/download-artifact@v8
+        with:
+          name: ui-test-build
+          path: ${{ runner.temp }}
 
-      # Built before the zone is chosen, so the tests start seconds after the
-      # check below rather than a build later.
-      - name: Build the UI tests
+      - name: Unpack the build
         run: |
-          set -euo pipefail
-          UDID=$(xcrun simctl list devices available \
-            | awk -F'[()]' '/^ *iPhone/ {print $2; exit}')
-          [ -n "$UDID" ] || { echo "no iPhone simulator on this runner" >&2; exit 1; }
-          echo "UDID=$UDID" >> "$GITHUB_ENV"
-          xcodebuild build-for-testing \
-            -project PeachOfAWord.xcodeproj \
-            -scheme PeachOfAWordUITests \
-            -destination "id=$UDID" \
-            -disableAutomaticPackageResolution \
-            -derivedDataPath "$RUNNER_TEMP/dd"
+          mkdir -p "$RUNNER_TEMP/dd/Build"
+          tar -C "$RUNNER_TEMP/dd/Build" -xzf "$RUNNER_TEMP/ui-test-build.tgz"
 
       # Twelve hours behind UTC is the previous date until 12:00 UTC; fourteen
       # ahead is the next date from 10:00 UTC. Switching at 11:00 leaves an hour
       # either side, and the check fails the job rather than letting it run
       # blind on the one minute before 00:00 UTC when neither holds.
-      #
-      # `launchctl setenv` inside the simulator, because a job-level `TZ` does
-      # not reach a simulator process. Both the app and the test runner inherit
-      # it, including apps XCUITest launches.
-      - name: UI tests that touch the day, off UTC
+      - name: Boot the simulator off UTC
         run: |
           set -euo pipefail
           if [ "$(date -u +%H)" -lt 11 ]; then ZONE=Etc/GMT+12; else ZONE=Pacific/Kiritimati; fi
           echo "UTC $(date -u '+%F %H:%M'), $ZONE $(TZ=$ZONE date '+%F %H:%M')"
           [ "$(date -u +%F)" != "$(TZ=$ZONE date +%F)" ] \
             || { echo "the local date is UTC's; this run would prove nothing" >&2; exit 1; }
-          xcrun simctl boot "$UDID" || true
-          xcrun simctl spawn "$UDID" launchctl setenv TZ "$ZONE"
+          .github/ui-tests/simulator.sh "$RUNNER_TEMP/dd/Build/Products" "$ZONE"
+
+      - name: UI tests that touch the day, off UTC
+        run: |
+          set -euo pipefail
+          ONLY=()
+          for class in $CLASSES; do ONLY+=("-only-testing:PeachOfAWordUITests/$class"); done
           XCTESTRUN=$(ls "$RUNNER_TEMP"/dd/Build/Products/*.xctestrun | head -1)
           xcodebuild test-without-building \
             -xctestrun "$XCTESTRUN" \
             -destination "id=$UDID" \
-            -only-testing:PeachOfAWordUITests/TodayIsTheLocalDate \
-            -only-testing:PeachOfAWordUITests/DayRollsOverOnForeground \
-            -only-testing:PeachOfAWordUITests/ArchiveBeaFirstOpen \
+            "${ONLY[@]}" \
             -resultBundlePath .build/ui-tests-off-utc.xcresult
+
+      - name: Every test off UTC ran
+        if: ${{ !cancelled() }}
+        run: python3 .github/ui-tests/plan.py verify off-utc .build/ui-tests-off-utc.xcresult "$CLASSES"
 
       - name: Keep the result bundle
         if: always()
@@ -352,7 +525,14 @@ jobs:
   # A separate job rather than a matrix on `test`, deliberately: a matrix would
   # rename the status check to `test (macos-26)` and silently detach the
   # required check in branch protection.
+  #
+  # **Skipped for a data-only change, and only when the plan says so.** Nothing
+  # such a change touches is compiled, and a skipped job satisfies a required
+  # check. If the plan itself fails, its scope is empty rather than `data`, so
+  # this still runs: a broken planner cannot pass this check by skipping it.
   build-oldest-sdk:
+    needs: plan
+    if: ${{ !cancelled() && needs.plan.outputs.scope != 'data' }}
     runs-on: macos-15
 
     steps:
