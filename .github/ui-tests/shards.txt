@@ -9,7 +9,7 @@
 # used to balance: nothing fails if they drift. To rebalance, or to change the
 # number of shards, update the seconds and print a new map:
 #
-#   python3 .github/ui-tests/plan.py balance 4
+#   python3 .github/ui-tests/plan.py balance 3
 #
 # It minimises the slowest shard, and half the slowest shard's data-only share,
 # so a data-only run is split evenly too. Within a shard, classes run in
@@ -17,47 +17,47 @@
 #
 # shard  class                              seconds
 1        LayoutBudget                       552
-1        TapTheWell                         223
-1        CostumeOnTheDay                    78
-1        ArchiveMonthPaging                 56
-1        RackScrollTests                    45
-1        DayRollsOverOnForeground           26
+1        RackAtLargeText                    284
+1        DailyReminder                      114
+1        MythicGlint                        107
+1        TitleAndTopRowAtEverySize          103
+1        RungSheetDefinitions               101
+1        RevealButtonReach                  29
+1        FirstFindShove                     20
 1        MeterTopRung                       16
 2        ArchivePeachDays                   466
-2        DailyReminder                      114
+2        ArchiveBeaFirstOpen                224
 2        ReminderEndToEnd                   104
-2        DefinitionReveal                   75
-2        ArchiveGridMetrics                 72
+2        GrowingPeach                       82
+2        CostumeOnTheDay                    78
+2        ExplainerReach                     68
+2        RackScrollTests                    45
+2        ArchiveEntry                       44
+2        HowToPlayOnce                      42
 2        LicencesList                       36
-2        ArchiveSheetHeight                 34
+2        SoundSwitch                        28
 2        ArchiveKeyLayout                   27
 2        ColophonDedication                 19
 2        RackShape                          18
 2        CueAtEachMoment                    17
+2        ArchiveChevronScale                16
 2        TodayIsTheLocalDate                12
 3        DefinitionCardExits                300
+3        TapTheWell                         223
 3        MarkInTheWell                      159
-3        MythicGlint                        107
-3        RungSheetDefinitions               101
-3        GrowingPeach                       82
-3        ExplainerReach                     68
+3        BackToTheTitle                     89
+3        ARecordBelowItsBoard               88
+3        DefinitionReveal                   75
+3        ArchiveGridMetrics                 72
+3        ArchiveMonthPaging                 56
 3        FoundListHeading                   44
+3        ArchiveSheetHeight                 34
 3        ArchivePageOrder                   30
-3        RevealButtonReach                  29
+3        TitleScreenAppears                 28
+3        DayRollsOverOnForeground           26
 3        FoundListHeaderRow                 21
-3        FirstFindShove                     20
+3        OneBeatPerFind                     21
 3        PrivacyLink                        19
+3        MeterGlyphPlacement                17
 3        ArchiveWayOut                      13
-4        RackAtLargeText                    284
-4        ArchiveBeaFirstOpen                224
-4        TitleAndTopRowAtEverySize          103
-4        BackToTheTitle                     89
-4        ARecordBelowItsBoard               88
-4        ArchiveEntry                       44
-4        HowToPlayOnce                      42
-4        SoundSwitch                        28
-4        TitleScreenAppears                 28
-4        OneBeatPerFind                     21
-4        MeterGlyphPlacement                17
-4        ArchiveChevronScale                16
-4        MessageLineShove                   10
+3        MessageLineShove                   10
