@@ -55,7 +55,9 @@ fi
 # The tests install their own copy over this one.
 start=$(date +%s)
 xcrun simctl install "$UDID" "$PRODUCTS/Debug-iphonesimulator/PeachOfAWord.app"
+installed=$(date +%s)
 xcrun simctl launch "$UDID" "$APP" -resetProgress 1 >/dev/null
+launched=$(date +%s)
 sleep 10
 xcrun simctl terminate "$UDID" "$APP" 2>/dev/null || true
-echo "warm-up launch, from install to close, $(( $(date +%s) - start ))s"
+echo "warm-up: installed in $(( installed - start ))s, launched in $(( launched - installed ))s"
