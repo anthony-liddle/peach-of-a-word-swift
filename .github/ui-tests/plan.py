@@ -297,33 +297,39 @@ def bundle_tests(bundle):
 
 
 def first_launch(bundle, tests):
-    """How the first of `tests` to run launched the app: "8.4s to idle", or
-    "timed out" when the launch never reached its wait for idle, or None.
+    """How the first app launch among `tests` went: "8.4s to idle", or
+    "timed out" when it never reached its wait for idle, or None.
 
-    XCTest runs classes and their tests in byte order, so the first is the
-    least ID. The time is from the launch to "Wait for ... to idle", the same
-    measure the October 2026 measurements used.
+    First by the clock, not by name: XCTest orders classes and their methods
+    by different rules, so an ID's sort order is not the run's. The time is
+    from the launch to "Wait for ... to idle", the measure the October 2026
+    measurements used.
     """
-    for test in sorted(tests):
+    def walk(acts):
+        for a in acts:
+            yield a
+            yield from walk(a.get("childActivities", []))
+
+    first = None
+    for test in tests:
         out = subprocess.run(["xcrun", "xcresulttool", "get", "test-results", "activities",
                               "--test-id", test, "--path", bundle],
                              capture_output=True, text=True)
         if out.returncode != 0:
             continue
-
-        def walk(acts):
-            for a in acts:
-                yield a
-                yield from walk(a.get("childActivities", []))
-
         for run in json.loads(out.stdout).get("testRuns", []):
             for a in walk(run.get("activities", [])):
-                if a.get("title", "").startswith("Launch "):
-                    for c in walk(a.get("childActivities", [])):
-                        if c.get("title", "").startswith("Wait for ") and c["title"].endswith("to idle"):
-                            return f"{c['startTime'] - a['startTime']:.1f}s to idle, in {test}"
-                    return f"timed out, in {test}"
-    return None
+                if not a.get("title", "").startswith("Launch "):
+                    continue
+                if first is None or a["startTime"] < first[0]:
+                    idle = next((c["startTime"] for c in walk(a.get("childActivities", []))
+                                 if c.get("title", "").startswith("Wait for ")
+                                 and c["title"].endswith("to idle")), None)
+                    first = (a["startTime"], test, idle)
+    if first is None:
+        return None
+    start, test, idle = first
+    return f"timed out, in {test}" if idle is None else f"{idle - start:.1f}s to idle, in {test}"
 
 
 def warmed(bundle):
@@ -391,14 +397,15 @@ def summary(counts_dir):
             totals[result] = totals.get(result, 0) + n
     print(f"### UI tests: {os.environ.get('SCOPE') or 'no plan'}\n")
     print(f"{os.environ.get('WHY') or 'The plan did not run.'}\n")
-    print("| shard | classes | ran | of | passed | skipped | failed |")
-    print("|---|---|---|---|---|---|---|")
+    print("| shard | classes | ran | of | passed | skipped | failed | first launch |")
+    print("|---|---|---|---|---|---|---|---|")
     for c in counts:
         r = c["results"]
+        launch = (c.get("first_launch") or "none").split(", in ")[0]
         print(f"| {c['shard']} | {c['classes']} | {c['ran']} | {c['expected']} | "
-              f"{r.get('Passed', 0)} | {r.get('Skipped', 0)} | {r.get('Failed', 0)} |")
+              f"{r.get('Passed', 0)} | {r.get('Skipped', 0)} | {r.get('Failed', 0)} | {launch} |")
     print(f"| **all** | | **{ran}** | **{want}** | {totals.get('Passed', 0)} | "
-          f"{totals.get('Skipped', 0)} | {totals.get('Failed', 0)} |\n")
+          f"{totals.get('Skipped', 0)} | {totals.get('Failed', 0)} | |\n")
     for c in counts:
         for i in c["skipped"]:
             print(f"- skipped in shard {c['shard']}: `{i}`")
