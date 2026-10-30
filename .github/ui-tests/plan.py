@@ -6,6 +6,8 @@
     plan.py verify SHARD BUNDLE CLASSES [--out FILE]
                                    the tests a result bundle ran, against the source
     plan.py summary DIR            the shards' counts added up, for `ui-tests`
+    plan.py warmed BUNDLE          the warm-up ran a test, and how it launched
+    plan.py warm-up                the warm-up's class
     plan.py balance N              a proposed map for N shards, from its times
     plan.py classes LIST           a list's classes, one per line (smoke, data-only)
 
@@ -48,6 +50,10 @@ DATA_ONLY_SUFFIXES = (".md",)
 
 # A label on a pull request that runs the whole suite whatever it touches.
 FULL_LABEL = "full-ui"
+
+# The class each simulator runs once before its tests, to warm XCUITest's
+# first launch: the shortest with a single launch. See `simulator.sh`.
+WARM_UP = "MessageLineShove"
 
 CLASS = re.compile(r"^(?:@\w+\s+)*(?:final\s+)?class\s+(\w+)\s*:\s*XCTestCase\b")
 EXTENSION = re.compile(r"^extension\s+(\w+)\b")
@@ -195,6 +201,9 @@ def check():
     for klass, methods in sorted(tests.items()):
         if not methods:
             problems.append(f"{klass} has no test methods the parse could find")
+    if WARM_UP not in tests:
+        problems.append(f"the warm-up class {WARM_UP} is not a test class in UITests/: "
+                        "name another short one in plan.py")
 
     if problems:
         for p in problems:
@@ -229,7 +238,8 @@ def scope(changed, event, labels):
     if code:
         more = f" and {len(code) - 1} more" if len(code) > 1 else ""
         return "full", f"{code[0]}{more} is outside the data-only paths"
-    return "data", f"all {len(changed)} changed files are data, docs, tools or Markdown"
+    files = "the one changed file is" if len(changed) == 1 else f"all {len(changed)} changed files are"
+    return "data", f"{files} data, docs, tools or Markdown"
 
 
 def choose(changed_path):
@@ -286,6 +296,45 @@ def bundle_tests(bundle):
     return found
 
 
+def first_launch(bundle, tests):
+    """How the first of `tests` to run launched the app: "8.4s to idle", or
+    "timed out" when the launch never reached its wait for idle, or None.
+
+    XCTest runs classes and their tests in byte order, so the first is the
+    least ID. The time is from the launch to "Wait for ... to idle", the same
+    measure the October 2026 measurements used.
+    """
+    for test in sorted(tests):
+        out = subprocess.run(["xcrun", "xcresulttool", "get", "test-results", "activities",
+                              "--test-id", test, "--path", bundle],
+                             capture_output=True, text=True)
+        if out.returncode != 0:
+            continue
+
+        def walk(acts):
+            for a in acts:
+                yield a
+                yield from walk(a.get("childActivities", []))
+
+        for run in json.loads(out.stdout).get("testRuns", []):
+            for a in walk(run.get("activities", [])):
+                if a.get("title", "").startswith("Launch "):
+                    for c in walk(a.get("childActivities", [])):
+                        if c.get("title", "").startswith("Wait for ") and c["title"].endswith("to idle"):
+                            return f"{c['startTime'] - a['startTime']:.1f}s to idle, in {test}"
+                    return f"timed out, in {test}"
+    return None
+
+
+def warmed(bundle):
+    """The warm-up's bundle ran a test, and how its launch went."""
+    ran = bundle_tests(bundle) if os.path.exists(bundle) else {}
+    if not ran:
+        fail(f"the warm-up ran no test: is {WARM_UP} still a test class in UITests/?")
+    results = ", ".join(f"{i} {r.lower()}" for i, r in sorted(ran.items()))
+    print(f"warm-up: {results}; first launch {first_launch(bundle, ran) or 'not found'}")
+
+
 def verify(shard, bundle, classes, out_path):
     """The bundle ran exactly the source's tests for these classes."""
     tests = source_tests()
@@ -298,13 +347,16 @@ def verify(shard, bundle, classes, out_path):
     for result in ran.values():
         results[result] = results.get(result, 0) + 1
     skips = sorted(i for i, r in ran.items() if r == "Skipped")
+    launch = first_launch(bundle, ran) if ran else None
     summary = {"shard": shard, "classes": len(classes), "expected": len(expected), "ran": len(ran),
-               "results": results, "skipped": skips, "missing": missing, "unexpected": unexpected}
+               "results": results, "skipped": skips, "missing": missing, "unexpected": unexpected,
+               "first_launch": launch}
     if out_path:
         with open(out_path, "w") as f:
             json.dump(summary, f, indent=1)
     print(f"shard {shard}: {len(ran)} of {len(expected)} tests ran: "
           + ", ".join(f"{n} {r.lower()}" for r, n in sorted(results.items())))
+    print(f"  first launch: {launch or 'none found'}")
     for i in skips:
         print(f"  skipped: {i}")
     for k in unknown:
@@ -433,6 +485,10 @@ def main(argv):
             out = args[i + 1]
             args = args[:i] + args[i + 2:]
         verify(args[0], args[1], args[2].split(), out)
+    elif command == "warmed" and args:
+        warmed(args[0])
+    elif command == "warm-up":
+        print(WARM_UP)
     elif command == "summary" and args:
         summary(args[0])
     elif command == "balance" and args:

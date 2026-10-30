@@ -1,29 +1,39 @@
 #!/bin/bash
 #
 # Boot the runner's first iPhone simulator, optionally move its time zone, and
-# launch the built app on it once, before any test's clock starts.
+# launch the app on it once through XCUITest, before any counted test.
 #
 #   .github/ui-tests/simulator.sh <Build/Products dir> [zone]
 #
 # Writes UDID=<the simulator> to $GITHUB_ENV for the steps after it.
 #
-# **The warm-up launch is the point.** A freshly booted simulator's first
-# launch twice missed XCUITest's 60 seconds ("Timed out while launching
-# application via Xcode"), on 22 and 27 October 2026, while every later launch
-# in the same run took 2 to 3 seconds. Each shard boots its own simulator, so
-# each would have that first launch. Paid here, it happens outside every
-# test's timeout, and a slow one costs time rather than a red run.
+# **The warm-up is the point.** A freshly booted simulator's first launch under
+# XCUITest has missed its 60 seconds ("Timed out while launching application
+# via Xcode"): on 22 and 27 October 2026 in the single job, and on 30 October
+# in a shard. Every later launch in a run takes 2 to 3 seconds, and each shard
+# boots its own simulator, so each would have that first launch.
+#
+# **Through XCUITest, because a plain launch did not warm it.** The first
+# version installed and launched the app with `simctl`. On 30 October its
+# launch took 7 seconds, and the shard's first test still timed out launching
+# the app, so what is cold is XCUITest's path to the app, not the app. Now one
+# short test runs in a session of its own (`plan.py warm-up` names it), its
+# result set aside: its launch pays whatever is cold, and if that takes past
+# 60 seconds, the miss is the warm-up's, not a counted test's. It fails this
+# step only if it ran nothing, which would mean the class was renamed and the
+# warm-up had quietly stopped warming.
 #
 # The simulator is resolved rather than named, for the reason the workflow
 # gives: a name is a guess about a machine image that changes without notice.
+# UDID in the environment overrides it, to try this on a chosen simulator.
 set -euo pipefail
 
 PRODUCTS=${1:?usage: simulator.sh <Build/Products dir> [zone]}
 ZONE=${2:-}
-APP=com.anthonyliddle.peachofaword
+PLAN="$(dirname "$0")/plan.py"
 
-UDID=$(xcrun simctl list devices available \
-  | awk -F'[()]' '/^ *iPhone/ {print $2; exit}')
+UDID=${UDID:-$(xcrun simctl list devices available \
+  | awk -F'[()]' '/^ *iPhone/ {print $2; exit}')}
 if [ -z "$UDID" ]; then
   echo "no iPhone simulator available on this runner" >&2
   xcrun simctl list devices available >&2
@@ -41,23 +51,21 @@ echo "booted in $(( $(date +%s) - start ))s"
 
 # `launchctl setenv` inside the simulator, because a job-level `TZ` does not
 # reach a simulator process. Both the app and the test runner inherit it,
-# including apps XCUITest launches.
+# including apps XCUITest launches. Before the warm-up, so it runs in the zone.
 if [ -n "$ZONE" ]; then
   xcrun simctl spawn "$UDID" launchctl setenv TZ "$ZONE"
   echo "simulator zone $ZONE"
 fi
-[ -d "$PRODUCTS/Debug-iphonesimulator/PeachOfAWord.app" ] \
-  || { echo "no app in $PRODUCTS" >&2; exit 1; }
 
-# Installed, launched and left to settle, then closed, after the zone so the
-# warm-up runs in it too. `-resetProgress 1` leaves the app as a fresh install
-# would, which is how every test that cares about its starting state opens it.
-# The tests install their own copy over this one.
+WARM="${RUNNER_TEMP:-/tmp}/ui-test-warm-up.xcresult"
+rm -rf "$WARM"
 start=$(date +%s)
-xcrun simctl install "$UDID" "$PRODUCTS/Debug-iphonesimulator/PeachOfAWord.app"
-installed=$(date +%s)
-xcrun simctl launch "$UDID" "$APP" -resetProgress 1 >/dev/null
-launched=$(date +%s)
-sleep 10
-xcrun simctl terminate "$UDID" "$APP" 2>/dev/null || true
-echo "warm-up: installed in $(( installed - start ))s, launched in $(( launched - installed ))s"
+xcodebuild test-without-building \
+  -xctestrun "$(ls "$PRODUCTS"/*.xctestrun | head -1)" \
+  -destination "id=$UDID" \
+  -only-testing:"PeachOfAWordUITests/$(python3 "$PLAN" warm-up)" \
+  -resultBundlePath "$WARM" > "$WARM.log" 2>&1 \
+  || { echo "the warm-up's test did not pass, which counts for nothing:"
+       grep -E ": error: " "$WARM.log" | cut -c1-300 | head -3; }
+echo "warm-up session took $(( $(date +%s) - start ))s"
+python3 "$PLAN" warmed "$WARM"

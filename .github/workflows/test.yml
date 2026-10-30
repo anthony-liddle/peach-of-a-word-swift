@@ -321,10 +321,13 @@ jobs:
 
   # One shard of the UI tests: its classes from the map, on its own simulator.
   #
-  # **How many shards is a measured choice,** not the most the plan allows:
-  # each one pays about three minutes to download, boot and start before its
-  # first test, and the free plan runs five macOS jobs at once across the
-  # account, so more shards stop helping well before the limit.
+  # **Four shards is a measured choice,** not the most the plan allows. Each
+  # pays three to five minutes to download, boot and warm before its first
+  # test, and the free plan runs five macOS jobs at once across the account.
+  # On 30 October 2026, push to every check green took 38.1 minutes with
+  # three, 27.9 with four and 35.9 with five: three run too long each, and five
+  # with `ui-tests-off-utc` are one job more than the five, so one shard waited
+  # 10.7 minutes for a runner. To change it, `plan.py balance N`.
   #
   # `fail-fast: false`, so one shard failing does not cancel the others and
   # their results still say what passed.
@@ -353,8 +356,9 @@ jobs:
           mkdir -p "$RUNNER_TEMP/dd/Build"
           tar -C "$RUNNER_TEMP/dd/Build" -xzf "$RUNNER_TEMP/ui-test-build.tgz"
 
-      # Booted, and the app launched once, outside every test's timeout: a
-      # fresh simulator's first launch has missed XCUITest's 60 seconds.
+      # Booted, and the app launched once through XCUITest before any counted
+      # test: a fresh simulator's first launch has missed XCUITest's 60
+      # seconds. `simulator.sh` says why a plain launch was not enough.
       - name: Boot and warm the simulator
         run: .github/ui-tests/simulator.sh "$RUNNER_TEMP/dd/Build/Products"
 
