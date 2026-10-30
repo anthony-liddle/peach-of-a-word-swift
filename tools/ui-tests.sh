@@ -30,8 +30,16 @@
 # Package resolution is off, as it is in CI: a resolution here would rewrite
 # Package.resolved, which Xcode Cloud builds from.
 #
-# DEVICE is a simulator name, and the newest runtime that has it is used.
-# Default: the iPhone 17 Pro, the phone CI's runner has.
+# DEVICE is a simulator's name, or its UDID. A name is looked up here, on the
+# newest runtime that has it, and passed on by UDID: `name=` alone makes
+# xcodebuild assume the newest runtime, and fails if the device is on an older
+# one, as the iPhone 17 Pro is on a machine with iOS 27. Default: the iPhone
+# 17 Pro, the phone CI's runner has. A missing one can be made, for example
+# the SE:
+#
+#   xcrun simctl create 'iPhone SE (3rd generation)' \
+#     com.apple.CoreSimulator.SimDeviceType.iPhone-SE-3rd-generation \
+#     com.apple.CoreSimulator.SimRuntime.iOS-27-0
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
@@ -52,11 +60,28 @@ case "$MODE" in
     exit 2 ;;
 esac
 
+UDID=$(xcrun simctl list devices available -j | python3 -c '
+import json, re, sys
+want = sys.argv[1]
+found = []
+for runtime, devices in json.load(sys.stdin)["devices"].items():
+    version = [int(n) for n in re.findall(r"\d+", runtime.rsplit(".", 1)[-1])]
+    for d in devices:
+        if want in (d["name"], d["udid"]):
+            found.append((version, d["udid"]))
+print(max(found)[1] if found else "")
+' "$DEVICE")
+if [ -z "$UDID" ]; then
+  echo "no available simulator named $DEVICE; these are:" >&2
+  xcrun simctl list devices available | grep -E "^--|^ +" >&2
+  exit 2
+fi
+
 tools/xcodeproj.sh >/dev/null
 xcodebuild build-for-testing \
   -project PeachOfAWord.xcodeproj \
   -scheme PeachOfAWordUITests \
-  -destination "platform=iOS Simulator,name=$DEVICE" \
+  -destination "id=$UDID" \
   -disableAutomaticPackageResolution \
   -derivedDataPath "$DD" \
   -quiet
@@ -64,9 +89,9 @@ xcodebuild build-for-testing \
 ONLY=()
 for class in $CLASSES; do ONLY+=("-only-testing:PeachOfAWordUITests/$class"); done
 rm -rf "$DD/last.xcresult"
-echo "running ${CLASSES:-every class} on $DEVICE"
+echo "running ${CLASSES:-every class} on $DEVICE ($UDID)"
 xcodebuild test-without-building \
   -xctestrun "$(ls "$DD"/Build/Products/*.xctestrun | head -1)" \
-  -destination "platform=iOS Simulator,name=$DEVICE" \
+  -destination "id=$UDID" \
   ${ONLY[@]+"${ONLY[@]}"} \
   -resultBundlePath "$DD/last.xcresult"

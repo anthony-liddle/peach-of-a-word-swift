@@ -110,8 +110,12 @@ and CI runs the same classes on every code change anyway.
 
 ```bash
 DEVICE='iPhone SE (3rd generation)' tools/ui-tests.sh all
-DEVICE='iPhone 17 Pro Max' tools/ui-tests.sh all
+DEVICE='iPhone 18 Pro Max' tools/ui-tests.sh all
 ```
+
+`DEVICE` is a simulator's name or UDID, on the newest runtime that has it, and
+the script lists what there is when it finds none. Xcode makes no SE by
+default; `tools/ui-tests.sh` says how to create one.
 
 **CI is the source of truth for the suite.** A pull request that touches code
 runs every UI test class, split across parallel shards, and the `ui-tests`
