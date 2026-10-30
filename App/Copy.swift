@@ -1,6 +1,8 @@
 import Foundation
 import PeachEngine
 
+// Throwaway: a code change, to show the whole UI suite runs. Never merged.
+
 /// The cute theme's vocabulary, in one place.
 ///
 /// Ported from the web's `src/ui/themeCopy.ts`, and the reason it exists is the
