@@ -1,0 +1,48 @@
+# The UI test classes a data-only change runs.
+#
+# A pull request whose files are all under Data/, TestFlight/, docs/ or
+# tools/, or are Markdown, runs these instead of the whole UI suite (see
+# `plan.py`). The engine suite and `checkout-less-tests` still run in full.
+#
+# **Chosen by what each class reads, not by its name,** on 29 October 2026,
+# from the app's readers of each Data/ file and every test's launch arguments
+# and assertions. A class is here when its result can turn on something in
+# Data/: a named day's word, a word's verdict or rarity band, a definition, an
+# etymology or a licence text, or today's board's content where a layout or a
+# rank is near its limit.
+#
+# **Left out on purpose:** the classes that hold on any well-formed board, such
+# as gestures, sheets, settings, sound switches and the showcase archive, which
+# seeds outcomes and no words. The engine suite already holds every calendar
+# day to a buildable board, its source word to its own basket, and the sequence
+# to its pins, so "a board exists" needs no UI test. The costume table and the
+# epochs are Swift, so a change to either is code and runs everything.
+#
+# **When in doubt, a class goes in.** Leaving one out wrongly lets a data change
+# break it unseen until the next code change; putting one in wrongly costs a
+# minute or two. A new UI test class that reads data belongs here as well as in
+# `shards.txt`.
+#
+# class                       what it reads
+ARecordBelowItsBoard          21 October's word, reassure, and erasure outside its basket
+ArchiveBeaFirstOpen           thirteen past boards rebuilt from the calendar and the lists
+ArchivePeachDays              whether past days' source words are in their own baskets
+CostumeOnTheDay               Halloween's board replayed from the calendar, and industry's reveal card
+CueAtEachMoment               today's source word inside its basket, for which cue a find asks
+DailyReminder                 17 July's word, courtesy, typed to play the day
+DayRollsOverOnForeground      today's and tomorrow's source words, which must differ
+DefinitionCardExits           the first chip's definition, whose length decides drag or scroll
+DefinitionReveal              Uncommon, Rare and source chips on today's board, and Rare definitions
+FirstFindShove                a word learned from today's board, and the list after it
+LicencesList                  the text of both Soundscape licence files
+MarkInTheWell                 24 October's board, literary, where tel is Mythic
+MeterTopRung                  the seeded basket reaching the top rung's share of par
+MythicGlint                   Mythic words on 17 July's and 24 October's boards
+OneBeatPerFind                today's source word inside its basket, for the completion beat
+RackAtLargeText               the meter and the first group's header and chip at large sizes
+RackScrollTests               the meter and well's height above the rack, against a table of phones
+RackShape                     the eight tiles of today's source word
+RevealButtonReach             the longest and shortest etymology entries
+RungSheetDefinitions          27 October's word, fragment, and its Mythic words' definitions
+TapTheWell                    24 October's words: tel, aret, lay and lyt
+TitleAndTopRowAtEverySize     today's rank name and count, chosen as the tightest top row

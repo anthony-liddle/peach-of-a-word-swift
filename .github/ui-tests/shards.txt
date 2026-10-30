@@ -1,0 +1,69 @@
+# Which shard runs each UI test class.
+#
+# Every class in UITests/ is on exactly one line. CI's `plan` job fails when a
+# class is on none or on two, or a line names a class that is gone, so a new
+# test class means a new line here (and in `data-only.txt`, if it reads data).
+#
+# **Balanced on time, not on count.** The seconds are each class's median over
+# five sharded runs of the whole suite on 29 October 2026, and are only used to
+# balance: nothing fails if they drift. Sharded times, not the single
+# simulator's, because the classes do not slow evenly: on shards
+# `LayoutBudget` took 675 to 865 seconds against a single-simulator median of
+# 552, while the suite as a whole ran 13% over, so a map balanced on the
+# single simulator left its shard 2 to 4 minutes behind the rest.
+#
+# To rebalance, or to change the number of shards, update the seconds and
+# print a new map:
+#
+#   python3 .github/ui-tests/plan.py balance 4
+#
+# It minimises the slowest shard, and half the slowest shard's data-only share,
+# so a data-only run is split evenly too. Within a shard, classes run in
+# XCTest's order, whatever their order here.
+#
+# shard  class                              seconds
+1        LayoutBudget                       779
+1        RungSheetDefinitions               139
+1        TitleAndTopRowAtEverySize          107
+1        DefinitionReveal                   78
+1        CueAtEachMoment                    19
+2        ArchivePeachDays                   500
+2        MythicGlint                        117
+2        BackToTheTitle                     95
+2        CostumeOnTheDay                    92
+2        GrowingPeach                       86
+2        RackScrollTests                    62
+2        FoundListHeading                   39
+2        ArchivePageOrder                   31
+2        DayRollsOverOnForeground           29
+2        FirstFindShove                     22
+2        PrivacyLink                        20
+2        ArchiveChevronScale                19
+2        MessageLineShove                   10
+3        RackAtLargeText                    347
+3        ArchiveBeaFirstOpen                203
+3        MarkInTheWell                      179
+3        ArchiveMonthPaging                 71
+3        ExplainerReach                     58
+3        HowToPlayOnce                      43
+3        ArchiveSheetHeight                 42
+3        RevealButtonReach                  39
+3        LicencesList                       38
+3        TitleScreenAppears                 27
+3        ColophonDedication                 22
+3        FoundListHeaderRow                 20
+3        MeterGlyphPlacement                17
+3        MeterTopRung                       16
+4        DefinitionCardExits                314
+4        TapTheWell                         244
+4        DailyReminder                      145
+4        ReminderEndToEnd                   90
+4        ArchiveGridMetrics                 86
+4        ARecordBelowItsBoard               60
+4        ArchiveEntry                       40
+4        ArchiveKeyLayout                   33
+4        SoundSwitch                        31
+4        RackShape                          23
+4        OneBeatPerFind                     22
+4        ArchiveWayOut                      18
+4        TodayIsTheLocalDate                16
