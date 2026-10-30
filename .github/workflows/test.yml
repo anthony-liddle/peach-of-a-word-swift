@@ -324,7 +324,7 @@ jobs:
   # **Four shards is a measured choice,** not the most the plan allows. Each
   # pays three to five minutes to download, boot and warm before its first
   # test, and the free plan runs five macOS jobs at once across the account.
-  # On 30 October 2026, push to every check green took 38.1 minutes with
+  # On 29 October 2026, push to every check green took 38.1 minutes with
   # three, 27.9 with four and 35.9 with five: three run too long each, and five
   # with `ui-tests-off-utc` are one job more than the five, so one shard waited
   # 10.7 minutes for a runner. To change it, `plan.py balance N`.

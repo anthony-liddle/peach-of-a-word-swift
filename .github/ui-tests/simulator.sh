@@ -9,12 +9,12 @@
 #
 # **The warm-up is the point.** A freshly booted simulator's first launch under
 # XCUITest has missed its 60 seconds ("Timed out while launching application
-# via Xcode"): on 22 and 27 October 2026 in the single job, and on 30 October
+# via Xcode"): on 22 and 27 October 2026 in the single job, and on 29 October
 # in a shard. Every later launch in a run takes 2 to 3 seconds, and each shard
 # boots its own simulator, so each would have that first launch.
 #
 # **Through XCUITest, because a plain launch did not warm it.** The first
-# version installed and launched the app with `simctl`. On 30 October its
+# version installed and launched the app with `simctl`. On 29 October its
 # launch took 7 seconds, and the shard's first test still timed out launching
 # the app, so what is cold is XCUITest's path to the app, not the app. Now one
 # short test runs in a session of its own (`plan.py warm-up` names it), its
