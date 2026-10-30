@@ -47,6 +47,12 @@ final class Reminder {
     #if DEBUG
     /// What was last handed to iOS, so `-exposeReminder 1` can show a test.
     private(set) var handedOver: [DateComponents] = []
+    /// How many times this asked iOS for its notification settings, and how
+    /// many answers came back, for the same probe. On 25 October 2026 a
+    /// simulator's notification service never answered, at launch or at the
+    /// switch, and from outside that read as a reminder never scheduled.
+    private(set) var settingsAsked = 0
+    private(set) var settingsAnswered = 0
     #endif
 
     private let gate: NotificationGate
@@ -88,7 +94,7 @@ final class Reminder {
     /// were turned off in iOS's own Settings, the switch goes off too: a switch
     /// left on would promise a reminder that cannot come.
     func refresh() async {
-        let status = await gate.status()
+        let status = await settings()
         if Self.allows(status) {
             refused = false
         } else if status == .denied {
@@ -138,8 +144,17 @@ final class Reminder {
         titleRequested = true
     }
 
+    /// What iOS says about the game's notifications, counted for the probe.
+    private func settings() async -> UNAuthorizationStatus {
+        #if DEBUG
+        settingsAsked += 1
+        defer { settingsAnswered += 1 }
+        #endif
+        return await gate.status()
+    }
+
     private func askAndSchedule() async {
-        var status = await gate.status()
+        var status = await settings()
         if status == .notDetermined {
             status = await gate.request() ? .authorized : .denied
         }

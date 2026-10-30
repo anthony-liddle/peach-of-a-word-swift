@@ -15,7 +15,24 @@ import XCTest
 /// simulator allowing the game's notifications, which no other test asks
 /// about. Its last launch resets, which turns the reminder off, and that
 /// launch's open clears what was scheduled.
+///
+/// **It skips, rather than fails, when iOS's notification service never
+/// answers.** Three times in October 2026 a simulator's service never answered
+/// the game's request for its notification settings, so the game never got as
+/// far as asking, and the test failed 200 seconds later as "no reminder came".
+/// That is the simulator, not the game. A reminder never scheduled, or
+/// scheduled for the wrong minute, with every request answered, still fails.
 final class ReminderEndToEnd: XCTestCase {
+    /// How long the reminder's date has to reach the probe once the alert is
+    /// answered. A working service answers in milliseconds.
+    static let serviceWait: TimeInterval = 20
+
+    /// "asked 2 answered 1": a request iOS has not answered yet.
+    static func unanswered(_ label: String) -> Bool {
+        let n = label.split(separator: " ").compactMap { Int($0) }
+        return n.count == 2 && n[0] > n[1]
+    }
+
     func testARealReminderTappedFromColdLandsOnTheTitle() throws {
         // A moved Debug clock moves the dates the reminder is scheduled on,
         // and none would fall two minutes from now.
@@ -50,13 +67,22 @@ final class ReminderEndToEnd: XCTestCase {
         let stamp = String(format: "%04d-%02d-%02d %02d:%02d",
                            parts.year!, parts.month!, parts.day!, parts.hour!, parts.minute!)
         let probe = app.staticTexts["DebugReminder"]
+        let asks = app.staticTexts["DebugReminderSettings"]
         XCTAssertTrue(probe.waitForExistence(timeout: 10), "no reminder probe")
-        let deadline = Date().addingTimeInterval(10)
+        let deadline = Date().addingTimeInterval(Self.serviceWait)
         while !probe.label.contains(stamp), Date() < deadline {
             RunLoop.current.run(until: Date().addingTimeInterval(0.25))
         }
         let scheduled = probe.label.contains(stamp)
-        XCTAssertTrue(scheduled, "the reminder was not scheduled for \(stamp): \(probe.label)")
+        // No date, and iOS still owes the game an answer about its settings:
+        // the service never answered, which the skip below says. No date with
+        // every request answered is the game's doing, and fails here.
+        let silent = !scheduled && Self.unanswered(asks.label)
+        if !silent {
+            XCTAssertTrue(scheduled, "the reminder was not scheduled for \(stamp): "
+                          + "\(probe.label), settings \(asks.label)")
+        }
+        let asked = silent ? asks.label : ""
         // The same day, recorded as shown by the seeded launch, so a launch
         // with no tap would open on the board: landing on the title is the
         // tap's doing.
@@ -81,5 +107,13 @@ final class ReminderEndToEnd: XCTestCase {
         app.launchArguments = ["-resetProgress", "1"]
         app.launch()
         XCTAssertTrue(app.buttons["BoardHome"].waitForExistence(timeout: 30), "the reset launch did not open")
+
+        // After the reset, so a skip leaves the simulator as a pass would.
+        if silent {
+            throw XCTSkip("iOS's notification service did not answer the game's request for its "
+                          + "notification settings within \(Int(Self.serviceWait)) seconds "
+                          + "(\(asked)), so no reminder could be scheduled: the simulator, "
+                          + "not the game")
+        }
     }
 }
