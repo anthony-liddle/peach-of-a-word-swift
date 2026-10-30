@@ -350,7 +350,9 @@ jobs:
           mkdir -p "$RUNNER_TEMP/dd/Build"
           tar -C "$RUNNER_TEMP/dd/Build" -xzf "$RUNNER_TEMP/ui-test-build.tgz"
 
-      - name: Boot the simulator
+      # Booted, and the app launched once, outside every test's timeout: a
+      # fresh simulator's first launch has missed XCUITest's 60 seconds.
+      - name: Boot and warm the simulator
         run: .github/ui-tests/simulator.sh "$RUNNER_TEMP/dd/Build/Products"
 
       - name: UI tests, this shard
@@ -474,7 +476,7 @@ jobs:
       # ahead is the next date from 10:00 UTC. Switching at 11:00 leaves an hour
       # either side, and the check fails the job rather than letting it run
       # blind on the one minute before 00:00 UTC when neither holds.
-      - name: Boot the simulator off UTC
+      - name: Boot and warm the simulator, off UTC
         run: |
           set -euo pipefail
           if [ "$(date -u +%H)" -lt 11 ]; then ZONE=Etc/GMT+12; else ZONE=Pacific/Kiritimati; fi
