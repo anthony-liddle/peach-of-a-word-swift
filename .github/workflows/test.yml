@@ -7,10 +7,7 @@ on:
   push:
     branches: [main]
   pull_request:
-    # TEMPORARY, for the throwaway pull requests that show which UI tests a
-    # change runs: they target this branch, so their diff is theirs alone.
-    # Removed before this merges.
-    branches: [main, ci/faster-ui-tests]
+    branches: [main]
     # The defaults, plus a label going on or coming off, so `full-ui` takes
     # effect without a push. Any label change restarts the run, through the
     # concurrency group below, and the new run does all the work again: a
