@@ -93,6 +93,42 @@ CI runs exactly these, on macOS. It also runs `ci_scripts/ci_post_clone.sh`,
 the same script Xcode Cloud uses, so a change that breaks the Xcode Cloud
 delivery path fails on the pull request rather than on the way to TestFlight.
 
+## UI tests: what to run, and where
+
+**Before pushing:** the UI test classes the change touches, plus the smoke
+set, about five minutes. "Touches" means the classes that look at what
+changed: grep `UITests/` for the accessibility identifiers and labels of the
+views involved.
+
+```bash
+tools/ui-tests.sh smoke TapTheWell DefinitionReveal   # smoke, plus two touched
+```
+
+**The whole suite, on an SE and on a Pro Max, only for a build about to be
+submitted to App Review.** The pair took 90 to 100 minutes in October 2026,
+and CI runs the same classes on every code change anyway.
+
+```bash
+DEVICE='iPhone SE (3rd generation)' tools/ui-tests.sh all
+DEVICE='iPhone 18 Pro Max' tools/ui-tests.sh all
+```
+
+`DEVICE` is a simulator's name or UDID, on the newest runtime that has it, and
+the script lists what there is when it finds none. Xcode makes no SE by
+default; `tools/ui-tests.sh` says how to create one.
+
+**CI is the source of truth for the suite.** A pull request that touches code
+runs every UI test class, split across parallel shards, and the `ui-tests`
+check is green only when every shard passed and every test ran. A push to
+`main` runs everything again. A pull request touching only `Data/`,
+`TestFlight/`, `docs/`, `tools/` or Markdown runs the classes whose results
+read the data, in `.github/ui-tests/data-only.txt`; the `full-ui` label runs
+everything anyway.
+
+**A new UI test class needs a line in `.github/ui-tests/shards.txt`,** or CI's
+`plan` job fails the run, and a line in `data-only.txt` too if what it asserts
+reads anything in `Data/`. The smoke set is `.github/ui-tests/smoke.txt`.
+
 ## Commits
 
 Conventional Commits: `type(scope): description`. Types: `feat`, `fix`, `docs`,

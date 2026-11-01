@@ -1,0 +1,74 @@
+# Which shard runs each UI test class.
+#
+# Every class in UITests/ is on exactly one line. CI's `plan` job fails when a
+# class is on none or on two, or a line names a class that is gone, so a new
+# test class means a new line here (and in `data-only.txt`, if it reads data).
+#
+# **Balanced on time, not on count.** The seconds are each class's median over
+# five sharded runs of the whole suite on 29 October 2026, and are only used to
+# balance: nothing fails if they drift. Sharded times, not the single
+# simulator's, because the classes do not slow evenly: on shards
+# `LayoutBudget` took 675 to 865 seconds against a single-simulator median of
+# 552, while the suite as a whole ran 13% over, so a map balanced on the
+# single simulator left its shard 2 to 4 minutes behind the rest.
+#
+# **One exception, `WinterCostumesOnTheDay`,** which came after: its 187 is
+# its one run on a single simulator, in #106's CI on 29 October, and on a
+# shard it may run over. Replace it with its sharded median once there is one.
+#
+# To rebalance, or to change the number of shards, update the seconds and
+# print a new map:
+#
+#   python3 .github/ui-tests/plan.py balance 4
+#
+# It minimises the slowest shard, and half the slowest shard's data-only share,
+# so a data-only run is split evenly too. Within a shard, classes run in
+# XCTest's order, whatever their order here.
+#
+# shard  class                              seconds
+1        LayoutBudget                       779
+1        ArchiveBeaFirstOpen                203
+1        RungSheetDefinitions               139
+1        RackShape                          23
+1        OneBeatPerFind                     22
+2        ArchivePeachDays                   500
+2        DailyReminder                      145
+2        TitleAndTopRowAtEverySize          107
+2        BackToTheTitle                     95
+2        ARecordBelowItsBoard               60
+2        ExplainerReach                     58
+2        ArchiveEntry                       40
+2        FoundListHeading                   39
+2        ArchiveKeyLayout                   33
+2        DayRollsOverOnForeground           29
+2        TitleScreenAppears                 27
+2        FirstFindShove                     22
+2        TodayIsTheLocalDate                16
+3        RackAtLargeText                    347
+3        MarkInTheWell                      179
+3        MythicGlint                        117
+3        CostumeOnTheDay                    92
+3        ReminderEndToEnd                   90
+3        DefinitionReveal                   78
+3        ArchiveMonthPaging                 71
+3        LicencesList                       38
+3        ArchivePageOrder                   31
+3        SoundSwitch                        31
+3        ColophonDedication                 22
+3        FoundListHeaderRow                 20
+3        PrivacyLink                        20
+3        MeterGlyphPlacement                17
+3        MeterTopRung                       16
+4        DefinitionCardExits                314
+4        TapTheWell                         244
+4        WinterCostumesOnTheDay             187
+4        ArchiveGridMetrics                 86
+4        GrowingPeach                       86
+4        RackScrollTests                    62
+4        HowToPlayOnce                      43
+4        ArchiveSheetHeight                 42
+4        RevealButtonReach                  39
+4        ArchiveChevronScale                19
+4        CueAtEachMoment                    19
+4        ArchiveWayOut                      18
+4        MessageLineShove                   10

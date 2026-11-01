@@ -1,0 +1,23 @@
+# The UI smoke set: about five minutes, run before every push.
+#
+# With the tests a change touches, this is the local half of the rule in
+# CONTRIBUTING.md ("Before pushing"). It is not a substitute for the suite: CI
+# runs every class on every code change, and the whole suite on both phones is
+# for a build about to go to App Review.
+#
+#   tools/ui-tests.sh smoke
+#
+# One quick class per part of the game a change most often breaks, so a smoke
+# failure says where to look. About five minutes on CI's runner, from the
+# medians of six runs in October 2026; usually less on a desk.
+#
+# class                       what it covers
+TitleScreenAppears            the title on a fresh install and on a new day, and Play to the board
+HowToPlayOnce                 How to play on the first Play only
+RackShape                     today's rack, in two rows of four
+FirstFindShove                typing a word, and the first find leaving the list in place
+MeterTopRung                  the meter at the top rung and at a full basket
+DefinitionReveal              a found word's definition card, by band, and the source's reveal card
+ArchiveEntry                  the calendar of past days, and a past day's own board
+SoundSwitch                   the sound switch in Settings, and a mute that is remembered
+LicencesList                  Settings to the licences, each one's text, and Soundscape's notices

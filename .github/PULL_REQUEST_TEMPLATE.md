@@ -18,6 +18,7 @@
 
 - [ ] `swift test` passes
 - [ ] The app builds (`xcodegen generate` then `xcodebuild`)
+- [ ] The UI tests the change touches, plus the smoke set (`tools/ui-tests.sh smoke <classes>`)
 - [ ] Ran it on a simulator or a device, if this touches the app
 
 <!-- What you actually checked by hand, and on what. "Ran it" is not a test

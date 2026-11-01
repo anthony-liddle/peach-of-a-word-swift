@@ -271,14 +271,24 @@ struct ContentView: View {
                 // `-exposeReminder 1` prints the switch, whether iOS said no,
                 // and every date last handed to iOS, so `DailyReminder` can
                 // hold the schedule to the days played and to the time.
+                //
+                // And on its own line, how many times the game asked iOS for
+                // its notification settings and how many answers came back,
+                // so `ReminderEndToEnd` can tell a service that never answered
+                // from a reminder that was never scheduled. Its own element,
+                // because `DailyReminder` reads the first line by its spaces.
                 if UserDefaults.standard.bool(forKey: "exposeReminder") {
                     let reminder = Reminder.shared
-                    Text("\(reminder.isOn ? "on" : "off") \(reminder.refused ? "refused" : "allowed") "
-                         + (reminder.handedOver.isEmpty
-                            ? "none" : reminder.handedOver.map(Reminder.stamp).joined(separator: ",")))
-                        .font(.caption2)
-                        .accessibilityIdentifier("DebugReminder")
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                    VStack(spacing: 0) {
+                        Text("\(reminder.isOn ? "on" : "off") \(reminder.refused ? "refused" : "allowed") "
+                             + (reminder.handedOver.isEmpty
+                                ? "none" : reminder.handedOver.map(Reminder.stamp).joined(separator: ",")))
+                            .accessibilityIdentifier("DebugReminder")
+                        Text("asked \(reminder.settingsAsked) answered \(reminder.settingsAnswered)")
+                            .accessibilityIdentifier("DebugReminderSettings")
+                    }
+                    .font(.caption2)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
                 }
                 // `-exposeTopRow 1` prints the meter's height beside its copy's,
                 // so `TitleAndTopRowAtEverySize` can hold the way back to no cost.

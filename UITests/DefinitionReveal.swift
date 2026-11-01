@@ -13,14 +13,34 @@ import XCTest
 /// The chip labels are built in `WordChip` as "word, spoken category, N points",
 /// and `WordCategory.spokenName` supplies "source word", "on the page",
 /// "Uncommon", "Rare", "Mythic".
+///
+/// The crown's test is the one on a pinned day rather than today's, for the
+/// reason at `octoberTwentySeventh`.
 final class DefinitionReveal: XCTestCase {
 
-    private func seededApp() -> XCUIApplication {
+    /// The `-dayOffset` that makes 27 October 2026 today: `fragment`'s board,
+    /// where `frame`, `game` and 33 more set words sort after the source word.
+    ///
+    /// **Not today's board, because on some days the seed leaves the crown
+    /// out.** `-seedBoard almost` finds every set word but the last in sorted
+    /// order, and on 19 days of the calendar the source word sorts last in its
+    /// own basket: 26 November 2026, `thankful`, is the next, then 25 December
+    /// and 8 January. The test meant to skip on such a day, but
+    /// `try? XCTSkipIf` throws the skip away, so it went on to index an empty
+    /// list of chips and failed: "index 0 beyond bounds for empty array".
+    static var octoberTwentySeventh: String {
+        let cal = Calendar.current
+        let target = cal.date(from: DateComponents(year: 2026, month: 10, day: 27))!
+        return String(cal.dateComponents([.day], from: cal.startOfDay(for: TestClock.now),
+                                          to: target).day!)
+    }
+
+    private func seededApp(_ extra: [String] = []) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = [
             "-resetProgress", "1", "-seedBoard", "almost",
             "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryL",
-        ]
+        ] + extra
         app.launch()
         return app
     }
@@ -57,12 +77,16 @@ final class DefinitionReveal: XCTestCase {
                       "tapping a set word opened no card")
     }
 
-    func testTappingAnUncommonOpensACard() {
+    /// On today's board, so it skips on a day with no Uncommon word. No day of
+    /// the calendar has none today, but a calendar or a dictionary release
+    /// could make one. **`try`, not `try?`,** which throws the skip away and
+    /// runs on into an empty list.
+    func testTappingAnUncommonOpensACard() throws {
         let app = seededApp()
         XCTAssertTrue(app.staticTexts["FoundSummaryCount"].waitForExistence(timeout: 30))
 
         let uncommon = chips(app, category: "Uncommon")
-        try? XCTSkipIf(uncommon.isEmpty, "today's rack seeded no uncommon finds")
+        try XCTSkipIf(uncommon.isEmpty, "today's rack seeded no uncommon finds")
         uncommon[0].tap()
 
         XCTAssertTrue(closeButton(app).waitForExistence(timeout: 10),
@@ -82,12 +106,16 @@ final class DefinitionReveal: XCTestCase {
     /// through to an empty string renders a rule and nothing under it, which is
     /// the outcome `parseDefinitions` drops empty glosses to avoid, and it
     /// would pass any test that only checked a card had opened.
-    func testEveryRareOpensACardThatSaysSomething() {
+    ///
+    /// On today's board, and skipped on a day with no Rare word, as the
+    /// Uncommon test is. With `try?` that day would pass instead, having
+    /// tapped nothing, since the loop below runs zero times.
+    func testEveryRareOpensACardThatSaysSomething() throws {
         let app = seededApp()
         XCTAssertTrue(app.staticTexts["FoundSummaryCount"].waitForExistence(timeout: 30))
 
         let rare = chips(app, category: "Rare")
-        try? XCTSkipIf(rare.isEmpty, "today's rack seeded no rare finds")
+        try XCTSkipIf(rare.isEmpty, "today's rack seeded no rare finds")
 
         for chip in rare.prefix(4) {
             chip.tap()
@@ -130,13 +158,17 @@ final class DefinitionReveal: XCTestCase {
     /// the game.
     ///
     /// Asserted on the celebration line, which only the crown card renders.
-    func testTheCrownStillGetsTheCrownCard() {
-        let app = seededApp()
+    ///
+    /// On 27 October, so the seed always finds the crown. A failure here rather
+    /// than a skip, since the day is fixed: a missing crown means a calendar or
+    /// a basket moved under the pin, and the pin wants a new day.
+    func testTheCrownStillGetsTheCrownCard() throws {
+        let app = seededApp(["-dayOffset", Self.octoberTwentySeventh])
         XCTAssertTrue(app.staticTexts["FoundSummaryCount"].waitForExistence(timeout: 30))
 
-        let crown = chips(app, category: "source word")
-        try? XCTSkipIf(crown.isEmpty, "the seeded board did not include the source word")
-        crown[0].tap()
+        let crown = try XCTUnwrap(chips(app, category: "source word").first,
+                                  "27 October's seeded board did not include the source word")
+        crown.tap()
 
         XCTAssertTrue(
             app.staticTexts["You found the Peach of a Word!"].waitForExistence(timeout: 10),
