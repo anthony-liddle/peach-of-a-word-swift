@@ -12,6 +12,10 @@
 # 552, while the suite as a whole ran 13% over, so a map balanced on the
 # single simulator left its shard 2 to 4 minutes behind the rest.
 #
+# **One exception, `WinterCostumesOnTheDay`,** which came after: its 187 is
+# its one run on a single simulator, in #106's CI on 29 October, and on a
+# shard it may run over. Replace it with its sharded median once there is one.
+#
 # To rebalance, or to change the number of shards, update the seconds and
 # print a new map:
 #
@@ -67,3 +71,4 @@
 4        OneBeatPerFind                     22
 4        ArchiveWayOut                      18
 4        TodayIsTheLocalDate                16
+4        WinterCostumesOnTheDay             187
