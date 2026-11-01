@@ -15,6 +15,11 @@ public enum Costume: String, CaseIterable, Sendable {
     case witchHat = "witch-hat"
     case lantern
     case ghost
+    case pieCrust = "pie-crust"
+    case beanie
+    case antlers
+    case santaHat = "santa-hat"
+    case topHat = "top-hat"
 
     public var spoken: String { table.spoken }
     /// The peach's own face is hidden, because the costume draws another.
@@ -26,6 +31,11 @@ public enum Costume: String, CaseIterable, Sendable {
         case .witchHat: return Self.witchHatTable
         case .lantern: return Self.lanternTable
         case .ghost: return Self.ghostTable
+        case .pieCrust: return Self.pieCrustTable
+        case .beanie: return Self.beanieTable
+        case .antlers: return Self.antlersTable
+        case .santaHat: return Self.santaHatTable
+        case .topHat: return Self.topHatTable
         }
     }
 }
@@ -112,6 +122,131 @@ extension Costume {
                         fill: "#FF9DAE", opacity: 0.6, faceOnly: true),
             CostumePart("M65 58 C65 53 73 53 73 58 C73 63 65 63 65 58 Z",
                         fill: "#FF9DAE", opacity: 0.6, faceOnly: true),
+        ]
+    )
+
+    static let pieCrustTable = CostumeTable(
+        spoken: "wearing a pie crust hat",
+        replacesFace: false,
+        parts: [
+            CostumePart("M17 21 L83 21 L76 30 C64 33.5 36 33.5 24 30 Z", fill: "#B66E2C"),
+            CostumePart("M18 21 C19 7 34 3 50 3 C66 3 81 7 82 21 Z", fill: "#9C3434"),
+            CostumePart("M30.5 6.1 L69.5 6.1 L76 9.9 L24 9.9 Z", fill: "#F6C677"),
+            CostumePart("M21.5 12.7 L78.5 12.7 L80.5 16.5 L19.5 16.5 Z", fill: "#F6C677"),
+            CostumePart("M27.7 7.7 L32.3 5.8 L32.3 21 L27.7 21 Z", fill: "#F6C677"),
+            CostumePart("M41.2 4.1 L45.8 3.7 L45.8 21 L41.2 21 Z", fill: "#F6C677"),
+            CostumePart("M54.2 3.7 L58.8 4.1 L58.8 21 L54.2 21 Z", fill: "#F6C677"),
+            CostumePart("M67.7 5.8 L72.3 7.7 L72.3 21 L67.7 21 Z", fill: "#F6C677"),
+            CostumePart("M15 25.5 L15 19.5 C15.8 15.5 22 15.5 22.8 19.5 C23.6 15.5 29.8 15.5 30.6 19.5 "
+                        + "C31.3 15.5 37.6 15.5 38.3 19.5 C39.1 15.5 45.3 15.5 46.1 19.5 "
+                        + "C46.9 15.5 53.1 15.5 53.9 19.5 C54.7 15.5 60.9 15.5 61.7 19.5 "
+                        + "C62.4 15.5 68.7 15.5 69.4 19.5 C70.2 15.5 76.4 15.5 77.2 19.5 C78 15.5 84.2 15.5 85 19.5 "
+                        + "L85 25.5 C70 27.5 30 27.5 15 25.5 Z",
+                        fill: "#E09A48", stroke: "#8A4E1E", strokeWidth: 1.4),
+            CostumePart("M18 21 C19 7 34 3 50 3 C66 3 81 7 82 21", stroke: "#8A4E1E", strokeWidth: 1.4),
+        ]
+    )
+
+    static let beanieTable = CostumeTable(
+        spoken: "wearing a knit beanie and scarf",
+        replacesFace: false,
+        parts: [
+            CostumePart("M26.7 24.5 C29.2 10.2 43.8 3.5 61.2 7.9 C78.7 12.2 88.4 25 83.9 38.8 "
+                        + "C73.8 40.4 34.9 30.7 26.7 24.5 Z",
+                        fill: "#4C7FD3"),
+            CostumePart("M46.6 8.9 C42.8 15.7 40 18.6 36.5 24.4",
+                        opacity: 0.55, stroke: "#355FAF", strokeWidth: 1.5, faceOnly: true),
+            CostumePart("M53.4 10.6 C50.6 17.6 48.8 20.7 46.2 26.8",
+                        opacity: 0.55, stroke: "#355FAF", strokeWidth: 1.5, faceOnly: true),
+            CostumePart("M60.2 12.2 C58.3 19.5 57.5 22.9 55.9 29.2",
+                        opacity: 0.55, stroke: "#355FAF", strokeWidth: 1.5, faceOnly: true),
+            CostumePart("M67 13.9 C66.1 21.5 66.2 25.1 65.6 31.6",
+                        opacity: 0.55, stroke: "#355FAF", strokeWidth: 1.5, faceOnly: true),
+            CostumePart("M73.7 15.6 C73.9 23.4 75 27.3 75.3 34.1",
+                        opacity: 0.55, stroke: "#355FAF", strokeWidth: 1.5, faceOnly: true),
+            CostumePart("M28.3 20.3 C37.1 26.1 74 35.3 84.5 34.3 C88.2 36.2 87.7 42.3 83.8 43.4 "
+                        + "C71.7 44.5 34.8 35.3 24.6 28.6 C21.7 25.9 24.1 20.3 28.3 20.3 Z",
+                        fill: "#5E8CDB"),
+            CostumePart("M32.3 24.7 L30.9 30.3", opacity: 0.55, stroke: "#3D68B8", strokeWidth: 1.3, faceOnly: true),
+            CostumePart("M37.9 27 L36.5 32.6", opacity: 0.55, stroke: "#3D68B8", strokeWidth: 1.3, faceOnly: true),
+            CostumePart("M43.6 28.9 L42.2 34.6", opacity: 0.55, stroke: "#3D68B8", strokeWidth: 1.3, faceOnly: true),
+            CostumePart("M49.4 30.8 L48 36.4", opacity: 0.55, stroke: "#3D68B8", strokeWidth: 1.3, faceOnly: true),
+            CostumePart("M55.2 32.3 L53.7 38", opacity: 0.55, stroke: "#3D68B8", strokeWidth: 1.3, faceOnly: true),
+            CostumePart("M61 33.7 L59.6 39.3", opacity: 0.55, stroke: "#3D68B8", strokeWidth: 1.3, faceOnly: true),
+            CostumePart("M66.9 34.8 L65.5 40.4", opacity: 0.55, stroke: "#3D68B8", strokeWidth: 1.3, faceOnly: true),
+            CostumePart("M72.9 35.7 L71.5 41.3", opacity: 0.55, stroke: "#3D68B8", strokeWidth: 1.3, faceOnly: true),
+            CostumePart("M78.9 36.3 L77.5 41.9", opacity: 0.55, stroke: "#3D68B8", strokeWidth: 1.3, faceOnly: true),
+            CostumePart("M28.3 20.3 C37.1 26.1 74 35.3 84.5 34.3", stroke: "#7FA6E8", strokeWidth: 1.4),
+            CostumePart("M62.4 3.1 C64.1 1.7 67.3 4 66.3 6.1 C68 6.1 68.7 8.7 67.3 9.5 C69.3 11 67.3 15 64.9 14.3 "
+                        + "C65.1 16.1 62.2 17.2 61.2 15.7 C60.1 17.6 56.7 16.5 56.9 14.3 "
+                        + "C55.5 14.8 54 12.8 54.8 11.6 C52.6 11 52.8 6.9 55.1 6.5 C54.2 4.9 56.1 2.8 57.8 3.7 "
+                        + "C58 1.5 61.7 1.1 62.4 3.1 Z",
+                        fill: "#FFFFFF", stroke: "#BFD0EE", strokeWidth: 1.4),
+            CostumePart("M17 70.5 C33 76 67 76 83 70.5 L81 79 C66 84.5 34 84.5 19 79 Z", fill: "#4C7FD3"),
+            CostumePart("M58 78 L69 76.5 L74 94 L63 96 Z", fill: "#4C7FD3"),
+            CostumePart("M60.2 85 L70.6 83.3 L71.9 87.5 L61.4 89.3 Z", fill: "#FFFFFF", opacity: 0.9),
+            CostumePart("M17 70.5 C33 76 67 76 83 70.5", stroke: "#7FA6E8", strokeWidth: 1.4),
+        ]
+    )
+
+    static let antlersTable = CostumeTable(
+        spoken: "wearing antlers and a red nose",
+        replacesFace: false,
+        parts: [
+            CostumePart("M37 22 L31 13 L25 3.5", stroke: "#9A6238", strokeWidth: 6.5),
+            CostumePart("M63 22 L69 13 L75 3.5", stroke: "#9A6238", strokeWidth: 6.5),
+            CostumePart("M31.5 14 L19 11.5", stroke: "#9A6238", strokeWidth: 6.5),
+            CostumePart("M68.5 14 L81 11.5", stroke: "#9A6238", strokeWidth: 6.5),
+            CostumePart("M27.5 7.5 L18.5 4", stroke: "#9A6238", strokeWidth: 6.5),
+            CostumePart("M72.5 7.5 L81.5 4", stroke: "#9A6238", strokeWidth: 6.5),
+            CostumePart("M33 26 C27 22 19 22 15 25 C19 30 27 31 33 26 Z", fill: "#C98D5E", faceOnly: true),
+            CostumePart("M67 26 C73 22 81 22 85 25 C81 30 73 31 67 26 Z", fill: "#C98D5E", faceOnly: true),
+            CostumePart("M31 26 C27 24 22 24 19 25.3 C22 28 27 28.5 31 26 Z", fill: "#F2B9A8", faceOnly: true),
+            CostumePart("M69 26 C73 24 78 24 81 25.3 C78 28 73 28.5 69 26 Z", fill: "#F2B9A8", faceOnly: true),
+            CostumePart("M45.4 61.5 C45.4 59 47.5 56.9 50 56.9 C52.5 56.9 54.6 59 54.6 61.5 "
+                        + "C54.6 64 52.5 66.1 50 66.1 C47.5 66.1 45.4 64 45.4 61.5 Z",
+                        fill: "#E5383B", faceOnly: true),
+            CostumePart("M47.1 59.9 C47.1 59.2 47.7 58.6 48.4 58.6 C49.1 58.6 49.7 59.2 49.7 59.9 "
+                        + "C49.7 60.6 49.1 61.2 48.4 61.2 C47.7 61.2 47.1 60.6 47.1 59.9 Z",
+                        fill: "#FFFFFF", opacity: 0.85, faceOnly: true),
+        ]
+    )
+
+    static let santaHatTable = CostumeTable(
+        spoken: "wearing a Santa hat",
+        replacesFace: false,
+        parts: [
+            CostumePart("M22 25 C26 16 36 6 50 3 C62 1 74 4 84 12 C78 11 70 11 64 14 C70 17 74 21 78 25 Z",
+                        fill: "#D93A36"),
+            CostumePart("M50 3 C62 1 74 4 84 12 C76 9 66 8 58 11 Z", fill: "#AE2A2A", opacity: 0.6),
+            CostumePart("M19 24.5 C21.3 23.2 24.4 21.6 26.8 23 C29.1 21.6 32.2 20.6 34.5 21.9 "
+                        + "C36.8 20.6 39.9 19.9 42.2 21.2 C44.6 19.9 47.7 19.7 50 21 C52.3 19.7 55.4 19.9 57.8 21.2 "
+                        + "C60.1 19.9 63.2 20.6 65.5 21.9 C67.8 20.6 70.9 21.6 73.2 23 C75.6 21.6 78.7 23.2 81 24.5 "
+                        + "C83.6 26 83.6 30.5 81 32 C79.5 34.2 74.8 32.7 73.2 30.5 C71.7 32.7 67 31.6 65.5 29.4 "
+                        + "C64 31.6 59.3 30.9 57.8 28.7 C56.2 30.9 51.5 30.7 50 28.5 C48.5 30.7 43.8 30.9 42.2 28.7 "
+                        + "C40.7 30.9 36 31.6 34.5 29.4 C33 31.6 28.3 32.7 26.8 30.5 C25.2 32.7 20.6 34.2 19 32 "
+                        + "C16.4 30.5 16.4 26 19 24.5 Z",
+                        fill: "#FFFFFF", stroke: "#E2D3D3", strokeWidth: 1.6),
+            CostumePart("M84 10.1 C85 8.8 87.8 10 87.5 11.6 C88.8 11.4 89.8 13.5 88.9 14.4 "
+                        + "C90.5 15.5 89.1 18.9 87.2 18.7 C87.4 20.2 84.9 21.1 84 19.9 "
+                        + "C82.9 21.3 79.9 19.8 80.2 18.1 C79 18.1 78.2 16 79.1 15.2 C77.7 14.1 79 11.1 80.8 11.3 "
+                        + "C80.6 9.9 83.1 8.9 84 10.1 Z",
+                        fill: "#FFFFFF", stroke: "#E2D3D3", strokeWidth: 1.6),
+        ]
+    )
+
+    static let topHatTable = CostumeTable(
+        spoken: "wearing a top hat",
+        replacesFace: false,
+        parts: [
+            CostumePart("M21.2 20.5 C21.8 16 79.3 24.1 78.6 28.5 C78 33 20.6 24.9 21.2 20.5 Z", fill: "#2E2A3A"),
+            CostumePart("M35 1.7 C35.2 0.2 70.8 5.2 70.6 6.7 L65.8 26.2 L34.2 21.8 Z", fill: "#2E2A3A"),
+            CostumePart("M34.5 14.8 L67.4 19.4 L66.1 24.7 L34.4 20.3 Z", fill: "#FFD34D"),
+            CostumePart("M36.3 2.9 L35.8 21", stroke: "#6C6588", strokeWidth: 1.6),
+            CostumePart("M23.4 19.3 C34.6 18.8 66.3 23.3 76.9 26.8", stroke: "#6C6588", strokeWidth: 1.4),
+            CostumePart("M20 4.5 C21.4 10.7 21.4 10.7 27.5 12 C21.4 13.3 21.4 13.3 20 19.5 "
+                        + "C18.6 13.3 18.6 13.3 12.5 12 C18.6 10.7 18.6 10.7 20 4.5 Z",
+                        fill: "#FFD34D", stroke: "#D9A52B", strokeWidth: 1.1),
         ]
     )
 }
@@ -215,8 +350,13 @@ public func costumeCommands(_ d: String) throws -> [CostumeCommand] {
 // MARK: - The table both apps hash
 
 /// The table as one canonical text, exactly as the web's
-/// `canonicalCostumeTable()` writes it: the costume's own line, then one line
-/// per part, fields joined by `|`, empty where unset.
+/// `canonicalCostumeTable()` writes it, the days included, so a day changed in
+/// one app fails the other's suite as a drawing does. Fields are joined by `|`,
+/// empty where unset:
+///
+/// - each costume's own line, then one line per part;
+/// - then one line per day, in `costumeDays`' order: month, day, weekday, nth,
+///   costume and occasion.
 public func canonicalCostumeTable() -> String {
     var lines: [String] = []
     for costume in Costume.allCases {
@@ -233,6 +373,16 @@ public func canonicalCostumeTable() -> String {
             ].joined(separator: "|"))
         }
     }
+    for d in costumeDays {
+        lines.append([
+            String(d.month),
+            d.day.map(String.init) ?? "",
+            d.weekday.map(String.init) ?? "",
+            d.nth.map(String.init) ?? "",
+            d.costume.rawValue,
+            d.occasion,
+        ].joined(separator: "|"))
+    }
     return lines.joined(separator: "\n")
 }
 
@@ -244,14 +394,55 @@ func jsNumber(_ n: Double) -> String {
 
 // MARK: - The days the peach dresses up
 
-/// A day the peach dresses up, and what it wears.
+/// A day the peach dresses up, and what it wears: a fixed date, or a day that
+/// moves, named by its weekday and which of the month's it is.
 public struct CostumeDay: Sendable, Equatable {
     public let month: Int  // 1 to 12
-    public let day: Int
+    /// The day of the month, for a fixed date.
+    public let day: Int?
+    /// For a day that moves: 0 for Sunday to 6 for Saturday, as the web's
+    /// `getUTCDay` counts, one less than `Calendar`'s weekday.
+    public let weekday: Int?
+    /// Which of the month's: 1 for the first.
+    public let nth: Int?
     public let costume: Costume
     /// What the day is, for whoever reads this table. Never shown.
     public let occasion: String
+
+    init(month: Int, day: Int, costume: Costume, occasion: String) {
+        self.month = month
+        self.day = day
+        self.weekday = nil
+        self.nth = nil
+        self.costume = costume
+        self.occasion = occasion
+    }
+
+    init(month: Int, weekday: Int, nth: Int, costume: Costume, occasion: String) {
+        self.month = month
+        self.day = nil
+        self.weekday = weekday
+        self.nth = nth
+        self.costume = costume
+        self.occasion = occasion
+    }
+
+    /// Whether it falls on `day` of its month in `year`.
+    func falls(year: Int, day: Int) -> Bool {
+        if let fixed = self.day { return fixed == day }
+        guard let date = utcCalendar.date(from: DateComponents(year: year, month: month, day: day))
+        else { return false }
+        return utcCalendar.component(.weekday, from: date) - 1 == weekday && (day + 6) / 7 == nth
+    }
 }
+
+private let thursday = 4
+
+private let utcCalendar: Foundation.Calendar = {
+    var utc = Foundation.Calendar(identifier: .gregorian)
+    utc.timeZone = TimeZone(identifier: "UTC")!
+    return utc
+}()
 
 /// The days the peach dresses up. Other occasions may follow; each is a row.
 /// The web's `COSTUME_DAYS` holds the same rows.
@@ -261,11 +452,17 @@ public struct CostumeDay: Sendable, Equatable {
 /// while any other day's board does not, even if it is played on the day.
 public let costumeDays: [CostumeDay] = [
     CostumeDay(month: 10, day: 31, costume: .ghost, occasion: "Halloween"),
+    CostumeDay(month: 11, weekday: thursday, nth: 4, costume: .pieCrust, occasion: "Thanksgiving"),
+    CostumeDay(month: 12, day: 21, costume: .beanie, occasion: "Winter solstice"),
+    CostumeDay(month: 12, day: 24, costume: .antlers, occasion: "Christmas Eve"),
+    CostumeDay(month: 12, day: 25, costume: .santaHat, occasion: "Christmas Day"),
+    CostumeDay(month: 12, day: 31, costume: .topHat, occasion: "New Year's Eve"),
+    CostumeDay(month: 1, day: 1, costume: .topHat, occasion: "New Year's Day"),
 ]
 
 /// The costume for a calendar date, or nil.
-public func costume(month: Int, day: Int) -> Costume? {
-    costumeDays.first { $0.month == month && $0.day == day }?.costume
+public func costume(year: Int, month: Int, day: Int) -> Costume? {
+    costumeDays.first { $0.month == month && $0.falls(year: year, day: day) }?.costume
 }
 
 /// The costume for a board, by the board's own day.
@@ -278,16 +475,14 @@ public func boardCostume(storageDay: Int?, preview: String? = nil) -> Costume? {
     if let preview {
         let parts = preview.split(separator: "-").compactMap { Int($0) }
         if parts.count == 3, preview.count == 10 {
-            return costume(month: parts[1], day: parts[2])
+            return costume(year: parts[0], month: parts[1], day: parts[2])
         }
     }
     guard let storageDay else { return nil }
-    var utc = Foundation.Calendar(identifier: .gregorian)
-    utc.timeZone = TimeZone(identifier: "UTC")!
-    guard let epoch = utc.date(from: DateComponents(
+    guard let epoch = utcCalendar.date(from: DateComponents(
               year: storageEpoch.year, month: storageEpoch.month, day: storageEpoch.day)),
-          let date = utc.date(byAdding: .day, value: storageDay, to: epoch)
+          let date = utcCalendar.date(byAdding: .day, value: storageDay, to: epoch)
     else { return nil }
-    let parts = utc.dateComponents([.month, .day], from: date)
-    return costume(month: parts.month ?? 0, day: parts.day ?? 0)
+    let parts = utcCalendar.dateComponents([.year, .month, .day], from: date)
+    return costume(year: parts.year ?? 0, month: parts.month ?? 0, day: parts.day ?? 0)
 }

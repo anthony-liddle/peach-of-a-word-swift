@@ -1,1 +1,1 @@
-New in this build: a few rude words no longer count toward a day's basket. They're still accepted, and still score as extra finds if you type them. If a past day now shows its basket full, that's why. Some definitions read better too, such as fret's.
+A small update, with no change to how the game plays.
