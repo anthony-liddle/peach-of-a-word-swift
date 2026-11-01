@@ -188,3 +188,5 @@ let that ship silently.
 **One quirk worth keeping:** none of the shipped lists ends in a newline, so
 `wc -l` reports one fewer than each file contains. Every count here is a parsed
 count.
+
+<!-- Throwaway: shows ui-tests reporting on a docs-only pull request. Not for merging. -->
