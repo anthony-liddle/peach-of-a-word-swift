@@ -4,10 +4,10 @@ import XCTest
 ///
 /// This is the question that kept the touch-down commit off the accessibility
 /// path. At those text sizes the whole screen is one scroll view with the rack
-/// inside it, and a `DragGesture(minimumDistance: 0)` fires before the system
-/// can know whether the finger is tapping or starting a scroll. That was
-/// reasoned, never observed, and a scroll view that types at you would be a
-/// worse bug than a slow tile.
+/// inside it, and the tiles' `DragGesture(minimumDistance: 0)`, until November
+/// 2026, fired before the system could know whether the finger was tapping or
+/// starting a scroll. That was reasoned, never observed, and a scroll view
+/// that types at you would be a worse bug than a slow tile.
 ///
 /// It could not be observed before because it needs a real gesture. `simctl`
 /// can launch, seed and screenshot; it cannot drag. Four questions in this
@@ -111,32 +111,38 @@ final class RackScrollTests: XCTestCase {
         XCTAssertFalse(r.typed, "a swipe starting on a tile inserted a letter")
     }
 
-    /// The conflict, measured.
+    /// The conflict, measured, and then gone.
     ///
-    /// Result on 2026-08-10, iPhone 15 simulator at AccessibilityXXXL:
-    /// **scrolled = false, typed = true**. Forcing the touch-down commit onto
-    /// this path did not merely insert a letter, it stopped the view scrolling
-    /// at all. A rack you cannot scroll past, which types at you when you try,
-    /// is a considerably worse bug than a tile that waits for your finger to
-    /// lift. The exclusion in `ContentView.commitOnTouchDown` stays, and now
-    /// has evidence rather than an argument behind it.
+    /// Result on 2026-08-10, iPhone 15 simulator at AccessibilityXXXL, with the
+    /// tiles' zero-distance drag: **scrolled = false, typed = true**. Forcing
+    /// the touch-down commit onto this path did not merely insert a letter, it
+    /// stopped the view scrolling at all. A rack you cannot scroll past, which
+    /// types at you when you try, is a considerably worse bug than a tile that
+    /// waits for your finger to lift. The exclusion in
+    /// `ContentView.commitOnTouchDown` stayed, with evidence rather than an
+    /// argument behind it.
     ///
-    /// **This test is written to fail if the conflict ever goes away.** If
-    /// SwiftUI changes, or a gesture that defers to the scroll pan is found,
-    /// this starts failing and that is the signal to remove the exclusion and
-    /// give large-text players the responsiveness fix. A test that fails when
-    /// the world improves is the point here, not an accident.
-    func testTouchDownCommitStillConflictsWithTheScroll() throws {
+    /// **This test was written to fail if the conflict ever went away, and on
+    /// 2026-11-03 it did.** The tiles now commit in UIKit's `touchesBegan`, for
+    /// the lost tap, and on an iPhone 17 Pro simulator (iOS 27.0) at
+    /// AccessibilityXXXL the same swipe **scrolled and typed nothing**. Most
+    /// likely the page's scroll view holds a touch back from the UIKit view
+    /// inside it until it knows the finger is not scrolling, which the drag
+    /// never waited for. So it now asserts the new result, and goes red if the
+    /// conflict comes back.
+    ///
+    /// **The exclusion stays for now.** Whether large-text players get the
+    /// touch-down tiles is Antoine's call, and a tap's timing on this path has
+    /// not been measured yet.
+    func testTouchDownCommitNoLongerConflictsWithTheScroll() throws {
         let r = try runSwipe(forceTouchDown: true)
         XCTAssertTrue(
-            r.typed,
-            "the touch-down commit no longer types when scrolled from a tile; "
-            + "recheck whether the exclusion is still needed"
+            r.scrolled,
+            "the touch-down commit blocks the scroll from a tile again"
         )
         XCTAssertFalse(
-            r.scrolled,
-            "the touch-down commit no longer blocks the scroll; "
-            + "recheck whether the exclusion is still needed"
+            r.typed,
+            "the touch-down commit types again when scrolled from a tile"
         )
     }
 
