@@ -2,29 +2,20 @@ import Foundation
 import Testing
 @testable import PeachEngine
 
-/// The guard that activates the day the corpus lands.
+/// Every crown the calendar can deal gets its card: a meaning and an origin.
 ///
-/// `Data/etymology.tsv` is not committed: it is Wiktionary text under CC BY-SA
-/// 4.0 and whether it ships is an open decision. So these tests are enabled by
-/// the corpus's presence rather than skipped by hand, and today they do not
-/// run at all.
+/// **What this used to allow, and what it cost.** It was written ahead of the
+/// corpus and enabled by the file's presence, with eleven crowns listed as
+/// deliberately uncovered after orchard v1.3.0 dropped their rows, and its
+/// both-fields test skipped any crown with no row at all. So nothing held a
+/// crown to having a card. On 4 November 2026 the crown was `favorite`, and
+/// its card showed the word and nothing else. orchard v1.11.0 wrote the eleven
+/// rows, and from then on there is no exception list and no skip: the corpus
+/// ships, and a crown without both fields fails here by name and by day.
 ///
-/// They are written now, ahead of the content, because they are the tests that
-/// catch the two ways this can be quietly wrong: a corpus that does not cover
-/// every crown the calendar can deal, and a corpus read with its columns the
-/// wrong way round. Both produce a card that renders. Neither produces a crash.
-///
-/// **Watched fail before being trusted.** Against a corpus missing a crown, the
-/// coverage test named the missing word; against one with the columns swapped,
-/// the column test failed on the definition. Both corpora were temporary and
-/// neither is committed.
-@Suite(
-    "the shipped reveal corpus",
-    .enabled(
-        if: !readSourceEntries().isEmpty,
-        "Data/\(sourceEntriesFileName) is not committed, pending the licensing decision"
-    )
-)
+/// **Watched fail before being trusted.** On `main` before v1.11.0 it named
+/// the eleven, each with its day, and nothing else.
+@Suite("the shipped reveal corpus")
 struct ShippedSourceEntriesTests {
     private struct CalendarFile: Codable { let words: [String] }
 
@@ -35,49 +26,42 @@ struct ShippedSourceEntriesTests {
             .words
     }
 
-    /// The crowns that deliberately have no reveal entry, as of orchard v1.3.0.
-    ///
-    /// Each was dropped from the corpus for carrying something that was not an
-    /// etymology: `favorite` shipped Italian inflection tables, `planning` a Lua
-    /// module error, `catering` a Wiktionary maintenance notice and nothing
-    /// else. A player dealt one of these sees no Etymology section, which is
-    /// the intended outcome rather than a gap.
-    ///
-    /// This is a fixed list rather than a tolerance, so a twelfth crown losing
-    /// its entry still fails this test. Update it only alongside a corpus change
-    /// that intends the drop.
-    private static let deliberatelyUncovered: Set<String> = [
-        "branding", "catering", "dripping", "emulator", "favorite", "mornings",
-        "planning", "projects", "rattling", "sampling", "training",
-    ]
-
-    /// Every word the daily can deal, and therefore every word Endless can deal
-    /// too, since `EndlessSource` draws from the same calendar, except the
-    /// crowns listed above as deliberately uncovered.
-    @Test("covers every crown the calendar can deal, bar the known drops")
-    func coversTheCalendar() throws {
-        let entries = readSourceEntries()
-        let missing = Set(try calendarWords().filter { entries[$0] == nil })
-        let unexpected = missing.subtracting(Self.deliberatelyUncovered)
-        #expect(unexpected.isEmpty, "no entry for \(unexpected.sorted().prefix(10))")
-
-        let restored = Self.deliberatelyUncovered.subtracting(missing)
-        #expect(
-            restored.isEmpty,
-            "these crowns now have an entry and should leave the list: \(restored.sorted())"
-        )
+    /// The day a calendar index falls on, as `2026-11-04`, counted from the
+    /// epoch in UTC so the name doesn't move with the machine's time zone.
+    private func day(_ index: Int) -> String {
+        var utc = Calendar(identifier: .gregorian)
+        utc.timeZone = TimeZone(identifier: "UTC")!
+        let start = utc.date(from: DateComponents(
+            year: dailyEpoch.year, month: dailyEpoch.month, day: dailyEpoch.day
+        ))!
+        let date = utc.date(byAdding: .day, value: index, to: start)!
+        let parts = utc.dateComponents([.year, .month, .day], from: date)
+        return String(format: "%04d-%02d-%02d", parts.year!, parts.month!, parts.day!)
     }
 
-    /// A crown with an entry but an empty field renders a card with one section
-    /// missing, which is the fallback state rather than the intended one.
-    @Test("carries both fields for every crown, not just a row")
-    func bothFieldsPresent() throws {
+    /// Every word the daily can deal, and therefore every word Endless can deal
+    /// too, since `EndlessSource` draws from the same calendar.
+    @Test("gives every crown in the calendar a meaning and an origin")
+    func everyCrownHasItsCard() throws {
         let entries = readSourceEntries()
-        let hollow = try calendarWords().filter { word in
-            guard let entry = entries[word] else { return false }
-            return entry.definition.isEmpty || entry.etymology.isEmpty
+        let bare = try calendarWords().enumerated().compactMap { index, word -> String? in
+            guard let entry = entries[word] else {
+                return "\(word), \(day(index)): no row"
+            }
+            var missing: [String] = []
+            if entry.definition.trimmingCharacters(in: .whitespaces).isEmpty {
+                missing.append("no meaning")
+            }
+            if entry.etymology.trimmingCharacters(in: .whitespaces).isEmpty {
+                missing.append("no origin")
+            }
+            return missing.isEmpty
+                ? nil : "\(word), \(day(index)): \(missing.joined(separator: " and "))"
         }
-        #expect(hollow.isEmpty, "empty field on \(hollow.prefix(10))")
+        #expect(
+            bare.isEmpty,
+            "\(bare.count) crowns without both a meaning and an origin:\n\(bare.joined(separator: "\n"))"
+        )
     }
 
     /// The column-order guard, against the shipped file rather than a literal.
