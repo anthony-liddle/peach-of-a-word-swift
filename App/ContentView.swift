@@ -1459,10 +1459,11 @@ private struct TypeCase: View {
 
     /// Whether tiles commit on touch down.
     ///
-    /// **Tied to the layout, not to the text size.** A zero-distance drag on a
-    /// tile fires before the system can know whether the finger is tapping or
-    /// starting a scroll, so it is only safe when the rack is not inside a
-    /// scroll view. `RackScrollTests` measured what happens otherwise: the view
+    /// **Tied to the layout, not to the text size.** A tile that commits on
+    /// touch down does so before the system can know whether the finger is
+    /// tapping or starting a scroll, so it is only safe when the rack is not
+    /// inside a scroll view. `RackScrollTests` measured what happens otherwise,
+    /// with the zero-distance drag the tiles used until November 2026: the view
     /// stops scrolling entirely and a letter is inserted.
     ///
     /// It used to be keyed off `isAccessibilitySize`, which was a proxy for
@@ -1492,11 +1493,10 @@ private struct TypeCase: View {
                         // of the same tile are two shakes rather than one.
                         refusalToken: model.refusal?.tile == id
                             ? (model.refusal?.token ?? 0) : 0,
-                        // Touch-down commit needs a gesture, and a gesture with
-                        // no minimum distance would fight the scroll view that
-                        // wraps the whole screen at accessibility sizes. That
-                        // path is already flagged as untested, so it keeps the
-                        // Button until it is looked at properly.
+                        // A commit on touch down would fight the scroll view
+                        // that wraps the whole screen at accessibility sizes,
+                        // so that path keeps the Button. See
+                        // `effectiveCommitOnTouchDown`.
                         commitOnTouchDown: effectiveCommitOnTouchDown,
                         tileID: id
                     )
@@ -1525,6 +1525,9 @@ private struct TileButton: View {
     /// the tile had already visibly depressed: the letter could not appear
     /// until the finger lifted. Nothing was ever dropped, but the gap between
     /// seeing the tile move and seeing the letter arrive is real.
+    ///
+    /// The look only. It used to be the latch that kept the commit to once a
+    /// touch as well, and that is what lost letters (see `touchDownTile`).
     @State private var pressing = false
     @State private var shake: CGFloat = 0
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -1620,13 +1623,24 @@ private struct TileButton: View {
         }
     }
 
-    /// Commit on touch down, animation following.
+    /// Commit on touch down, once for each touch, animation following.
     ///
-    /// A `DragGesture` with no minimum distance is the only way to see touch
-    /// down in SwiftUI. The latch makes it fire once per touch rather than on
-    /// every movement update. Hit testing is taken from `contentShape` on the
-    /// unmoved geometry, so the target does not travel with the press
-    /// animation.
+    /// **UIKit's `touchesBegan`, not a SwiftUI gesture** (`TileTouches`).
+    /// This was a `DragGesture(minimumDistance: 0)` with `pressing` as a latch,
+    /// so it fired once a touch rather than on every movement update. On
+    /// iOS 27 the latch lost letters, measured on Antoine's iPhone 13 in
+    /// November 2026. Typing with two thumbs, a touch that landed in the same
+    /// event as the other thumb's lift, and lifted in the same event as the
+    /// next landing, never got `onEnded`. Its latch stayed set, and the tile's
+    /// next touch was refused: 5 letters in about 760 tile touches, over two
+    /// sittings, with an instrument on the window and without one. iOS 27 also
+    /// held a lone touch's `onChanged` about 90 ms, so a second thumb's letter
+    /// went in ahead of the first's, and the tick came late with it.
+    ///
+    /// UIKit begins and ends every touch it delivers, one by one, so a commit
+    /// in `touchesBegan` needs no latch and has none to leave set. Hit testing
+    /// is the tile's shape on the unmoved geometry, so the target does not
+    /// travel with the press animation.
     private var touchDownTile: some View {
         face
             .offset(y: pressing && !reduceMotion ? 3 : 0)
@@ -1635,19 +1649,14 @@ private struct TileButton: View {
                     .offset(y: pressing && !reduceMotion ? 1 : 5)
             )
             .animation(reduceMotion ? nil : Feel.bounce, value: pressing)
-            .contentShape(shape)
-            .gesture(
-                DragGesture(minimumDistance: 0)
-                    .onChanged { _ in
-                        guard !pressing else { return }
-                        pressing = true
-                        #if TAP_RECORDER
-                        TapRecorder.shared.record(.press, tile: tileID, letter: letter)
-                        #endif
-                        action()
-                    }
-                    .onEnded { _ in pressing = false }
-            )
+            .overlay {
+                TileTouches(cornerRadius: Cute.tileRadius, pressing: $pressing) {
+                    #if TAP_RECORDER
+                    TapRecorder.shared.record(.press, tile: tileID, letter: letter)
+                    #endif
+                    action()
+                }
+            }
             .accessibilityElement()
             .accessibilityAddTraits(.isButton)
             .accessibilityAction(.default, action)
@@ -1680,6 +1689,73 @@ private struct TileButton: View {
         .opacity(placed ? 0.32 : 1)
         .motion(Feel.bounce, value: placed)
         .accessibilityLabel("Letter \(letter)\(placed ? ", already picked" : "")")
+    }
+}
+
+/// A tile's touches, from UIKit: `began` once for each touch that lands on the
+/// tile, and `pressing` while one is down.
+///
+/// **The commit reads no state.** Whatever becomes of a touch afterwards,
+/// lifted, cancelled by the system or never reported ended, the next touch's
+/// `touchesBegan` commits on its own. `pressing` can only be wrong about the
+/// look.
+///
+/// **One finger at a time**, as UIKit's default has it: a second finger landing
+/// on a tile already held is not delivered, as the latch used to refuse it.
+///
+/// **Hidden from accessibility.** The tile's own SwiftUI element, with its
+/// default action, is what VoiceOver, Switch Control and Full Keyboard Access
+/// activate. This view only takes touches.
+private struct TileTouches: UIViewRepresentable {
+    let cornerRadius: CGFloat
+    @Binding var pressing: Bool
+    let began: () -> Void
+
+    func makeUIView(context: Context) -> Surface { Surface() }
+
+    func updateUIView(_ surface: Surface, context: Context) {
+        surface.cornerRadius = cornerRadius
+        surface.began = began
+        surface.pressing = { pressing = $0 }
+    }
+
+    final class Surface: UIView {
+        var cornerRadius: CGFloat = 0
+        var began: () -> Void = {}
+        var pressing: (Bool) -> Void = { _ in }
+        private var down = 0
+
+        override init(frame: CGRect) {
+            super.init(frame: frame)
+            isAccessibilityElement = false
+            accessibilityElementsHidden = true
+        }
+
+        required init?(coder: NSCoder) { fatalError("not from a storyboard") }
+
+        /// The tile's rounded shape, not its square frame.
+        override func point(inside point: CGPoint, with event: UIEvent?) -> Bool {
+            UIBezierPath(roundedRect: bounds, cornerRadius: cornerRadius).contains(point)
+        }
+
+        override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+            down += touches.count
+            pressing(true)
+            for _ in touches { began() }
+        }
+
+        override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
+            lift(touches)
+        }
+
+        override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
+            lift(touches)
+        }
+
+        private func lift(_ touches: Set<UITouch>) {
+            down = max(0, down - touches.count)
+            if down == 0 { pressing(false) }
+        }
     }
 }
 
