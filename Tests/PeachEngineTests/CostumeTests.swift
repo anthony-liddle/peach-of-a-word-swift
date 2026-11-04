@@ -59,4 +59,30 @@ struct CostumeTests {
         #expect(throws: CostumePathError.self) { try costumeCommands("m1 2 l3 4") }
         #expect(throws: CostumePathError.self) { try costumeCommands("M1 2 C3 4 5 6") }
     }
+
+    /// `Costumes.swift` as text: the source tree first, then the copy bundled
+    /// for Xcode Cloud, whose test phase has no checkout.
+    private static let source: String = {
+        var candidates = [repositoryRoot.appendingPathComponent("Sources/PeachEngine/Costumes.swift")]
+        for bundle in Bundle.allBundles {
+            if let resources = bundle.resourceURL {
+                candidates.append(resources.appendingPathComponent("PeachEngine/Costumes.swift"))
+            }
+        }
+        for url in candidates {
+            if let text = try? String(contentsOf: url, encoding: .utf8) { return text }
+        }
+        return ""
+    }()
+
+    /// A part drawn on the peach's own outline names it, from the shared
+    /// table, so the ghost's leaf and the lantern's body follow the peach. A
+    /// copy of the outline written out here would silently stop following it.
+    @Test("draws the peach's own outlines by name, never as copies")
+    func noCopiesOfThePeach() throws {
+        try #require(!Self.source.isEmpty, "Costumes.swift was not found")
+        for part in GrowthStage.perfectlyPeachy.parts.prefix(3) {
+            #expect(!Self.source.contains(part.d), "Costumes.swift copies \(part.d)")
+        }
+    }
 }

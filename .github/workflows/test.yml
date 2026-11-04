@@ -240,7 +240,7 @@ jobs:
       - name: Remove the checkout the tests point at
         run: |
           set -euo pipefail
-          for dir in Data App Fixtures; do
+          for dir in Data App Fixtures Sources; do
             if [ -d "$dir" ]; then
               mv "$dir" "$RUNNER_TEMP/moved-$dir"
               echo "moved $dir aside"

@@ -288,6 +288,13 @@ targets:
         buildPhase: resources
       - path: Fixtures/oracle.json
         buildPhase: resources
+      # Read as text by CostumeTests, which holds that no costume copies the
+      # peach's outlines, so Xcode Cloud's test phase needs it bundled too. A
+      # folder, as App is: Xcode leaves a lone Swift file out of a bundle's
+      # resources even when told to copy it.
+      - path: Sources/PeachEngine
+        type: folder
+        buildPhase: resources
     dependencies:
       - package: PeachEngine
         product: PeachEngine

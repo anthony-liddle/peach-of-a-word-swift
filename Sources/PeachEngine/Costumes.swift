@@ -72,6 +72,16 @@ struct CostumeTable: Sendable {
 private let cocoa = "#7A4A33"
 private let leaf = "#8FD3B6"
 
+/// The peach's own outlines, from the growing peach's Perfectly Peachy stage,
+/// the table both apps pin. A part drawn on one names it rather than copying
+/// it, so it follows the peach: an edit to the peach's leaf moves the ghost's
+/// leaf with it. `CostumeTests` holds that no outline is copied here.
+enum PeachOutline {
+    static let leaf = GrowthStage.perfectlyPeachy.parts[0].d
+    static let body = GrowthStage.perfectlyPeachy.parts[1].d
+    static let highlight = GrowthStage.perfectlyPeachy.parts[2].d
+}
+
 extension Costume {
     static let witchHatTable = CostumeTable(
         spoken: "in a witch's hat",
@@ -92,8 +102,7 @@ extension Costume {
         spoken: "carved as a jack-o'-lantern",
         replacesFace: true,
         parts: [
-            CostumePart("M50 16 C70 16 84 32 84 52 C84 74 68 90 50 90 C32 90 16 74 16 52 C16 32 30 16 50 16 Z",
-                        fill: "#FF9A3D", opacity: 0.55),
+            CostumePart(PeachOutline.body, fill: "#FF9A3D", opacity: 0.55),
             CostumePart("M38 19 C27 34 27 72 38 88", opacity: 0.75, stroke: "#E07A2A", strokeWidth: 2.5),
             CostumePart("M62 19 C73 34 73 72 62 88", opacity: 0.75, stroke: "#E07A2A", strokeWidth: 2.5),
             CostumePart("M50 17 C46 38 46 68 50 89", opacity: 0.45, stroke: "#E07A2A", strokeWidth: 2.5),
@@ -114,7 +123,7 @@ extension Costume {
                         + "C57.8 76 53.9 76 50 80 C46.1 84 42.2 84 38.3 80 C34.4 76 30.6 76 26.7 80 "
                         + "C22.8 84 18.9 84 15 80 L15 48 C15 26 28 9 50 9 Z",
                         fill: "#FFFFFF", stroke: "#D6C9EE", strokeWidth: 2.5),
-            CostumePart("M50 12 C54 4 64 3 68 8 C66 14 59 17 54 16 Z", fill: leaf),
+            CostumePart(PeachOutline.leaf, fill: leaf),
             CostumePart("M35 46 C35 38 45 38 45 46 C45 54 35 54 35 46 Z", fill: cocoa),
             CostumePart("M55 46 C55 38 65 38 65 46 C65 54 55 54 55 46 Z", fill: cocoa),
             CostumePart("M47 61 C47 56 53 56 53 61 C53 66 47 66 47 61 Z", fill: cocoa, faceOnly: true),
