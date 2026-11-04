@@ -10,6 +10,11 @@ import SwiftUI
 /// looked slightly different would be worse than the orange circle this
 /// replaces.
 ///
+/// **Held to the shared table.** `PeachMarkTests` holds every part here, with
+/// its paint, to the growing peach's Perfectly Peachy stage. One handle of the
+/// highlight was copied wrong for as long as the peach was drawn here, and
+/// nothing noticed.
+///
 /// **Ported as a path, not exported as an asset.** It is eight primitives in a
 /// 100x100 box, so the transcription was cheap, and vector means it stays crisp
 /// at both the 13pt chip mark and the 96pt celebration card without shipping
@@ -90,7 +95,7 @@ struct PeachMark: View {
                        control1: CGPoint(x: 34, y: 31), control2: CGPoint(x: 42, y: 32))
             // The s command: first control is (42,32) reflected about (50,32).
             p.addCurve(to: CGPoint(x: 73, y: 27),
-                       control1: CGPoint(x: 58, y: 32), control2: CGPoint(x: 73, y: 31))
+                       control1: CGPoint(x: 58, y: 32), control2: CGPoint(x: 66, y: 31))
             p.addCurve(to: CGPoint(x: 50, y: 16),
                        control1: CGPoint(x: 67, y: 20), control2: CGPoint(x: 59, y: 16))
             p.closeSubpath()
