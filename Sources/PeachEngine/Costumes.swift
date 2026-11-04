@@ -78,11 +78,12 @@ extension Costume {
         replacesFace: false,
         parts: [
             CostumePart("M33 27 C37 19 41 11 47 7 C54 2 63 1 72 3 C65 6 61 11 61 18 L66 27 Z",
-                        fill: "#5B3F8C"),
-            CostumePart("M47 7 C54 2 63 1 72 3 C64 5 57 8 52 14 Z", fill: "#8A6BC9", opacity: 0.8),
-            CostumePart("M35 24 C45 27 55 27 64 24 L62 19 C54 22 46 22 37 19 Z", fill: leaf),
-            CostumePart("M16 29 C16 22 84 22 84 29 C84 35 16 35 16 29 Z", fill: "#4B3470"),
-            CostumePart("M20 27 C30 23 70 23 80 27", stroke: "#8A6BC9", strokeWidth: 2),
+                        fill: "#241F1C"),
+            CostumePart("M47 7 C54 2 63 1 72 3 C64 5 57 8 52 14 Z", fill: "#484537", opacity: 0.8),
+            CostumePart("M35 24 C45 27 55 27 64 24 L62 19 C54 22 46 22 37 19 Z", fill: "#800080"),
+            CostumePart("M16 29 C16 22 84 22 84 29 C84 35 16 35 16 29 Z", fill: "#241F1C"),
+            CostumePart("M20 27 C30 23 70 23 80 27",
+                        fill: "#484537", stroke: "#8A6BC9", strokeWidth: 2),
             CostumePart("M52 9 L53.6 12.6 L57.4 12.9 L54.5 15.4 L55.4 19.1 L52 17.1 L48.6 19.1 L49.5 15.4 L46.6 12.9 L50.4 12.6 Z",
                         fill: "#FFE08A", faceOnly: true),
         ]
