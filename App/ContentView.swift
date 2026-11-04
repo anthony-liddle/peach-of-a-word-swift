@@ -332,7 +332,7 @@ struct ContentView: View {
                     ) { model.moment = nil }
                         // Large only, and the board is covered whenever this is
                         // up. No crown carrying an entry has ever fitted the
-                        // medium detent, and 615 of 626 carry one, so offering
+                        // medium detent, and every crown carries one, so offering
                         // medium was offering a height that truncated almost
                         // every card. The way out is pinned inside the card
                         // rather than depending on this, which is what makes
