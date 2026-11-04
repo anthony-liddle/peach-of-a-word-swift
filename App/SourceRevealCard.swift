@@ -20,9 +20,10 @@ import SwiftUI
 /// fixed furniture, before a word of prose, is 361pt. The *shortest* entry in
 /// the corpus renders 513pt and the longest renders 1,209pt. So no crown
 /// carrying an entry has ever fitted the medium detent, and 615 of the 626
-/// calendar crowns carry one. Medium was preserving the board on eleven days a
-/// year, and on those eleven the card is a mark, a line, a word and a kicker,
-/// which is not a card anyone needs the board behind.
+/// calendar crowns carried one when this was decided (all 626 from orchard
+/// v1.11.0). Medium was preserving the board on eleven days a year, and on
+/// those eleven the card was a mark, a line, a word and a kicker, which is not
+/// a card anyone needs the board behind.
 ///
 /// A content-measured detent was built and then dropped for that reason. It
 /// would have carried a `UIHostingController` and forty lines to buy a better
@@ -37,26 +38,27 @@ import SwiftUI
 /// strings being required. This said `entry` is "always nil, because
 /// `Data/etymology.tsv` is not committed pending the licensing decision". That
 /// decision was taken on 2026-08-14 and the corpus has shipped since. `entry`
-/// is now populated for 615 of the 626 calendar crowns, and nil for the other
-/// eleven, where the card falls back to exactly what it rendered before: the
-/// mark, the line, the word, the kicker.
+/// is populated for all 626 calendar crowns from orchard v1.11.0. When it is
+/// nil the card falls back to exactly what it rendered before: the mark, the
+/// line, the word, the kicker.
 ///
-/// That fallback is reachable in normal play, and deliberately so. It was not,
-/// when this was written: the corpus covered all 626 calendar crowns. From
-/// orchard v1.3.0 it covers 615 of them, because eleven rows were dropped for
-/// carrying something that was not an etymology. `favorite` shipped Italian
-/// inflection tables, since its Wiktionary page has an English section with no
-/// Etymology subsection and an Italian one with three; `planning` shipped a Lua
-/// module error; `catering` shipped a maintenance notice and nothing else.
+/// From orchard v1.3.0 to v1.10.0 that fallback was reachable in normal play,
+/// deliberately: the corpus covered 615 of the 626, because eleven rows were
+/// dropped for carrying something that was not an etymology. `favorite`
+/// shipped Italian inflection tables, since its Wiktionary page has an English
+/// section with no Etymology subsection and an Italian one with three;
+/// `planning` shipped a Lua module error; `catering` shipped a maintenance
+/// notice and nothing else. An absent section read as no etymology on hand,
+/// which was judged more honest than `brothers` under the heading Etymology.
 ///
-/// So a player can be dealt `branding`, `catering`, `dripping`, `emulator`,
-/// `favorite`, `mornings`, `planning`, `projects`, `rattling`, `sampling` or
-/// `training` and see no Etymology section. That is the intended outcome: an
-/// absent section reads as no etymology on hand, which is honest, where
-/// `brothers` under the heading Etymology read as broken.
+/// **That judgment didn't survive a player being dealt one.** On 4 November
+/// 2026 the crown was `favorite`, and the card showed the word and nothing
+/// else. orchard v1.11.0 wrote all eleven rows by hand, each meaning a
+/// Wiktionary sense and each origin from its lemma's page, and
+/// `ShippedSourceEntriesTests` now fails on any calendar crown without both.
 ///
-/// The fallback also still does its original job, keeping a missing file a
-/// quiet card rather than a crash.
+/// The fallback still does its original job, keeping a missing file a quiet
+/// card rather than a crash.
 struct SourceRevealCard: View {
     let word: String
     /// The definition and etymology, when there are any.

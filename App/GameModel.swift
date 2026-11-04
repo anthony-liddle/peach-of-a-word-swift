@@ -91,11 +91,13 @@ final class GameModel {
     /// was taken and the etymology row was added to `tools/update-lexicon.sh`.
     /// The comment outlived the state it described by twelve days.
     ///
-    /// 799 entries, covering 615 of the 626 calendar crowns. The other eleven
-    /// have no usable English etymology on Wiktionary and are skipped on
-    /// purpose, so a dealt crown really can have no entry. `readSourceEntries`
-    /// still treats a missing file as empty rather than as an error, which now
-    /// covers a build without the data rather than the normal case.
+    /// 810 entries, covering all 626 calendar crowns from orchard v1.11.0:
+    /// eleven of them through rows written by hand, because their own
+    /// Wiktionary pages carry no usable English etymology. Until then those
+    /// eleven had no entry, and on 4 November 2026 `favorite`'s card showed
+    /// the word alone. `ShippedSourceEntriesTests` now fails on a crown
+    /// without both fields. `readSourceEntries` still treats a missing file as
+    /// empty rather than as an error, which covers a build without the data.
     private(set) var sourceEntries: [String: SourceEntry] = [:]
 
     /// The gloss behind every tappable found-word chip, keyed by word.
