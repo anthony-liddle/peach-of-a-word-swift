@@ -11,10 +11,21 @@ only, as the costume table is written.
         Also writes stages.json and preview.html (every stage at the title's
         96pt and at 10.7pt, the smallest peach in the app) into <dir>.
 
+    python3 -I tools/growth-stages.py --json <file>
+        Also writes the table as JSON, each stage's raw value, its words and
+        its parts, for the web's copy in `src/storeArt/growthStages.ts`.
+
 These are the drawings Antoine approved on 24 October 2026, with Ripening's
 blush made the ripe peach's own cheeks. The Swift table is generated from
 them rather than transcribed, so the code cannot drift from what was
 approved: change a drawing here, run this, and update the pinned hash.
+
+They can also be edited in Inkscape, in the illustrations kept in the vault.
+The web repo's `scripts/illustrations/import.ts` writes an edit back here,
+runs this, writes the web's copy from `--json`, and moves both pinned hashes.
+An edited stage comes back as literal path data in place of its formula. The
+stages drawn from the peach follow an edit to the peach until one of them is
+edited directly, and is then drawn on its own (Antoine, 4 November 2026).
 """
 import hashlib
 import json
@@ -83,29 +94,42 @@ def transform(d, sx, tx, ty):
     return s.replace(" M", " M").strip().replace("Z", "Z ").strip()
 
 
-# The peach, as `public/favicon-cute.svg` draws it, written out absolute.
-PEACH_LEAF = "M50 12 C54 4 64 3 68 8 C66 14 59 17 54 16 Z"
-PEACH_BODY = ("M50 16 C70 16 84 32 84 52 C84 74 68 90 50 90 "
-              "C32 90 16 74 16 52 C16 32 30 16 50 16 Z")
-PEACH_HIGH = "M50 16 C41 16 33 20 27 27 C34 31 42 32 50 32 C58 32 66 31 73 27 C67 20 59 16 50 16 Z"
-SMILE = "M45 67 C48 70 52 70 55 67"
+# The peach, as the games draw it, in its 100x100 box: the leaf, the body and
+# the highlight, then the face. Ripening, Sweet, Perfectly Peachy and the
+# crowned stage are drawn from it for as long as they follow the peach.
+#
+# The illustrations' import (`scripts/illustrations/import.ts`, in the web
+# repo) rewrites the lines between the two markers when peach.svg is edited,
+# one part to a line, in this order: the leaf, the body and the highlight keep
+# their places, since the stages below recolour and drop them by place.
+# The peach: from here
+PEACH_PARTS = [
+    dict(d="M50 12 C54 4 64 3 68 8 C66 14 59 17 54 16 Z", fill=LEAF),  # leaf
+    dict(d="M50 16 C70 16 84 32 84 52 C84 74 68 90 50 90 C32 90 16 74 16 52 C16 32 30 16 50 16 Z", fill=PEACH),  # body
+    dict(d="M50 16 C41 16 33 20 27 27 C34 31 42 32 50 32 C58 32 66 31 73 27 C67 20 59 16 50 16 Z", fill=PEACH_HI, opacity=0.7),  # highlight
+    dict(d=circle(40, 58, 3.4), fill=COCOA, faceOnly=True),  # eye, left
+    dict(d=circle(60, 58, 3.4), fill=COCOA, faceOnly=True),  # eye, right
+    dict(d=circle(34, 66, 4.5), fill=BLUSH, opacity=0.7, faceOnly=True),  # cheek, left
+    dict(d=circle(66, 66, 4.5), fill=BLUSH, opacity=0.7, faceOnly=True),  # cheek, right
+    dict(d="M45 67 C48 70 52 70 55 67", stroke=COCOA, strokeWidth=2.2, faceOnly=True),  # smile
+]
+# The peach: to here
 
 
-def peach_parts(sx=1.0, tx=0.0, ty=0.0, body=PEACH, high=PEACH_HI, face=True):
-    t = lambda d: transform(d, sx, tx, ty)
-    parts = [
-        dict(d=t(PEACH_LEAF), fill=LEAF),
-        dict(d=t(PEACH_BODY), fill=body),
-        dict(d=t(PEACH_HIGH), fill=high, opacity=0.7),
-    ]
-    if face:
-        parts += [
-            dict(d=t(circle(40, 58, 3.4)), fill=COCOA, faceOnly=True),
-            dict(d=t(circle(60, 58, 3.4)), fill=COCOA, faceOnly=True),
-            dict(d=t(circle(34, 66, 4.5)), fill=BLUSH, opacity=0.7, faceOnly=True),
-            dict(d=t(circle(66, 66, 4.5)), fill=BLUSH, opacity=0.7, faceOnly=True),
-            dict(d=t(SMILE), stroke=COCOA, strokeWidth=round(2.2 * sx, 2), faceOnly=True),
-        ]
+def peach_parts(sx=1.0, tx=0.0, ty=0.0, body=None, high=None):
+    """The peach scaled about the origin by sx, then moved by (tx, ty), with
+    its body and its highlight recoloured where a colour is given. A stroke
+    scales with it, to two places."""
+    parts = []
+    for i, p in enumerate(PEACH_PARTS):
+        q = dict(p, d=transform(p["d"], sx, tx, ty))
+        if i == 1 and body:
+            q["fill"] = body
+        if i == 2 and high:
+            q["fill"] = high
+        if q.get("strokeWidth") is not None:
+            q["strokeWidth"] = round(p["strokeWidth"] * sx, 2)
+        parts.append(q)
     return parts
 
 
@@ -136,6 +160,16 @@ def petal(angle_deg, cx=50, cy=48, length=31, width=22):
             f"C{f(c1[0])} {f(c1[1])} {f(c2[0])} {f(c2[1])} {f(tip[0])} {f(tip[1])} "
             f"C{f(c3[0])} {f(c3[1])} {f(c4[0])} {f(c4[1])} {f(base[0])} {f(base[1])} Z")
 
+
+# The stages drawn on their own, by raw value. Ripening, Sweet and the crowned
+# stage are drawn from the peach, and stop following it only by being named
+# here. The illustrations' import names one only when told to, with
+# --draw-on-its-own, and says so; GrowthStageTests holds every stage drawn from
+# the peach that isn't named here to today's peach (Antoine, 4 November 2026).
+DRAWN_ON_THEIR_OWN = []
+
+# The stages drawn from the peach, which DRAWN_ON_THEIR_OWN may name.
+FOLLOWERS = ("ripening", "sweet", "crown")
 
 SOIL_MOUND = "M16 88 C16 74 32 68 50 68 C68 68 84 74 84 88 C84 92 16 92 16 88 Z"
 
@@ -219,6 +253,10 @@ def points(d):
 
 
 def check():
+    wrong = [s for s in DRAWN_ON_THEIR_OWN if s not in FOLLOWERS]
+    if wrong:
+        sys.exit(f"DRAWN_ON_THEIR_OWN names {wrong}: only {list(FOLLOWERS)} follow the peach, "
+                 "and Perfectly Peachy is the peach itself")
     bad = []
     for s in STAGES:
         for p in s["parts"]:
@@ -298,6 +336,14 @@ def swift():
     for _, case, _ in CASES:
         out.append(f"        case .{case}: return Self.{case}Table")
     out += ["        }", "    }"]
+    own = [case for _, case, raw in CASES if raw in DRAWN_ON_THEIR_OWN]
+    out += [
+        "",
+        "    /// The stages drawn from the peach that are drawn on their own, and no",
+        "    /// longer follow it: `DRAWN_ON_THEIR_OWN` in the generator. Every other",
+        "    /// stage drawn from the peach is today's peach, as `GrowthStageTests` holds.",
+        f"    static let drawnOnTheirOwn: Set<GrowthStage> = [{', '.join('.' + c for c in own)}]",
+    ]
     for (_, case, _), stage in zip(CASES, STAGES):
         out += ["", f"    static let {case}Table = GrowthTable(",
                 f'        spoken: "{stage["spoken"]}",', "        parts: ["]
@@ -330,6 +376,21 @@ def main(argv):
     print("sha256", hashlib.sha256(canonical().encode()).hexdigest())
     if len(argv) == 3 and argv[1] == "--preview":
         preview(argv[2])
+    if len(argv) == 3 and argv[1] == "--json":
+        with open(argv[2], "w") as out:
+            json.dump(table(), out, indent=1)
+
+
+def table():
+    """The table as the web's copy holds it: the raw value, the words, and the
+    parts with only the fields each one sets."""
+    keys = ("d", "fill", "opacity", "stroke", "strokeWidth", "faceOnly")
+    return [
+        {"id": raw, "spoken": stage["spoken"],
+         "parts": [{k: p[k] for k in keys if p.get(k) is not None and p.get(k) is not False}
+                   for p in stage["parts"]]}
+        for (_, _, raw), stage in zip(CASES, STAGES)
+    ]
 
 
 def preview(out):

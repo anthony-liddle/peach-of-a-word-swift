@@ -15,6 +15,11 @@ extension GrowthStage {
         }
     }
 
+    /// The stages drawn from the peach that are drawn on their own, and no
+    /// longer follow it: `DRAWN_ON_THEIR_OWN` in the generator. Every other
+    /// stage drawn from the peach is today's peach, as `GrowthStageTests` holds.
+    static let drawnOnTheirOwn: Set<GrowthStage> = []
+
     static let firstSproutTable = GrowthTable(
         spoken: "a first sprout",
         parts: [
