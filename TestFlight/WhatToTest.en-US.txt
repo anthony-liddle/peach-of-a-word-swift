@@ -1,1 +1,1 @@
-Tidying behind the scenes. Nothing in the game looks or plays differently.
+This build changes nothing in the game, only the checks it goes through before each release.

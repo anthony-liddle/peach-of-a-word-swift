@@ -115,6 +115,15 @@ jobs:
       - name: Cue file drift check
         run: tools/update-cues.sh --check
 
+      # Every `xcodebuild` that names a simulator runs through
+      # `.github/xcodebuild.sh`, which runs it once more if it found no
+      # simulator. That only happens when a runner misses, which can't be made
+      # to happen, so the retry is tested here against a stand-in `xcodebuild`:
+      # a miss runs once more, and nothing else runs twice. Seconds, and on
+      # macOS's own bash 3.2, which is what runs the helper.
+      - name: The xcodebuild retry, against a stand-in
+        run: .github/xcodebuild.test.sh
+
       # The engine suite. Pure Swift, no Xcode project involved, which is why
       # it runs before the project is generated: a failure here is a real
       # failure rather than a generation problem.
@@ -230,6 +239,12 @@ jobs:
       # `name=iPhone 17` and found no simulators at all, on image 20261102,
       # which has an iPhone 17 and passed this job twice. Up to two minutes for
       # an iPhone to be listed; a miss prints what the runner had.
+      #
+      # **The wait doesn't stop that failure.** Later that day the same miss
+      # hit `ui-tests-off-utc`, on a UDID it had already found, booted and run
+      # its warm-up on: `simctl` sees the simulator and `xcodebuild` sometimes
+      # doesn't. `.github/xcodebuild.sh` runs `xcodebuild` once more when it
+      # misses that way, and says why there.
       - name: Find the simulator
         run: |
           set -euo pipefail
@@ -258,7 +273,7 @@ jobs:
       - name: Build the test bundle
         run: |
           set -euo pipefail
-          xcodebuild build-for-testing \
+          .github/xcodebuild.sh build-for-testing \
             -project PeachOfAWord.xcodeproj \
             -scheme PeachOfAWord \
             -destination "id=$UDID" \
@@ -283,7 +298,7 @@ jobs:
           set -euo pipefail
           XCTESTRUN=$(ls "$RUNNER_TEMP"/dd/Build/Products/*.xctestrun | head -1)
           echo "using $XCTESTRUN"
-          xcodebuild test-without-building \
+          .github/xcodebuild.sh test-without-building \
             -xctestrun "$XCTESTRUN" \
             -destination "id=$UDID"
 
@@ -328,7 +343,7 @@ jobs:
           UDID=$(xcrun simctl list devices available \
             | awk -F'[()]' '/^ *iPhone/ {print $2; exit}')
           [ -n "$UDID" ] || { echo "no iPhone simulator on this runner" >&2; exit 1; }
-          xcodebuild build-for-testing \
+          .github/xcodebuild.sh build-for-testing \
             -project PeachOfAWord.xcodeproj \
             -scheme PeachOfAWordUITests \
             -destination "id=$UDID" \
@@ -397,7 +412,7 @@ jobs:
           for class in $CLASSES; do ONLY+=("-only-testing:PeachOfAWordUITests/$class"); done
           echo "shard $SHARD: $CLASSES"
           XCTESTRUN=$(ls "$RUNNER_TEMP"/dd/Build/Products/*.xctestrun | head -1)
-          xcodebuild test-without-building \
+          .github/xcodebuild.sh test-without-building \
             -xctestrun "$XCTESTRUN" \
             -destination "id=$UDID" \
             "${ONLY[@]}" \
@@ -526,7 +541,7 @@ jobs:
           ONLY=()
           for class in $CLASSES; do ONLY+=("-only-testing:PeachOfAWordUITests/$class"); done
           XCTESTRUN=$(ls "$RUNNER_TEMP"/dd/Build/Products/*.xctestrun | head -1)
-          xcodebuild test-without-building \
+          .github/xcodebuild.sh test-without-building \
             -xctestrun "$XCTESTRUN" \
             -destination "id=$UDID" \
             "${ONLY[@]}" \
