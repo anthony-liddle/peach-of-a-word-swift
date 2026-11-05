@@ -93,6 +93,13 @@ CI runs exactly these, on macOS. It also runs `ci_scripts/ci_post_clone.sh`,
 the same script Xcode Cloud uses, so a change that breaks the Xcode Cloud
 delivery path fails on the pull request rather than on the way to TestFlight.
 
+**Write the TestFlight note for the build this makes.** Every merge to `main`
+is a build the testers install, and `TestFlight/WhatToTest.en-US.txt` is what
+they read about it. One or two plain sentences about what a tester could
+notice, or "Small fixes." when nothing is. Never carried over, never a
+changelog, and never a surprise: no costume, no holiday, no future word. The
+rule, and why, is in `TestFlight/README.md`.
+
 ## UI tests: what to run, and where
 
 **Before pushing:** the UI test classes the change touches, plus the smoke

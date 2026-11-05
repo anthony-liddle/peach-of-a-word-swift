@@ -19,4 +19,20 @@ It is picked up per build, from the commit that build was made from. Updating
 the notes means editing the file and pushing, in the same commit as the change
 they describe.
 
+## What the note says
+
+Bea and the other testers read it, and every merge to `main` is a build they
+install. So the note is written for that build, by the pull request that makes
+it (Antoine, 5 November 2026):
+
+- **One or two plain sentences, written for this build:** what's new that a
+  tester could notice, or, when nothing is, something like "Small fixes."
+  Never carried over from an earlier build: a note that's still true is still
+  the last build's note.
+- **Never a changelog,** and never anything a tester can't see.
+- **Never names a surprise:** no costume, no holiday, no future word.
+
+`PlayerWordsTests` holds the note to the same words as the game's: no em dash,
+and none of the words `Voice/AI Tells.md` bans.
+
 Reference: <https://developer.apple.com/documentation/xcode/including-notes-for-testers-with-a-beta-release-of-your-app>
