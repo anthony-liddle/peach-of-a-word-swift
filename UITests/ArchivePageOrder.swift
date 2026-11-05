@@ -72,7 +72,7 @@ final class ArchivePageOrder: XCTestCase {
         XCTAssertEqual(items.count, 5, "the key does not have its four states and the peach")
         // The peach under the four states: it is worn over a state, not a
         // fifth step on the ramp, and a fifth column broke "Finished" at XXXL.
-        let peach = items.first { $0.label == "Found the Peach of a Word" }
+        let peach = items.first { $0.label == "Found the peach of a word" }
         XCTAssertNotNil(peach, "the key has no entry for the peach")
         if let peach {
             let ramp = items.filter { $0 != peach }

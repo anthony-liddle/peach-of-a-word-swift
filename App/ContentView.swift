@@ -103,6 +103,8 @@ struct ContentView: View {
         let id = UUID()
         /// nil means the large detent, which is the sheet unscaled.
         let height: CGFloat?
+        /// The way out's words: "Close" from the title, the basket's from the board.
+        let closeTitle: String
     }
 
     @State private var archivePresentation: ArchivePresentation?
@@ -172,11 +174,14 @@ struct ContentView: View {
         // same turn the app appears, and a zero width makes the rule compute an
         // 18pt cell and refuse the card on every phone.
         let width = archiveWidth > 0 ? archiveWidth : ArchiveSheet.windowWidth
-        archivePresentation = ArchivePresentation(height: archiveHeight(width: width))
+        let closeTitle = titleShown ? Vocabulary.close : Vocabulary.revealClose
+        archivePresentation = ArchivePresentation(
+            height: archiveHeight(width: width, closeTitle: closeTitle),
+            closeTitle: closeTitle)
     }
 
     /// The height this opening wants, or nil for the large detent.
-    private func archiveHeight(width: CGFloat) -> CGFloat? {
+    private func archiveHeight(width: CGFloat, closeTitle: String) -> CGFloat? {
         // No height means the large detent, which is the sheet unscaled.
         //
         // Two reasons to refuse the fitted card. At accessibility sizes a month
@@ -190,6 +195,7 @@ struct ContentView: View {
             width: width,
             days: model.archiveDays(),
             canPlay: model.canPlayArchive,
+            closeTitle: closeTitle,
             dynamicTypeSize: dynamicTypeSize)
     }
 
@@ -206,11 +212,11 @@ struct ContentView: View {
                 // not two. The loading line stays: a bare spinner says nothing
                 // about what is happening.
                 if !titleShown { LoadingTop() }
-            case .failed(let message):
+            case .failed:
                 ContentUnavailableView(
-                    "Could not start",
+                    Vocabulary.startFailedTitle,
                     systemImage: "exclamationmark.triangle",
-                    description: Text(message)
+                    description: Text(Vocabulary.startFailedAdvice)
                 )
             case .ready:
                 // Not drawn while the title covers it, so nothing beneath the
@@ -398,6 +404,7 @@ struct ContentView: View {
                     width: sheet.size.width,
                     days: model.archiveDays(),
                     canPlay: model.canPlayArchive,
+                    closeTitle: presentation.closeTitle,
                     onPick: { day in
                         archivePresentation = nil
                         // Past days lives on the title, so a day picked there
@@ -1688,7 +1695,7 @@ private struct TileButton: View {
         // the difference between reading as unavailable and reading as absent.
         .opacity(placed ? 0.32 : 1)
         .motion(Feel.bounce, value: placed)
-        .accessibilityLabel("Letter \(letter)\(placed ? ", already picked" : "")")
+        .accessibilityLabel("Letter \(letter)\(placed ? ", already in the word" : "")")
     }
 }
 

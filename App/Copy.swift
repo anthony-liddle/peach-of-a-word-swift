@@ -115,36 +115,29 @@ enum Vocabulary {
     static let explainerParagraphs: [String] = [
         "Every puzzle is built from two word lists doing different jobs.",
 
-        "ENABLE and SCOWL, together with a small patch list we keep by hand, "
-        + "decide what counts as a word: about 427,000 of them. Almost anything "
-        + "real you type is accepted. You will rarely be told a real word is "
-        + "not a word.",
+        "ENABLE and SCOWL, with a patch list kept by hand, decide what counts "
+        + "as a word: about 427,000 of them. Almost any real word you spell counts.",
 
         "SCOWL also sorts those words into bands by how common they are, from "
-        + "everyday to obscure. The common band makes up the day's \(container), "
+        + "everyday to obscure. The common band makes up the \(container), "
         + "and the bands past it decide how rare everything else is.",
 
-        "The day's eight letters come from a common eight-letter word, chosen "
-        + "and checked ahead of time, and the same for everyone that day. The "
-        + "\(container) is every common word those letters can spell.",
+        "Each board's eight letters come from a common eight-letter word, chosen "
+        + "and checked ahead of time. A daily board is the same for everyone.",
 
-        "The goal is a ladder of named ranks, climbed by points. Every valid "
-        + "word moves you up, and rarer words move you further. Above the "
-        + "ladder sits completion: finding every common word the letters can "
-        + "spell. It is reachable, rare, and never required for a day to feel "
-        + "good.",
+        "The goal is a ladder of named ranks, climbed by points. Every word "
+        + "moves you up, and rarer words move you further. Above the ladder is a "
+        + "full \(container): every common word the letters can spell. Filling "
+        + "the \(container) is rare, and never required.",
 
         "Words you find beyond the \(container) are graded by how far past "
         + "common they sit: Uncommon, then Rare, then Mythic, the deeper into "
-        + "the dictionary you go. They all score. They are not lesser, they are "
-        + "extra.",
+        + "the dictionary you go. They all score.",
 
-        "A word can feel common to you and still land outside the "
-        + "\(container). That is not your instinct being wrong. Common here is "
-        + "a statistical line drawn across a word list, and a statistical line "
-        + "does not always agree with a real person's vocabulary. A word you "
-        + "use every week can sit just outside the band. When that happens, you "
-        + "still found a real word. It simply was not on today's short list.",
+        "A word you use every week can still land outside the \(container). "
+        + "Common here is a line drawn through a word list, and a word list "
+        + "doesn't always match one's vocabulary. You still found a real word. "
+        + "It just missed the cut.",
     ]
 
     /// The two lists the explainer names, and where to read about them.
@@ -168,12 +161,12 @@ enum Vocabulary {
 
     /// The legend's caption and the one label in it that carries the metaphor.
     ///
-    /// The rung names are shared vocabulary and the source word is called the
-    /// source word on both surfaces; only the set's own name is themed, which
+    /// The rung names are shared vocabulary, and the word has one name on both
+    /// surfaces, the peach of a word; only the set's own name is themed, which
     /// is why this is the single string here rather than five.
     static let legendCaption = "Key"
     static let keyInContainer = "in the \(container)"
-    static let keySourceWord = "source word"
+    static let keySourceWord = "the peach of a word"
 
     /// The found list's heading, mirroring the web's `glossaryTitle`.
     ///
@@ -279,10 +272,10 @@ enum Vocabulary {
     static let markFromStreak = "kept by your streak"
     /// Said after the day's state, of a day whose words include its own: the
     /// reveal's words, "You found the Peach of a Word!", as a phrase.
-    static let markSourceFound = "you found the Peach of a Word"
+    static let markSourceFound = "you found the peach of a word"
     /// The calendar key's fifth entry, for the peach on a day's corner: the
     /// same fact, as a key's label rather than a phrase after a state.
-    static let keySourceFound = "Found the Peach of a Word"
+    static let keySourceFound = "Found the peach of a word"
     static let markToday = "today"
 
     /// The way back from a past board.
@@ -332,7 +325,7 @@ enum Vocabulary {
 
     /// The title's way to a past board it chooses.
     static let titleRandomDay = "A day at random"
-    static let titleRandomDayHint = "Opens a past board, one not finished if there is one"
+    static let titleRandomDayHint = "Opens a past board, unfinished ones first"
 
     /// The way back to the title, the chevron before the rank's name, spoken.
     ///
@@ -372,12 +365,18 @@ enum Vocabulary {
     static let howToPlayBasket = "The \(container) is every common word the letters can spell. "
         + "Rarer finds are Uncommon, Rare or Mythic."
     static let howToPlayPeach = "All eight letters come from one word, the peach of a word. "
-        + "Find it to open its card: what it means and, most days, where it came from."
+        + "Find it to open its card: what it means and where it came from."
 
     // MARK: - Settings
 
     static let settingsTitle = "Settings"
     static let close = "Close"
+
+    /// A start that fails. The reason goes to the log, not the screen: a player
+    /// can't act on it, and closing the app and opening it again is the one
+    /// thing that helps.
+    static let startFailedTitle = "The word lists didn't load"
+    static let startFailedAdvice = "Close Peach of a Word and open it again."
 
     /// The sound switch's name, and all it says: the line under it went on 23
     /// October 2026. See `SettingsSheet.soundCard`.
@@ -394,8 +393,8 @@ enum Vocabulary {
     static let reminderBody = "Today's peaches are still on the tree."
     /// Under the switch, once iOS has said no, and spoken when it does. Says
     /// where, since the game cannot turn notifications back on itself.
-    static let reminderRefused = "Notifications are off for Peach of a Word. To have the reminder, "
-        + "turn them on in the Settings app, under Notifications, then turn this on again."
+    static let reminderRefused = "Notifications are off for Peach of a Word. Turn them on "
+        + "in the Settings app, under Notifications, then turn this on again."
 
     static let licencesTitle = "Licences"
     static let licencesNote = "The sound library, the word lists, the definitions and the typefaces."
@@ -423,12 +422,12 @@ enum Vocabulary {
     static let licenceSoundscapeTitle = "Soundscape"
     static let licenceSoundscape =
         "The library that plays the game's sounds, under the MIT licence."
-    static let licenceNoticesTitle = "Code Soundscape adapts"
+    static let licenceNoticesTitle = "Chromium's notices"
     static let licenceChromium = "Parts of Soundscape follow the design of Chromium's audio code, "
         + "and carry its seven notices: Chromium's own, four of Google's, Intel's, and Sun's "
         + "for the maths library fdlibm."
     static let licenceWordListsTitle = "The word lists"
-    static let licenceWordLists = "Words from ENABLE and SCOWL, with a curated patch layer. "
+    static let licenceWordLists = "Words from ENABLE and SCOWL, with my own patch list. "
         + "ENABLE is in the public domain; SCOWL's notice is on its page."
     static let licenceWiktionaryTitle = "Definitions and word histories"
     static let licenceWiktionary = "Etymologies and most definitions adapted from Wiktionary, "

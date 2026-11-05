@@ -90,7 +90,7 @@ final class ArchiveKeyLayout: XCTestCase {
         }
         guard let edge = ordered.first?.frame.minX else { return }
         for item in ordered {
-            let inset: CGFloat = item.label == "Found the Peach of a Word" ? 26 * 0.16 : 0
+            let inset: CGFloat = item.label == "Found the peach of a word" ? 26 * 0.16 : 0
             XCTAssertEqual(item.frame.minX, edge + inset, accuracy: 0.5,
                            "\(item.label) does not start at the key's edge")
         }

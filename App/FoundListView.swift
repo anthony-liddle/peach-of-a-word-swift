@@ -182,7 +182,7 @@ struct WordChip: View {
         .accessibilityElement(children: .combine)
         .accessibilityLabel(
             "\(found.word), \(found.category.spokenName), "
-            + (found.category == .source ? costume.map { "the peach \($0.spoken), " } ?? "" : "")
+            + (found.category == .source ? costume.map { "\($0.spoken), " } ?? "" : "")
             + counted(found.score, "point")
         )
         .accessibilityHint(Self.hint)
@@ -213,6 +213,12 @@ struct FoundListView: View {
     /// A new Mythic find to glint, from the model. See `GameModel.glint`.
     var glint: GameModel.Glint? = nil
     var onSelect: (FoundWord) -> Void = { _ in }
+
+    #if DEBUG
+    /// The key's numbers for `-exposeKeyFit 1`. See `KeyFitProbe`.
+    @State private var keyReach: [String: CGFloat] = [:]
+    @State private var keyRoom: CGFloat = 0
+    #endif
 
     init(puzzle: Puzzle, found: [String], standing: TierStanding,
          boardDate: Date = Date(),
@@ -351,6 +357,17 @@ struct FoundListView: View {
             legend
             Colophon()
         }
+        #if DEBUG
+        // `-exposeKeyFit 1` prints how far the key's widest entry reaches and
+        // how wide the key is, so `KeyAtEverySize` can hold every entry inside.
+        .overlay(alignment: .bottomLeading) {
+            if KeyFitProbe.isOn {
+                Text(String(format: "reach=%.2f room=%.2f", keyReach.values.max() ?? 0, keyRoom))
+                    .font(.caption2)
+                    .accessibilityIdentifier("DebugKeyFit")
+            }
+        }
+        #endif
     }
 
     /// The glint's count when this chip is the new Mythic find's, so its gem
@@ -407,6 +424,9 @@ struct FoundListView: View {
             entry(.mythic, "Mythic")
             entry(.source, Vocabulary.keySourceWord)
         }
+        #if DEBUG
+        .modifier(KeyFitProbe(room: $keyRoom))
+        #endif
         .font(CuteFont.body(11, relativeTo: .caption2))
         .foregroundStyle(Cute.inkFaint)
         .padding(.top, 10)
@@ -418,6 +438,9 @@ struct FoundListView: View {
             RarityMark(category: category)
             Text(label)
         }
+        #if DEBUG
+        .modifier(KeyFitProbe.Entry(label: label, reach: $keyReach))
+        #endif
     }
 
 
@@ -467,3 +490,46 @@ struct FoundListView: View {
         }
     }
 }
+
+#if DEBUG
+/// How the key fits, in the layout's own numbers, for `-exposeKeyFit 1`.
+///
+/// The key is hidden from VoiceOver, so XCUITest can't find it, and the frame
+/// XCUITest reports is the ink rather than the layout anyway. `FlowLayout`
+/// places each entry at its one-line width and never wraps its words, so an
+/// entry too wide for the key runs past its edge. This reports the farthest
+/// any entry reaches and the key's width, in the key's own space.
+struct KeyFitProbe: ViewModifier {
+    static var isOn: Bool { UserDefaults.standard.bool(forKey: "exposeKeyFit") }
+    static let space = "KeyFitProbe"
+
+    @Binding var room: CGFloat
+
+    func body(content: Content) -> some View {
+        if Self.isOn {
+            content
+                .coordinateSpace(.named(Self.space))
+                .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { room = $0 }
+        } else {
+            content
+        }
+    }
+
+    /// One entry, reporting how far right it reaches. The latest reach of
+    /// each, so a pass laid out at another width can't leave a stale one.
+    struct Entry: ViewModifier {
+        let label: String
+        @Binding var reach: [String: CGFloat]
+
+        func body(content: Content) -> some View {
+            if KeyFitProbe.isOn {
+                content.onGeometryChange(for: CGFloat.self) {
+                    $0.frame(in: .named(KeyFitProbe.space)).maxX
+                } action: { reach[label] = $0 }
+            } else {
+                content
+            }
+        }
+    }
+}
+#endif

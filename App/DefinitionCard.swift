@@ -157,7 +157,7 @@ struct DefinitionCard: View {
     /// tile's refusal: a no is allowed to be a no, and it is not allowed to
     /// imply the player made a mistake.
     private static let noDefinition =
-        "No definition on hand for this one. It is still a real word you found."
+        "No definition on hand for this one. It still counts."
 
     var body: some View {
         ZStack {

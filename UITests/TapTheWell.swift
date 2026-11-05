@@ -58,7 +58,7 @@ final class TapTheWell: XCTestCase {
 
     /// Tiles picked and not yet sent, by their spoken state.
     private func picked(_ app: XCUIApplication) -> [String] {
-        app.buttons.matching(NSPredicate(format: "label ENDSWITH %@", ", already picked"))
+        app.buttons.matching(NSPredicate(format: "label ENDSWITH %@", ", already in the word"))
             .allElementsBoundByIndex.map { $0.label }
     }
 
@@ -85,7 +85,7 @@ final class TapTheWell: XCTestCase {
     /// A basket word has no mark, and its line opens its card all the same.
     func testABasketWordsLineOpensItsCard() {
         let app = launch()
-        found("lay", "on the page", in: app)
+        found("lay", "in the basket", in: app)
         let board = texts("lay", in: app)
         well(app).tap()
         XCTAssertTrue(definitionCard(app).waitForExistence(timeout: 10), "tapping LAY's line opened no card")
@@ -123,7 +123,7 @@ final class TapTheWell: XCTestCase {
         well(app).tap()
         XCTAssertFalse(wayOut(app).waitForExistence(timeout: 2),
                        "the well opened a card once a letter was picked")
-        XCTAssertEqual(picked(app), ["Letter a, already picked"], "a tap on the well changed the letters")
+        XCTAssertEqual(picked(app), ["Letter a, already in the word"], "a tap on the well changed the letters")
     }
 
     /// **The rack commits a tile on touch down** in the fixed layout, so a
@@ -155,7 +155,7 @@ final class TapTheWell: XCTestCase {
         app.buttons["Letter a"].firstMatch.press(forDuration: 0.05, thenDragTo: well(app),
                                                  withVelocity: .fast, thenHoldForDuration: 0)
         XCTAssertFalse(wayOut(app).waitForExistence(timeout: 2), "a stroke onto the well opened a card")
-        XCTAssertEqual(picked(app), ["Letter a, already picked"],
+        XCTAssertEqual(picked(app), ["Letter a, already in the word"],
                        "a stroke from a tile to the well placed other than that tile's letter")
     }
 
