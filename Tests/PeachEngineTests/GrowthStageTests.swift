@@ -78,20 +78,79 @@ struct GrowthStageTests {
         #expect(GrowthStage(standing: standing(0, found: 0, of: 20)) == .firstSprout)
     }
 
-    /// `PeachMark`'s own paths, from `public/favicon-cute.svg`, written out
-    /// absolute: the leaf, the body and the highlight.
-    static let peachLeaf = "M50 12 C54 4 64 3 68 8 C66 14 59 17 54 16 Z"
-    static let peachBody = "M50 16 C70 16 84 32 84 52 C84 74 68 90 50 90 C32 90 16 74 16 52 C16 32 30 16 50 16 Z"
-    static let peachHighlight = "M50 16 C41 16 33 20 27 27 C34 31 42 32 50 32 C58 32 66 31 73 27 C67 20 59 16 50 16 Z"
+    /// Where a stage drawn from the peach stands: the peach scaled about the
+    /// origin by `scale`, then moved by `x` and `y`, as `peach_parts()` in
+    /// `tools/growth-stages.py` draws it. Ripening's body and highlight are its
+    /// own unripe colours. The crowned stage wears its crown in the leaf's
+    /// place. Perfectly Peachy is the peach itself, which the hash holds to
+    /// the web's and `PeachMarkTests` holds `PeachMark` to.
+    struct Placement: Sendable, CustomTestStringConvertible {
+        let stage: GrowthStage
+        let scale: Double
+        let x: Double
+        let y: Double
+        var dropsLeaf = false
+        var ownColours = false
+        var testDescription: String { stage.rawValue }
+    }
 
-    @Test("Perfectly Peachy is today's peach, and the crown wears its crown in the leaf's place")
-    func theTopIsThePeach() {
-        let peach = GrowthStage.perfectlyPeachy.parts.map(\.d)
-        #expect(Array(peach.prefix(3)) == [Self.peachLeaf, Self.peachBody, Self.peachHighlight])
-        let crowned = GrowthStage.crown.parts.map(\.d)
-        #expect(!crowned.contains(Self.peachLeaf), "the crown still wears the leaf")
-        #expect(Array(crowned.prefix(peach.count - 1)) == Array(peach.dropFirst()),
-                "the crown is not today's peach under it")
+    static let fromThePeach: [Placement] = [
+        Placement(stage: .ripening, scale: 0.72, x: 14, y: 24, ownColours: true),
+        Placement(stage: .sweet, scale: 0.86, x: 7, y: 12),
+        Placement(stage: .crown, scale: 1, x: 0, y: 0, dropsLeaf: true),
+    ]
+
+    /// A number as the generator writes one. Python's `f"{x:.1f}"` and C's
+    /// `%.1f` both round the double's exact value, halves to even.
+    static func rounded(_ v: Double, places: Int = 1) -> Double {
+        Double(String(format: "%.\(places)f", v))!
+    }
+
+    static func placed(_ command: CostumeCommand, _ p: Placement) -> CostumeCommand {
+        let at = { (pt: (Double, Double)) in
+            (rounded(pt.0 * p.scale + p.x), rounded(pt.1 * p.scale + p.y))
+        }
+        switch command {
+        case let .move(x, y): let q = at((x, y)); return .move(q.0, q.1)
+        case let .line(x, y): let q = at((x, y)); return .line(q.0, q.1)
+        case let .curve(c1, c2, to): return .curve(c1: at(c1), c2: at(c2), to: at(to))
+        case .close: return .close
+        }
+    }
+
+    /// Antoine, 4 November 2026: a stage drawn from the peach stops following
+    /// it only when `DRAWN_ON_THEIR_OWN` in the generator names it, and the
+    /// illustrations' import names one only when told to. Every other one is
+    /// today's peach, placed: its outlines point for point at one decimal,
+    /// its paint the peach's, its strokes scaled with it. The crowned stage
+    /// included, under its crown.
+    @Test("every stage drawn from the peach is today's peach, unless it's named as drawn on its own",
+          arguments: fromThePeach)
+    func followsThePeach(_ p: Placement) throws {
+        #expect(GrowthStage.drawnOnTheirOwn.isSubset(of: Self.fromThePeach.map(\.stage)),
+                "DRAWN_ON_THEIR_OWN names a stage that isn't drawn from the peach")
+        if GrowthStage.drawnOnTheirOwn.contains(p.stage) { return }
+        let skip = p.dropsLeaf ? 1 : 0
+        let peach = Array(GrowthStage.perfectlyPeachy.parts.dropFirst(skip))
+        let parts = p.stage.parts
+        try #require(parts.count >= peach.count, "\(p.stage) has fewer parts than the peach")
+        for (k, (part, from)) in zip(parts, peach).enumerated() {
+            let name = "\(p.stage)'s part \(k + 1)"
+            let drawn = try costumeCommands(part.d)
+            let expected = try costumeCommands(from.d).map { Self.placed($0, p) }
+            #expect(drawn == expected, "\(name) is not the peach's outline, placed: \(part.d)")
+            let own = p.ownColours && [1, 2].contains(k + skip)
+            if !own { #expect(part.fill == from.fill, "\(name) is not the peach's colour") }
+            #expect(part.opacity == from.opacity, "\(name) is not the peach's opacity")
+            #expect(part.stroke == from.stroke, "\(name) is not the peach's stroke")
+            #expect(part.strokeWidth == from.strokeWidth.map { Self.rounded($0 * p.scale, places: 2) },
+                    "\(name)'s stroke is not the peach's, scaled")
+            #expect(part.faceOnly == from.faceOnly, "\(name) is not the face where the peach's is")
+        }
+        if p.dropsLeaf {
+            let leaf = GrowthStage.perfectlyPeachy.parts[0].d
+            #expect(!parts.map(\.d).contains(leaf), "\(p.stage) still wears the leaf")
+        }
     }
 }
 
