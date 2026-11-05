@@ -532,7 +532,25 @@ final class GameModel {
         return puzzle.sourceWord.sorted().map(String.init)
     }
 
-    func load() async {
+    /// Load the word lists and open on a board: today's, or the past day that
+    /// was in play earlier today when `resumesPastDay` says to.
+    ///
+    /// **The board she was on, the same day.** Switching away and back always
+    /// kept it, since the view was still there. A launch, after she swiped the
+    /// app away or iOS ended it in the background, built today's: nothing
+    /// remembered which board was open. Bea opened a past day, closed the app,
+    /// and came back to today's (5 November 2026). `adopt` now remembers each
+    /// board as it opens, and this opens the remembered past day, through
+    /// `openArchiveDay`, the archive's one gate.
+    ///
+    /// **Asked at the moment of opening, not at launch,** because the answer is
+    /// whether the title is up, and a reminder tapped from cold raises the title
+    /// after `ContentView` first decides. The title is for today: under it the
+    /// board is today's, so Play opens at once, and the line under Play has
+    /// today's count. A reminder answered later than this finds the past day
+    /// under the title, as a reminder tapped with the game open always has, and
+    /// Play still goes to today.
+    func load(resumesPastDay: () -> Bool = { false }) async {
         // The cues load beside the word lists rather than inside the clock
         // below, and the board never waits for them. A find before they are
         // ready is silent, not late; see `Sounds.play`.
@@ -616,6 +634,10 @@ final class GameModel {
             // a session that ended yesterday is already where it belongs when
             // the back-fill goes looking for it.
             storage.retirePastDays(todayIndex: Self.todayStorageIndex)
+            // Read before today's board is adopted, which remembers itself as
+            // the board in play. A seed or `-resetProgress` erased it with the
+            // rest of the store, so a test never opens on the last test's day.
+            let pastDay = storage.pastBoardToResume(todayIndex: Self.todayStorageIndex)
             adopt(p, storageDay: Self.todayStorageIndex, isArchive: false)
             // Once, and only until it has run. See `backFillArchive`.
             await backFillArchive()
@@ -627,6 +649,12 @@ final class GameModel {
                 await seedBea()
             }
             #endif
+            // Before the app says it is ready, so the splash covers the step
+            // and today's board is never drawn on the way. A day the gate
+            // refuses leaves today's.
+            if let pastDay, resumesPastDay() {
+                await openArchiveDay(storageDay: pastDay)
+            }
             phase = .ready
             writeDebugState()
             runLaunchArguments()
@@ -663,6 +691,9 @@ final class GameModel {
         storageDayIndex = storageDay
         isArchiveBoard = isArchive
         boardDate = Self.date(forStorageDay: storageDay)
+        // Every board that opens, by every route, so a launch later today
+        // opens on it. See `load`.
+        storage.rememberBoardInPlay(dayIndex: storageDay, todayIndex: Self.todayStorageIndex)
         found = storage.loadDayProgress(dayIndex: storageDay, sourceWord: p.sourceWord)
 
         // **Today's index, not the board's.** This read `currentStreak(todayIndex:

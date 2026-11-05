@@ -555,7 +555,10 @@ struct ContentView: View {
             TapRecorder.shared.record(.marker)
             TapRecorder.shared.flush()
             #endif
-            await model.load()
+            // The past day she was on earlier today, unless the title is up:
+            // a new day's, which leads to today, or a reminder's, which is about
+            // today. Read when the board opens, after any reminder has landed.
+            await model.load(resumesPastDay: { !titleShown })
             #if DEBUG
             if let debugSeed { model.seedBoard(debugSeed) }
             // `-openSettings 1` and `-openHowToPlay 1` open the title's sheets

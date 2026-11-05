@@ -12,9 +12,12 @@
 # 552, while the suite as a whole ran 13% over, so a map balanced on the
 # single simulator left its shard 2 to 4 minutes behind the rest.
 #
-# **One exception, `WinterCostumesOnTheDay`,** which came after: its 187 is
-# its one run on a single simulator, in #106's CI on 29 October, and on a
-# shard it may run over. Replace it with its sharded median once there is one.
+# **Two exceptions, which came after.** `WinterCostumesOnTheDay`'s 187 is its
+# one run on a single simulator, in #106's CI on 29 October, and
+# `BackToTheDayYouWereOn`'s 142 is its one run on a local iPhone 17 simulator
+# on 5 November, added to the lightest shard rather than rebalancing the map.
+# On a shard either may run over. Replace each with its sharded median once
+# there is one.
 #
 # **Two more, `KeyAtEverySize` and `AStartThatFails`,** came on 5 November:
 # their 63 and 6 are one local run each, on an iPhone SE. Replace them with
@@ -51,6 +54,7 @@
 2        TodayIsTheLocalDate                16
 3        RackAtLargeText                    347
 3        MarkInTheWell                      179
+3        BackToTheDayYouWereOn              142
 3        MythicGlint                        117
 3        CostumeOnTheDay                    92
 3        ReminderEndToEnd                   90
