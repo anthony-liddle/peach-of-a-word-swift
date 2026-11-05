@@ -16,18 +16,32 @@ struct FlowLayout: Layout {
     var horizontalSpacing: CGFloat = 12
     var verticalSpacing: CGFloat = 5
 
-    /// Split the subviews into rows that fit the proposed width.
-    private func rows(_ subviews: Subviews, width: CGFloat) -> [[(Int, CGSize)]] {
-        var rows: [[(Int, CGSize)]] = [[]]
+    /// Whether a subview wider than the whole row is offered the row's width,
+    /// so its words wrap, rather than placed on one line past the edge. The
+    /// web's flex items do this. Only the found list's key asks: its last
+    /// entry, "the peach of a word", is wider than the key at the largest
+    /// sizes, and Antoine chose a second line at full size (5 November 2026).
+    var wrapsWideSubviews = false
+
+    /// Split the subviews into rows that fit the proposed width. Each keeps the
+    /// proposal it was measured with, so it's placed at that one: a wrapped
+    /// subview offered back its own measured width can wrap differently.
+    private func rows(_ subviews: Subviews, width: CGFloat) -> [[(Int, CGSize, ProposedViewSize)]] {
+        var rows: [[(Int, CGSize, ProposedViewSize)]] = [[]]
         var x: CGFloat = 0
         for index in subviews.indices {
-            let size = subviews[index].sizeThatFits(.unspecified)
+            var size = subviews[index].sizeThatFits(.unspecified)
+            var proposal = ProposedViewSize(size)
+            if wrapsWideSubviews && size.width > width {
+                proposal = ProposedViewSize(width: width, height: nil)
+                size = subviews[index].sizeThatFits(proposal)
+            }
             let needed = rows[rows.count - 1].isEmpty ? size.width : size.width + horizontalSpacing
             if x + needed > width && !rows[rows.count - 1].isEmpty {
-                rows.append([(index, size)])
+                rows.append([(index, size, proposal)])
                 x = size.width
             } else {
-                rows[rows.count - 1].append((index, size))
+                rows[rows.count - 1].append((index, size, proposal))
                 x += needed
             }
         }
@@ -49,10 +63,10 @@ struct FlowLayout: Layout {
         for row in rows(subviews, width: bounds.width) {
             var x = bounds.minX
             let rowHeight = row.map(\.1.height).max() ?? 0
-            for (index, size) in row {
+            for (index, size, proposal) in row {
                 subviews[index].place(
                     at: CGPoint(x: x, y: y + (rowHeight - size.height) / 2),
-                    proposal: ProposedViewSize(size)
+                    proposal: proposal
                 )
                 x += size.width + horizontalSpacing
             }
@@ -182,7 +196,7 @@ struct WordChip: View {
         .accessibilityElement(children: .combine)
         .accessibilityLabel(
             "\(found.word), \(found.category.spokenName), "
-            + (found.category == .source ? costume.map { "the peach \($0.spoken), " } ?? "" : "")
+            + (found.category == .source ? costume.map { "\($0.spoken), " } ?? "" : "")
             + counted(found.score, "point")
         )
         .accessibilityHint(Self.hint)
@@ -213,6 +227,12 @@ struct FoundListView: View {
     /// A new Mythic find to glint, from the model. See `GameModel.glint`.
     var glint: GameModel.Glint? = nil
     var onSelect: (FoundWord) -> Void = { _ in }
+
+    #if DEBUG
+    /// The key's numbers for `-exposeKeyFit 1`. See `KeyFitProbe`.
+    @State private var keyFit: [String: KeyFitProbe.Reading] = [:]
+    @State private var keyRoom: CGFloat = 0
+    #endif
 
     init(puzzle: Puzzle, found: [String], standing: TierStanding,
          boardDate: Date = Date(),
@@ -351,6 +371,22 @@ struct FoundListView: View {
             legend
             Colophon()
         }
+        #if DEBUG
+        // `-exposeKeyFit 1` prints how far the key's entries reach, how wide
+        // the key is, the widest entry's one-line width and the most lines any
+        // entry takes, so `KeyAtEverySize` can hold every entry inside, and
+        // wrapped only where one line can't fit.
+        .overlay(alignment: .bottomLeading) {
+            if KeyFitProbe.isOn {
+                Text(String(format: "reach=%.2f room=%.2f wide=%.2f lines=%d",
+                            keyFit.values.map(\.reach).max() ?? 0, keyRoom,
+                            keyFit.values.map(\.line.width).max() ?? 0,
+                            keyFit.values.map(\.lines).max() ?? 0))
+                    .font(.caption2)
+                    .accessibilityIdentifier("DebugKeyFit")
+            }
+        }
+        #endif
     }
 
     /// The glint's count when this chip is the new Mythic find's, so its gem
@@ -396,7 +432,9 @@ struct FoundListView: View {
     /// `accessibilityHidden`, as the web's is. It is a key to a visual code,
     /// and every chip it explains already says its own category aloud.
     private var legend: some View {
-        FlowLayout(horizontalSpacing: 12, verticalSpacing: 6) {
+        // The mark stays centred against a wrapped entry's two lines, as the
+        // web's `align-items: center` holds it.
+        FlowLayout(horizontalSpacing: 12, verticalSpacing: 6, wrapsWideSubviews: true) {
             Text(Vocabulary.legendCaption)
                 .font(CuteFont.body(11, weight: "SemiBold", relativeTo: .caption2))
                 .tracking(1.2)
@@ -407,6 +445,9 @@ struct FoundListView: View {
             entry(.mythic, "Mythic")
             entry(.source, Vocabulary.keySourceWord)
         }
+        #if DEBUG
+        .modifier(KeyFitProbe(room: $keyRoom))
+        #endif
         .font(CuteFont.body(11, relativeTo: .caption2))
         .foregroundStyle(Cute.inkFaint)
         .padding(.top, 10)
@@ -418,6 +459,9 @@ struct FoundListView: View {
             RarityMark(category: category)
             Text(label)
         }
+        #if DEBUG
+        .modifier(KeyFitProbe.Entry(label: label, readings: $keyFit))
+        #endif
     }
 
 
@@ -467,3 +511,67 @@ struct FoundListView: View {
         }
     }
 }
+
+#if DEBUG
+/// How the key fits, in the layout's own numbers, for `-exposeKeyFit 1`.
+///
+/// The key is hidden from VoiceOver, so XCUITest can't find it, and the frame
+/// XCUITest reports is the ink rather than the layout anyway. The key's
+/// `FlowLayout` wraps an entry wider than the key onto more lines. This
+/// reports, in the key's own space, how far each entry reaches, the key's
+/// width, and each entry's lines against a copy of it on one line. Reach alone
+/// can't tell a wrapped entry from one cut short, which stays inside too.
+struct KeyFitProbe: ViewModifier {
+    static var isOn: Bool { UserDefaults.standard.bool(forKey: "exposeKeyFit") }
+    static let space = "KeyFitProbe"
+
+    /// One entry as laid out, and the size it takes on one line.
+    struct Reading: Equatable {
+        var reach: CGFloat = 0
+        var height: CGFloat = 0
+        var line: CGSize = .zero
+        /// Its height over its one-line height, so a second line reads as 2.
+        var lines: Int { line.height > 0 ? Int((height / line.height).rounded()) : 0 }
+    }
+
+    @Binding var room: CGFloat
+
+    func body(content: Content) -> some View {
+        if Self.isOn {
+            content
+                .coordinateSpace(.named(Self.space))
+                .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { room = $0 }
+        } else {
+            content
+        }
+    }
+
+    /// One entry, reporting how far right it reaches and how tall it is, and
+    /// the size of a hidden copy that's held to one line. The latest of each,
+    /// so a pass laid out at another width can't leave a stale one.
+    struct Entry: ViewModifier {
+        let label: String
+        @Binding var readings: [String: Reading]
+
+        func body(content: Content) -> some View {
+            if KeyFitProbe.isOn {
+                content
+                    .onGeometryChange(for: CGRect.self) {
+                        $0.frame(in: .named(KeyFitProbe.space))
+                    } action: {
+                        readings[label, default: Reading()].reach = $0.maxX
+                        readings[label, default: Reading()].height = $0.height
+                    }
+                    .background {
+                        content.fixedSize().hidden()
+                            .onGeometryChange(for: CGSize.self) { $0.size } action: {
+                                readings[label, default: Reading()].line = $0
+                            }
+                    }
+            } else {
+                content
+            }
+        }
+    }
+}
+#endif

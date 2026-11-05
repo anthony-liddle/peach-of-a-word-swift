@@ -84,6 +84,10 @@ struct ArchiveSheet: View {
     let canPlay: Bool
     let onPick: (Int) -> Void
     let onClose: () -> Void
+    /// The way out's words. "Back to the basket" from the board, and "Close"
+    /// from the title, which has no basket to go back to, as Settings and How
+    /// to play say there.
+    let closeTitle: String
 
     /// The months, grouped once.
     ///
@@ -145,10 +149,12 @@ struct ArchiveSheet: View {
     static var cardSafeTapTarget: CGFloat { Cute.minTapTarget / cardScale }
 
     init(width: CGFloat, days: [ArchiveDay], canPlay: Bool,
+         closeTitle: String = Vocabulary.revealClose,
          onPick: @escaping (Int) -> Void, onClose: @escaping () -> Void) {
         self.width = width
         self.days = days
         self.canPlay = canPlay
+        self.closeTitle = closeTitle
         self.onPick = onPick
         self.onClose = onClose
         let grouped = Self.group(days)
@@ -220,7 +226,7 @@ struct ArchiveSheet: View {
             }
 
             Button(action: onClose) {
-                Text(Vocabulary.revealClose)
+                Text(closeTitle)
                     .font(CuteFont.display(16, relativeTo: .headline))
                     // Sized to survive the card, like the chevrons.
                     .frame(maxWidth: .infinity, minHeight: Self.cardSafeTapTarget)
@@ -790,10 +796,11 @@ extension ArchiveSheet {
     /// Returns nil for an empty archive, which has no month to size to.
     @MainActor
     static func fittedHeight(width: CGFloat, days: [ArchiveDay], canPlay: Bool,
+                             closeTitle: String = Vocabulary.revealClose,
                              dynamicTypeSize: DynamicTypeSize) -> CGFloat? {
         guard !days.isEmpty, width > 0 else { return nil }
         let probe = ArchiveSheet(width: width, days: days, canPlay: canPlay,
-                                 onPick: { _ in }, onClose: {})
+                                 closeTitle: closeTitle, onPick: { _ in }, onClose: {})
             .environment(\.dynamicTypeSize, dynamicTypeSize)
         let host = UIHostingController(rootView: probe)
         // The measuring host is in no window, and its own safe area is not the
@@ -909,6 +916,31 @@ struct ArchiveDay: Equatable {
     let isToday: Bool
     /// Whether that day's words include its own, the peach of a word.
     var foundItsWord = false
+
+    /// What the day says after its date, spoken: its state, whether it was
+    /// caught up later or kept by the streak, its own word, and "today".
+    ///
+    /// **One list for Past days and the title's week,** so the same day can't
+    /// be told two ways. The week used to leave out "caught up later" and "kept
+    /// by your streak", which Past days says of the same day.
+    var said: [String] {
+        var parts: [String] = []
+        switch mark {
+        case .notYet: parts.append(Vocabulary.markNotYet)
+        case .noRecord: parts.append(Vocabulary.markNoRecord)
+        case .incomplete: parts.append(Vocabulary.markIncomplete)
+        case .cleared(let onTheDay, let fromStreak):
+            parts.append(Vocabulary.markCleared)
+            if !onTheDay { parts.append(Vocabulary.markCaughtUpLater) }
+            if fromStreak { parts.append(Vocabulary.markFromStreak) }
+        case .basket(let onTheDay):
+            parts.append(Vocabulary.markBasket)
+            if !onTheDay { parts.append(Vocabulary.markCaughtUpLater) }
+        }
+        if foundItsWord { parts.append(Vocabulary.markSourceFound) }
+        if isToday { parts.append(Vocabulary.markToday) }
+        return parts
+    }
 }
 
 // MARK: - The cell
@@ -1100,22 +1132,7 @@ private struct ArchiveCell: View {
     }
 
     private var label: String {
-        var parts = [dateText]
-        switch day.mark {
-        case .notYet: parts.append(Vocabulary.markNotYet)
-        case .noRecord: parts.append(Vocabulary.markNoRecord)
-        case .incomplete: parts.append(Vocabulary.markIncomplete)
-        case .cleared(let onTheDay, let fromStreak):
-            parts.append(Vocabulary.markCleared)
-            if !onTheDay { parts.append(Vocabulary.markCaughtUpLater) }
-            if fromStreak { parts.append(Vocabulary.markFromStreak) }
-        case .basket(let onTheDay):
-            parts.append(Vocabulary.markBasket)
-            if !onTheDay { parts.append(Vocabulary.markCaughtUpLater) }
-        }
-        if day.foundItsWord { parts.append(Vocabulary.markSourceFound) }
-        if day.isToday { parts.append(Vocabulary.markToday) }
-        return parts.joined(separator: ", ")
+        ([dateText] + day.said).joined(separator: ", ")
     }
 
     private var dateText: String {

@@ -32,7 +32,7 @@ final class CueAtEachMoment: XCTestCase {
         XCTAssertTrue(tiles.firstMatch.waitForExistence(timeout: 30), "no rack tile found")
 
         tiles.firstMatch.tap()
-        let used = app.buttons.matching(NSPredicate(format: "label ENDSWITH %@", ", already picked")).firstMatch
+        let used = app.buttons.matching(NSPredicate(format: "label ENDSWITH %@", ", already in the word")).firstMatch
         XCTAssertTrue(used.waitForExistence(timeout: 5), "the tile never went on the stick")
         used.tap()
         tiles.firstMatch.tap()

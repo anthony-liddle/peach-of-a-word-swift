@@ -147,7 +147,7 @@ final class CostumeOnTheDay: XCTestCase {
                                        "-UIPreferredContentSizeCategoryName", size] + extra
                 app.launch()
                 let source = app.buttons.matching(
-                    NSPredicate(format: "label CONTAINS %@", ", source word")).firstMatch
+                    NSPredicate(format: "label CONTAINS %@", ", the peach of a word")).firstMatch
                 XCTAssertTrue(source.waitForExistence(timeout: 30), "no source-word chip at \(size)")
                 let result = (source.frame, source.label)
                 app.terminate()
@@ -155,7 +155,7 @@ final class CostumeOnTheDay: XCTestCase {
             }
             let plain = chip([])
             let worn = chip(["-costumeDate", "2026-10-31"])
-            XCTAssertTrue(worn.label.contains("the peach in a ghost sheet"),
+            XCTAssertTrue(worn.label.contains("the peach of a word, in a ghost sheet"),
                           "the chip did not wear the costume at \(size): \(worn.label)")
             XCTAssertEqual(plain.frame, worn.frame, "the costume moved the chip at \(size)")
         }

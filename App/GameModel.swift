@@ -2,9 +2,7 @@ import Foundation
 import Observation
 import PeachEngine
 import UIKit
-#if DEBUG
 import os
-#endif
 
 /// All the state the minimal app has.
 ///
@@ -56,6 +54,18 @@ final class GameModel {
     }
 
     private(set) var phase: Phase = .loading
+
+    /// Where a failed start's reason goes. The screen says only what to do,
+    /// "Close Peach of a Word and open it again.", since no player can act on
+    /// "the daily calendar is empty".
+    private static let loadLog = Logger(subsystem: "com.anthonyliddle.peachofaword",
+                                        category: "load")
+
+    /// Stop the start, with the reason in the log.
+    private func failToStart(_ reason: String) {
+        Self.loadLog.error("The game didn't start: \(reason, privacy: .public)")
+        phase = .failed(reason)
+    }
 
     /// Whether the load failed, which the title must not cover.
     var failedToStart: Bool {
@@ -582,6 +592,13 @@ final class GameModel {
         }
 
         #if DEBUG
+        // `-failStart 1` fails the start, so `AStartThatFails` can read what
+        // a player is shown then. No launch can break the word lists.
+        if UserDefaults.standard.bool(forKey: "failStart") {
+            failToStart("-failStart asked for it")
+            return
+        }
+
         // Hold the splash open, so the loading line can actually be looked at.
         //
         // The dictionary loads in about 200ms on a Mac, which is far too quick
@@ -603,7 +620,7 @@ final class GameModel {
             guard let p = await Self.buildPuzzle(
                 dailyIndex: Self.todayDailyIndex, lexicon: lex
             ) else {
-                phase = .failed("the daily calendar is empty")
+                failToStart("the daily calendar is empty")
                 return
             }
             // A seed or `-resetProgress` has already erased the store, in the
@@ -642,9 +659,9 @@ final class GameModel {
             writeDebugState()
             runLaunchArguments()
         case .failure(let error):
-            phase = .failed(String(describing: error))
+            failToStart(String(describing: error))
         case nil:
-            phase = .failed("load produced no result")
+            failToStart("load produced no result")
         }
     }
 
@@ -1816,13 +1833,12 @@ final class GameModel {
             Feel.reject()
             sound(cue(for: result, completesBasket: false))
         case .notAWord:
-            // Shortened to fit the message line's reserved height. The web has
-            // no cute value to copy: `themeCopy.ts` deliberately leaves the
-            // rejections unskinned, and the plain string at `useGame.ts:238`
-            // ("Not in the word list. Try another.") is longer than what it
-            // would replace and names the other half of the case. Same
-            // information, a third of the width.
-            feedback = .rejected("Not from these letters.")
+            // The web's words, without its "Try another.", which the well
+            // has no room for. It's narrower than "Not from these letters.",
+            // which this said until November 2026: 127pt against 145 in the
+            // well's face at 15pt, so it fits the reserved height wherever
+            // that did.
+            feedback = .rejected("Not in the word list.")
             Feel.reject()
             sound(cue(for: result, completesBasket: false))
         case .alreadyFound:

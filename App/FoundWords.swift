@@ -41,7 +41,7 @@ enum WordCategory: Hashable {
     var spokenName: String {
         switch self {
         case .source: Vocabulary.keySourceWord
-        case .set: "on the page"
+        case .set: Vocabulary.keyInContainer
         case .uncommon: "Uncommon"
         case .rare: "Rare"
         case .mythic: "Mythic"
