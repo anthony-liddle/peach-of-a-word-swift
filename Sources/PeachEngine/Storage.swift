@@ -907,6 +907,61 @@ extension GameStorage {
     }
 }
 
+/// The board in play as it last stood: the day it is the board for, and the
+/// day it was in play on.
+///
+/// **Whole or nothing, unlike the values above.** They fall back field by
+/// field because a partial outcome or stage is still worth something. A
+/// partial record of the board is not: a board with no day it was in play on
+/// could be any day's, and the only safe reading of it is today's board. So
+/// the synthesized decoder is used and a throw reads as no record.
+struct BoardInPlay: Codable, Equatable {
+    var board: Int
+    var on: Int
+}
+
+extension GameStorage {
+    /// A fifth key: the board in play, so a launch later the same day opens on
+    /// the board she was on rather than on today's.
+    ///
+    /// **Why it is stored at all.** Switching away and back always kept her
+    /// place, since the view was still there. A launch did not: the app ended,
+    /// whether she swiped it away or iOS ended it in the background, and the
+    /// load built today's board, because nothing remembered which one was open.
+    /// Bea opened a past day, closed the app, and came back to today's
+    /// (5 November 2026).
+    ///
+    /// **Its own key, and one board only.** It changes when a board opens, not
+    /// on a find, and losing it costs a tap into Past days. The day it was in
+    /// play on is kept with it so it is never read on a later day: a new day
+    /// opens on the title, which leads to today.
+    static let boardKey = "peach-of-a-word/board/v1"
+
+    /// Remember the board now in play. Writes only a change, so a launch that
+    /// opens on the board it remembered costs no write.
+    public func rememberBoardInPlay(dayIndex: Int, todayIndex: Int) {
+        let board = BoardInPlay(board: dayIndex, on: todayIndex)
+        guard readBoardInPlay() != board, let data = try? JSONEncoder().encode(board) else { return }
+        store.set(data, forKey: Self.boardKey)
+    }
+
+    /// The past day to open at launch: the board in play earlier today, when it
+    /// was a past day's. Nil for today's board, which the launch opens anyway,
+    /// for a board last in play on an earlier day, and for no record.
+    ///
+    /// Whether the day can still be opened is the archive's gate to say, not
+    /// this: `openArchiveDay` refuses a day before the calendar's first.
+    public func pastBoardToResume(todayIndex: Int) -> Int? {
+        guard let kept = readBoardInPlay(), kept.on == todayIndex, kept.board < todayIndex
+        else { return nil }
+        return kept.board
+    }
+
+    private func readBoardInPlay() -> BoardInPlay? {
+        store.data(forKey: Self.boardKey).flatMap { try? JSONDecoder().decode(BoardInPlay.self, from: $0) }
+    }
+}
+
 extension GameStorage {
     /// Expand a transferred streak run into one outcome per day it covers. Once.
     ///
@@ -1096,11 +1151,14 @@ extension GameStorage {
         public func eraseAll() { storage.eraseAllForSeeding() }
     }
 
-    /// See `Seeding.eraseAll`. Removes the four blobs outright rather than
+    /// See `Seeding.eraseAll`. Removes the five blobs outright rather than
     /// writing empty ones, which is what a fresh install reads as. The
-    /// remembered stage goes too, or a reset launch would draw the last test's.
+    /// remembered stage goes too, or a reset launch would draw the last test's,
+    /// and so does the board in play, or it would open on the last test's past
+    /// day.
     func eraseAllForSeeding() {
-        for key in [Self.storageKey, Self.archiveKey, Self.outcomesKey, Self.stageKey] {
+        for key in [Self.storageKey, Self.archiveKey, Self.outcomesKey, Self.stageKey,
+                    Self.boardKey] {
             store.set(nil, forKey: key)
         }
     }

@@ -1,7 +1,8 @@
 import Foundation
 
 /// When the title screen appears: each new day's first open, and the first
-/// launch after installing. Within a day the app opens on the board.
+/// launch after installing. Within a day the app opens on the board, the one
+/// she was on: a past day too (see `GameModel.load`).
 ///
 /// **The day it last appeared is kept in `UserDefaults`,** as a storage day
 /// index, the same count progress and the streak are keyed on, so `-dayOffset`

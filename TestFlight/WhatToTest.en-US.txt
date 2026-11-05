@@ -1,1 +1,1 @@
-Shuffle now makes a sound, a few tiles knocking together, and setting a letter sounds like a tile being moved, a little quieter than before.
+Reopening the app the same day takes you back to the day you were playing, past days included.

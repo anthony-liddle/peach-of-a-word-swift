@@ -27,6 +27,7 @@
 ARecordBelowItsBoard          21 October's word, reassure, and erasure outside its basket
 ArchiveBeaFirstOpen           thirteen past boards rebuilt from the calendar and the lists
 ArchivePeachDays              whether past days' source words are in their own baskets
+BackToTheDayYouWereOn         past boards rebuilt from the calendar and the lists, the same after a relaunch
 CostumeOnTheDay               Halloween's board replayed from the calendar, and industry's reveal card
 CueAtEachMoment               today's source word inside its basket, for which cue a find asks
 DailyReminder                 17 July's word, courtesy, typed to play the day

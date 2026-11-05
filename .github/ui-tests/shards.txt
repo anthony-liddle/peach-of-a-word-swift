@@ -12,9 +12,12 @@
 # 552, while the suite as a whole ran 13% over, so a map balanced on the
 # single simulator left its shard 2 to 4 minutes behind the rest.
 #
-# **One exception, `WinterCostumesOnTheDay`,** which came after: its 187 is
-# its one run on a single simulator, in #106's CI on 29 October, and on a
-# shard it may run over. Replace it with its sharded median once there is one.
+# **Two exceptions, which came after.** `WinterCostumesOnTheDay`'s 187 is its
+# one run on a single simulator, in #106's CI on 29 October, and
+# `BackToTheDayYouWereOn`'s 142 is its one run on a local iPhone 17 simulator
+# on 5 November, added to the lightest shard rather than rebalancing the map.
+# On a shard either may run over. Replace each with its sharded median once
+# there is one.
 #
 # To rebalance, or to change the number of shards, update the seconds and
 # print a new map:
@@ -31,6 +34,7 @@
 1        RungSheetDefinitions               139
 1        RackShape                          23
 1        OneBeatPerFind                     22
+1        BackToTheDayYouWereOn              142
 2        ArchivePeachDays                   500
 2        DailyReminder                      145
 2        TitleAndTopRowAtEverySize          107
