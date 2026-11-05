@@ -1,1 +1,1 @@
-Small fixes.
+Tidying behind the scenes. Nothing in the game looks or plays differently.

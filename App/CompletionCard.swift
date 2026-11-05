@@ -110,33 +110,48 @@ struct CompletionCard: View {
 struct CompletionOrnament: View {
     var costume: Costume? = nil
 
+    /// Where the crown stands on the peach: the numbers both apps pin.
+    private typealias Place = CompletionCrown
+
     var body: some View {
         ZStack(alignment: .top) {
             PeachMark(costume: costume)
-                .frame(width: 112, height: 112)
-                .padding(.top, 16)
+                .frame(width: CGFloat(Place.peach), height: CGFloat(Place.peach))
+                .padding(.top, CGFloat(Place.paddingTop))
             Crown()
                 .fill(Cute.crown)
-                .frame(width: 46, height: 26)
-                .offset(y: -2)
+                .frame(width: CGFloat(Place.width), height: CGFloat(Place.height))
+                .offset(y: CGFloat(Place.offsetY))
         }
     }
 }
 
 /// A small three-peak crown, matching the base theme's `mark--source`
 /// silhouette, which the web draws as "three peaks on a base".
+///
+/// The outline is `CompletionCrown.d`, the web's own, in the crown's 100 by
+/// 100 box, stretched to the frame. It fails to parse only if the table is
+/// broken, which `CrownTests` makes impossible for the shipped one; then it
+/// draws nothing.
 private struct Crown: Shape {
     func path(in rect: CGRect) -> Path {
-        let w = rect.width, h = rect.height
+        guard let commands = try? costumeCommands(CompletionCrown.d) else { return Path() }
+        // A fraction of the frame, then the frame, as the hand-written shape
+        // had it: `x / 100` is the very double each of its fractions was, so
+        // every point lands where it did, to the bit.
+        func at(_ x: Double, _ y: Double) -> CGPoint {
+            CGPoint(x: rect.minX + x / 100 * rect.width, y: rect.minY + y / 100 * rect.height)
+        }
         return Path { p in
-            p.move(to: CGPoint(x: 0, y: h))
-            p.addLine(to: CGPoint(x: 0.08 * w, y: 0.18 * h))
-            p.addLine(to: CGPoint(x: 0.30 * w, y: 0.62 * h))
-            p.addLine(to: CGPoint(x: 0.50 * w, y: 0))
-            p.addLine(to: CGPoint(x: 0.70 * w, y: 0.62 * h))
-            p.addLine(to: CGPoint(x: 0.92 * w, y: 0.18 * h))
-            p.addLine(to: CGPoint(x: w, y: h))
-            p.closeSubpath()
+            for command in commands {
+                switch command {
+                case let .move(x, y): p.move(to: at(x, y))
+                case let .line(x, y): p.addLine(to: at(x, y))
+                case let .curve(c1, c2, to):
+                    p.addCurve(to: at(to.0, to.1), control1: at(c1.0, c1.1), control2: at(c2.0, c2.1))
+                case .close: p.closeSubpath()
+                }
+            }
         }
     }
 }
