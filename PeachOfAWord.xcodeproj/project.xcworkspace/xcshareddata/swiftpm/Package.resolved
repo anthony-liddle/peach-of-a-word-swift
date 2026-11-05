@@ -1,13 +1,13 @@
 {
-  "originHash" : "228c24f1006243950b306e6bb1933062dcd79c4058e6f8cee2a9c0287b08a155",
+  "originHash" : "59211d0e45115148316f6783da8d9c1d7487cbf29e441c847ef250f2571d41dc",
   "pins" : [
     {
       "identity" : "soundscape",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/anthony-liddle/soundscape.git",
       "state" : {
-        "revision" : "2ccda18c1563205c48431e26829160fe89563499",
-        "version" : "0.2.1"
+        "revision" : "79eca8cb6de9b209b7d6f1cc87c70b2722ed3b67",
+        "version" : "0.2.2"
       }
     }
   ],
