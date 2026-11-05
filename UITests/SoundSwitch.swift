@@ -65,6 +65,8 @@ final class SoundSwitch: XCTestCase {
         app.launch()
         let home = app.buttons["BoardHome"]
         XCTAssertTrue(home.waitForExistence(timeout: 30), "the relaunch did not open on the board")
+        // Shuffle too, which has a cue of its own since 5 November 2026
+        app.buttons["Shuffle"].tap()
         home.tap()
         toggle = openSettings(app)
         XCTAssertFalse(isOn(toggle), "the mute was forgotten across a launch")

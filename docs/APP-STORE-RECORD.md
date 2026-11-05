@@ -218,7 +218,9 @@ Liddle's own, for its sounds (`project.yml`). The answer stands: read at its
 pinned 0.2.0, its sources use no networking and no cryptography, and none of
 the required-reason APIs, so neither this answer nor the privacy manifest
 moves. Read again at 0.2.1, on 2026-10-23: its one change to the sources is
-how `CuePlayer` starts a cue on its audio nodes, so the answer still stands. "No third-party dependencies" is still true of `Package.swift`, and is
+how `CuePlayer` starts a cue on its audio nodes, so the answer still stands.
+Read again at 0.2.2, on 2026-11-05: no change to its sources at all, only to
+its tests and the cue files they hold to the browsers, so it still stands. "No third-party dependencies" is still true of `Package.swift`, and is
 no longer the whole app's story.
 
 ## Privacy policy: <https://peachofaword.com/privacy>

@@ -1161,6 +1161,10 @@ final class GameModel {
     /// seeded permutation. Different recovery, same predicate, which is the half
     /// that has to agree. The rejection is silent by design; a "reshuffled you"
     /// tell would confirm the answer the rack just leaked.
+    ///
+    /// Every press asks for `shuffle`, the web's cue for it, a redraw included,
+    /// so a redraw sounds like any other shuffle and gives nothing away. No
+    /// haptic, as before.
     func shuffleRack() {
         guard let puzzle else { return }
         var draw = rackOrder
@@ -1171,6 +1175,7 @@ final class GameModel {
             draw.shuffle()
             return draw
         }
+        sound(.shuffle)
     }
 
     /// Submit whatever is on the stick.

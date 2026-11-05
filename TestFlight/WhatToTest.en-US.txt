@@ -1,1 +1,1 @@
-This build changes nothing in the game, only the checks it goes through before each release.
+Shuffle now makes a sound, a few tiles knocking together, and setting a letter sounds like a tile being moved, a little quieter than before.

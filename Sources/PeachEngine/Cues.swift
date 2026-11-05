@@ -1,16 +1,19 @@
 /// A sound the game can ask for, named as the cue file names it.
 ///
 /// The cue file is `Data/peach.cues.json`, the web game's own, pinned by commit
-/// and hash in `tools/update-cues.sh`. Its 34 names are the web's
+/// and hash in `tools/update-cues.sh`. Its 35 names are the web's
 /// (`SoundscapeAudioEngine.ts`), and this is the half of them the app can play:
-/// 28, every one but the six `found-<length>-mythic-letterpress`, since cute is
+/// 29, every one but the six `found-<length>-mythic-letterpress`, since cute is
 /// the only theme this app has. `CueFileTests` holds the two to each other.
 ///
 /// The names live here, in the engine, so a test can reach every one without
 /// the app and without the player; only the app plays them.
 public enum Cue: Hashable, Sendable {
-    /// A tile placed.
+    /// A tile placed: a tile moved, two bright clicks, since 5 November 2026.
     case tick
+    /// Shuffle pressed: a few tiles knocking together. Every press, as the web
+    /// plays it, a redraw included.
+    case shuffle
     /// A word found that is neither the source word nor the one completing
     /// the basket.
     case found(length: Int, rung: Rung)
@@ -35,6 +38,7 @@ public enum Cue: Hashable, Sendable {
     public var name: String {
         switch self {
         case .tick: "tick"
+        case .shuffle: "shuffle"
         case .source: "source"
         case .edition: "edition"
         case .invalid: "invalid"

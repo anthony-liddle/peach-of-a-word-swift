@@ -23,10 +23,10 @@ final class CueAtEachMoment: XCTestCase {
         return probe.label
     }
 
-    /// A tile placed ticks. A used tile, delete, shuffle and clear ask for
-    /// nothing: the web disables used tiles, and plays nothing for the other
-    /// three.
-    func testATilePlacedTicksAndNothingElseOnTheRackSounds() {
+    /// A tile placed ticks, and Shuffle plays its own cue, as the web's does
+    /// since 5 November 2026. A used tile, delete and clear ask for nothing:
+    /// the web disables used tiles, and plays nothing for the other two.
+    func testATilePlacedTicksShufflePlaysItsCueAndNothingElseOnTheRackSounds() {
         let app = launch([])
         let tiles = app.buttons.matching(NSPredicate(format: "label MATCHES %@", "^Letter [a-z]$"))
         XCTAssertTrue(tiles.firstMatch.waitForExistence(timeout: 30), "no rack tile found")
@@ -40,8 +40,8 @@ final class CueAtEachMoment: XCTestCase {
         app.buttons["Shuffle"].tap()
         app.buttons["Clear"].tap()
 
-        XCTAssertEqual(asked(in: app), "tick,tick",
-                       "two tiles placed should ask for two ticks, and nothing else on the rack for any")
+        XCTAssertEqual(asked(in: app), "tick,tick,shuffle",
+                       "two tiles placed should ask for two ticks, Shuffle for shuffle, and nothing else on the rack for any")
     }
 
     /// Each of the three rejections plays `invalid`. `-guesses` submits two
