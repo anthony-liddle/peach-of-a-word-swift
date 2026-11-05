@@ -29,16 +29,16 @@ struct CueFileTests {
     /// the file's are in the sweep on purpose, since the web holds them to the
     /// nearest and so must this.
     static let askable: Set<String> = {
-        var cues: [Cue] = [.tick, .source, .edition, .invalid]
+        var cues: [Cue] = [.tick, .shuffle, .source, .edition, .invalid]
         for length in 0...16 {
             for rung in Rung.allCases { cues.append(.found(length: length, rung: rung)) }
         }
         return Set(cues.map(\.name))
     }()
 
-    @Test("has the web's 34 cues")
-    func thirtyFour() throws {
-        #expect(try Self.fileNames().count == 34)
+    @Test("has the web's 35 cues")
+    func thirtyFive() throws {
+        #expect(try Self.fileNames().count == 35)
     }
 
     @Test("has every cue the app can ask for")
@@ -48,12 +48,12 @@ struct CueFileTests {
     }
 
     /// The other direction, so a cue the app should play and never asks for
-    /// fails too: of the 34, the app plays 28, and the six it leaves are the
+    /// fails too: of the 35, the app plays 29, and the six it leaves are the
     /// letterpress theme's mythic finds, at each length.
     @Test("leaves unasked only the letterpress theme's mythic cues")
     func theUnaskedAreLetterpress() throws {
         let unasked = try Self.fileNames().subtracting(Self.askable)
-        #expect(Self.askable.count == 28)
+        #expect(Self.askable.count == 29)
         #expect(unasked == Set(Cue.foundLengths.map { "found-\($0)-mythic-letterpress" }))
     }
 
