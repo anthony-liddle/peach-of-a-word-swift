@@ -221,6 +221,37 @@ jobs:
       - name: Generate the Xcode project
         run: ./ci_scripts/ci_post_clone.sh
 
+      # The simulator, by UDID, found the way `ui-build` and
+      # `.github/ui-tests/simulator.sh` find theirs, rather than named: a name
+      # is a guess about a machine image that changes without notice.
+      #
+      # **Asked of `simctl` before `xcodebuild` looks for it, and waited for.**
+      # On 5 November 2026 this job's `xcodebuild` waited 60 seconds for
+      # `name=iPhone 17` and found no simulators at all, on image 20261102,
+      # which has an iPhone 17 and passed this job twice. Up to two minutes for
+      # an iPhone to be listed; a miss prints what the runner had.
+      - name: Find the simulator
+        run: |
+          set -euo pipefail
+          echo "image ${ImageOS:-unknown} ${ImageVersion:-unknown}, $(xcode-select -p)"
+          UDID=
+          for try in $(seq 1 12); do
+            UDID=$(xcrun simctl list devices available \
+              | awk -F'[()]' '/^ *iPhone/ {print $2; exit}') || UDID=
+            [ -n "$UDID" ] && break
+            echo "no iPhone simulator listed yet, try $try of 12"
+            sleep 10
+          done
+          if [ -z "$UDID" ]; then
+            echo "no iPhone simulator on this runner" >&2
+            xcrun simctl list devices available >&2 || true
+            xcrun simctl list runtimes >&2 || true
+            exit 1
+          fi
+          xcrun simctl list devices available | awk -v id="$UDID" \
+            '/^-- / {rt = $0} index($0, id) {sub(/^ +/, ""); print "using " $0 " " rt; exit}'
+          echo "UDID=$UDID" >> "$GITHUB_ENV"
+
       # Built while the checkout is intact, and into a derived data path outside
       # the repository, so removing the checkout below cannot take the products
       # with it.
@@ -230,7 +261,7 @@ jobs:
           xcodebuild build-for-testing \
             -project PeachOfAWord.xcodeproj \
             -scheme PeachOfAWord \
-            -destination 'platform=iOS Simulator,name=iPhone 17' \
+            -destination "id=$UDID" \
             -disableAutomaticPackageResolution \
             -derivedDataPath "$RUNNER_TEMP/dd"
 
@@ -254,7 +285,7 @@ jobs:
           echo "using $XCTESTRUN"
           xcodebuild test-without-building \
             -xctestrun "$XCTESTRUN" \
-            -destination 'platform=iOS Simulator,name=iPhone 17'
+            -destination "id=$UDID"
 
   # The UI tests, built once for every job that runs them.
   #
