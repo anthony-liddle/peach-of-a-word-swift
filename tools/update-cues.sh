@@ -43,10 +43,8 @@ set -euo pipefail
 
 # The commit of `anthony-liddle/peach-of-a-word` the copy was taken from: the
 # commit that last changed the file, #185 on 2026-11-05, "a few tiles knocking
-# for Shuffle, and a tile moved for the tile tap".
-# TODO(#185): this is the pull request's head until it merges; then the merge
-# commit on `main`, the same bytes, and this line says it is on `main`.
-WEB_COMMIT="88835bb5f607be2177108ef126393001e2198100"
+# for Shuffle, and a tile moved for the tile tap". It is on `main`.
+WEB_COMMIT="7b3957d93d52eeaccfa858f51f80ac11f414345d"
 CUES_SHA256="834d06338e43a4a384a46f851fc81172521d5950014fcf987cdf1f3b961d3830"
 
 # The Soundscape version whose conformance copy CUES_SHA256 equals. --check
