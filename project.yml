@@ -295,6 +295,11 @@ targets:
       - path: Sources/PeachEngine
         type: folder
         buildPhase: resources
+      # Read by PlayerWordsTests, which holds the testers' note to the same
+      # words as the app's.
+      - path: TestFlight
+        type: folder
+        buildPhase: resources
     dependencies:
       - package: PeachEngine
         product: PeachEngine

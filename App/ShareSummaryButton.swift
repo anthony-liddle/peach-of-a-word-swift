@@ -19,7 +19,7 @@ struct ShareSummaryButton: View {
                 .font(CuteFont.body(13, weight: "SemiBold", relativeTo: .footnote))
                 .foregroundStyle(Cute.accent)
         }
-        .accessibilityLabel("Share today's result")
+        .accessibilityLabel("Share your result")
     }
 
     /// Spoiler safe by construction: `DailyShareResult` has no source-word

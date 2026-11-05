@@ -9,7 +9,7 @@ import XCTest
 /// is the engine's, `PeachDaysTests`, which also holds a day with words but not
 /// its own; the seed has no such day on a date this could rely on.
 final class ArchivePeachDays: XCTestCase {
-    static let phrase = "you found the Peach of a Word"
+    static let phrase = "you found the peach of a word"
 
     private func date(daysAgo: Int) -> Date {
         Calendar.current.date(byAdding: .day, value: -daysAgo, to: TestClock.now)!

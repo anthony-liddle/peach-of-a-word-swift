@@ -69,7 +69,7 @@ final class DefinitionReveal: XCTestCase {
         let app = seededApp()
         XCTAssertTrue(app.staticTexts["FoundSummaryCount"].waitForExistence(timeout: 30))
 
-        let setChips = chips(app, category: "on the page")
+        let setChips = chips(app, category: "in the basket")
         XCTAssertFalse(setChips.isEmpty, "no set-word chips on a seeded board")
         setChips[0].tap()
 
@@ -166,7 +166,7 @@ final class DefinitionReveal: XCTestCase {
         let app = seededApp(["-dayOffset", Self.octoberTwentySeventh])
         XCTAssertTrue(app.staticTexts["FoundSummaryCount"].waitForExistence(timeout: 30))
 
-        let crown = try XCTUnwrap(chips(app, category: "source word").first,
+        let crown = try XCTUnwrap(chips(app, category: "the peach of a word").first,
                                   "27 October's seeded board did not include the source word")
         crown.tap()
 

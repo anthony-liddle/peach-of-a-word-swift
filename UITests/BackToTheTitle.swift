@@ -80,7 +80,7 @@ final class BackToTheTitle: XCTestCase {
     /// placed on the way out.
     func testASwipeBegunOnTheEdgeTileIsOneThingNotTwo() {
         let app = board(["-seedBoard", "3"])
-        let tiles = app.buttons.matching(NSPredicate(format: "label MATCHES %@", "^Letter [a-z](, already picked)?$"))
+        let tiles = app.buttons.matching(NSPredicate(format: "label MATCHES %@", "^Letter [a-z](, already in the word)?$"))
         XCTAssertTrue(tiles.firstMatch.waitForExistence(timeout: 10), "no rack")
         let leftmost = tiles.allElementsBoundByIndex.min { $0.frame.minX < $1.frame.minX }!
         let start = app.coordinate(withNormalizedOffset: .zero)
@@ -93,7 +93,7 @@ final class BackToTheTitle: XCTestCase {
             app.buttons["TitlePlay"].tap()
             XCTAssertTrue(app.buttons["BoardHome"].waitForExistence(timeout: 10))
         }
-        let placed = app.buttons.matching(NSPredicate(format: "label ENDSWITH %@", ", already picked")).count
+        let placed = app.buttons.matching(NSPredicate(format: "label ENDSWITH %@", ", already in the word")).count
         print(String(format: "EDGE swipe from x %.1f: title %@, letters placed %d",
                      leftmost.frame.minX + 2, wentBack ? "yes" : "no", placed))
         XCTAssertNotEqual(wentBack, placed == 1, "the swipe went back and placed a letter, or did neither")
@@ -106,12 +106,12 @@ final class BackToTheTitle: XCTestCase {
         // A few finds, so the title's Play goes back to the board rather than
         // to How to play's first showing.
         let app = board(["-seedBoard", "3"])
-        let tiles = app.buttons.matching(NSPredicate(format: "label MATCHES %@", "^Letter [a-z](, already picked)?$"))
+        let tiles = app.buttons.matching(NSPredicate(format: "label MATCHES %@", "^Letter [a-z](, already in the word)?$"))
         XCTAssertTrue(tiles.firstMatch.waitForExistence(timeout: 10), "no rack")
         let leftmost = tiles.allElementsBoundByIndex.min { $0.frame.minX < $1.frame.minX }!
         print(String(format: "EDGE tile minX %.1f", leftmost.frame.minX))
         leftmost.tap()
-        let placed = app.buttons.matching(NSPredicate(format: "label ENDSWITH %@", ", already picked"))
+        let placed = app.buttons.matching(NSPredicate(format: "label ENDSWITH %@", ", already in the word"))
         XCTAssertEqual(placed.count, 1, "a tap on the leftmost tile did not place exactly its letter")
         XCTAssertFalse(titleOpened(app, timeout: 2), "a tap on the leftmost tile opened the title")
 

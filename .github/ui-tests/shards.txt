@@ -16,6 +16,10 @@
 # its one run on a single simulator, in #106's CI on 29 October, and on a
 # shard it may run over. Replace it with its sharded median once there is one.
 #
+# **Two more, `KeyAtEverySize` and `AStartThatFails`,** came on 5 November:
+# their 63 and 6 are one local run each, on an iPhone SE. Replace them with
+# their sharded medians too.
+#
 # To rebalance, or to change the number of shards, update the seconds and
 # print a new map:
 #
@@ -31,6 +35,7 @@
 1        RungSheetDefinitions               139
 1        RackShape                          23
 1        OneBeatPerFind                     22
+1        KeyAtEverySize                     63
 2        ArchivePeachDays                   500
 2        DailyReminder                      145
 2        TitleAndTopRowAtEverySize          107
@@ -72,3 +77,4 @@
 4        CueAtEachMoment                    19
 4        ArchiveWayOut                      18
 4        MessageLineShove                   10
+4        AStartThatFails                    6

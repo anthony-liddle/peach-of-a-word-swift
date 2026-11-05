@@ -43,7 +43,7 @@ final class DefinitionCardExits: XCTestCase {
                       "no board at \(size)")
         let chip = app.descendants(matching: .any).matching(
             NSPredicate(format: "label CONTAINS %@ AND label CONTAINS %@",
-                        ", on the page, ", " point")
+                        ", in the basket, ", " point")
         ).firstMatch
         XCTAssertTrue(chip.exists, "no set-word chip at \(size)")
         chip.tap()

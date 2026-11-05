@@ -103,7 +103,7 @@ final class MythicGlint: XCTestCase {
         let app = launchLiterary(["-holdGlint", "60"])
         found("tel", "Mythic", in: app)
         MarkInTheWell.pick("lyt", in: app)         // not a word
-        found("lay", "on the page", in: app)
+        found("lay", "in the basket", in: app)
         found("aret", "Rare", in: app)
         let wells = drawn(app).split(separator: ",").filter { $0.hasPrefix("well") }
         XCTAssertEqual(wells, ["well 1"], "the well should glint for TEL's line alone")

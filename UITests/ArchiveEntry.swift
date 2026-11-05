@@ -135,3 +135,45 @@ extension ArchiveEntry {
             "no day says it was caught up later, so the fact left with the dot")
     }
 }
+
+/// The title's week and the way out of Past days, from the title.
+extension ArchiveEntry {
+    /// The week says of a day what Past days says of it. It used to leave out
+    /// "caught up later" and "kept by your streak". Shown red first.
+    func testTheTitleWeekSaysWhatPastDaysSays() {
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "-showTitle", "1", "-resetProgress", "1", "-seedArchive", "showcase",
+            // A 15th, so the seed's caught-up days, three and four days back,
+            // are in the title's seven.
+            "-dayOffset", TestClock.midMonthDayOffset,
+        ]
+        app.launch()
+        XCTAssertTrue(app.buttons["WeekToday"].waitForExistence(timeout: 60), "no week on the title")
+        // Waited for: the seed lands after the title is first drawn.
+        let caughtUp = app.buttons.matching(NSPredicate(
+            format: "identifier == 'WeekDay' AND label CONTAINS %@", "caught up later")).firstMatch
+        let labels = app.buttons.matching(identifier: "WeekDay").allElementsBoundByIndex.map { $0.label }
+        XCTAssertTrue(caughtUp.waitForExistence(timeout: 40),
+                      "no day on the week says it was caught up later: \(labels)")
+    }
+
+    /// From the title, Past days closes with "Close", as Settings and How to
+    /// play do there: the title has no basket to go back to. Shown red first.
+    func testFromTheTitlePastDaysSaysClose() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-showTitle", "1", "-resetProgress", "1"]
+        app.launch()
+        let pastDays = app.buttons["TitlePastDays"]
+        XCTAssertTrue(pastDays.waitForExistence(timeout: 60), "no Past days on the title")
+        for _ in 0..<40 where !pastDays.isEnabled { usleep(250_000) }
+        pastDays.tap()
+
+        let close = app.buttons["Close"]
+        XCTAssertTrue(close.waitForExistence(timeout: 10), "Past days from the title has no Close")
+        XCTAssertFalse(app.buttons["Back to the basket"].exists,
+                       "Past days from the title offers the way back to a basket")
+        close.tap()
+        XCTAssertTrue(pastDays.waitForExistence(timeout: 10), "Close did not leave the title showing")
+    }
+}

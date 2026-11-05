@@ -282,11 +282,12 @@ jobs:
 
       # The whole point. Every directory a test reads from the source tree goes
       # away: Data for the word lists and the calendar, App for the vocabulary
-      # scanner, Fixtures for the oracle. What remains is the bundle.
+      # scanner, Fixtures for the oracle, TestFlight for the testers' note.
+      # What remains is the bundle.
       - name: Remove the checkout the tests point at
         run: |
           set -euo pipefail
-          for dir in Data App Fixtures Sources; do
+          for dir in Data App Fixtures Sources TestFlight; do
             if [ -d "$dir" ]; then
               mv "$dir" "$RUNNER_TEMP/moved-$dir"
               echo "moved $dir aside"

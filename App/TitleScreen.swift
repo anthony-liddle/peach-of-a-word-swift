@@ -609,18 +609,9 @@ struct WeekStrip: View {
         .padding(.vertical, 4)
     }
 
-    /// The calendar's words: the date, the day's state, and "today".
+    /// The calendar's words: the date, then what Past days says of the day.
     private func label(_ day: ArchiveDay) -> String {
-        var parts = [day.date.formatted(.dateTime.weekday(.wide).day().month(.wide))]
-        switch day.mark {
-        case .notYet: parts.append(Vocabulary.markNotYet)
-        case .noRecord: parts.append(Vocabulary.markNoRecord)
-        case .incomplete: parts.append(Vocabulary.markIncomplete)
-        case .cleared: parts.append(Vocabulary.markCleared)
-        case .basket: parts.append(Vocabulary.markBasket)
-        }
-        if day.foundItsWord { parts.append(Vocabulary.markSourceFound) }
-        if day.isToday { parts.append(Vocabulary.markToday) }
-        return parts.joined(separator: ", ")
+        ([day.date.formatted(.dateTime.weekday(.wide).day().month(.wide))] + day.said)
+            .joined(separator: ", ")
     }
 }
