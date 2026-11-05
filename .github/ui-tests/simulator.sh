@@ -57,15 +57,20 @@ if [ -n "$ZONE" ]; then
   echo "simulator zone $ZONE"
 fi
 
+# Through `.github/xcodebuild.sh`, like every `xcodebuild` that names a
+# simulator: one that finds none would run nothing, and `warmed` below would
+# fail the step. Its output goes to a file, so a retry's warning is passed on
+# from there.
 WARM="${RUNNER_TEMP:-/tmp}/ui-test-warm-up.xcresult"
 rm -rf "$WARM"
 start=$(date +%s)
-xcodebuild test-without-building \
+"$(dirname "$0")/../xcodebuild.sh" test-without-building \
   -xctestrun "$(ls "$PRODUCTS"/*.xctestrun | head -1)" \
   -destination "id=$UDID" \
   -only-testing:"PeachOfAWordUITests/$(python3 "$PLAN" warm-up)" \
   -resultBundlePath "$WARM" > "$WARM.log" 2>&1 \
   || { echo "the warm-up's test did not pass, which counts for nothing:"
        grep -E ": error: " "$WARM.log" | cut -c1-300 | head -3; }
+grep -E '^::warning' "$WARM.log" || true
 echo "warm-up session took $(( $(date +%s) - start ))s"
 python3 "$PLAN" warmed "$WARM"
