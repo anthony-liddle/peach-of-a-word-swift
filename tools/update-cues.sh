@@ -50,8 +50,6 @@ CUES_SHA256="834d06338e43a4a384a46f851fc81172521d5950014fcf987cdf1f3b961d3830"
 # The Soundscape version whose conformance copy CUES_SHA256 equals. --check
 # reads Package.resolved and fails if the app has moved to another version
 # without anyone checking the cue file against that version's copy.
-# TODO(soundscape#153): 0.2.2 is the release that pull request leads to, not
-# tagged yet, so --check fails until Package.resolved moves to it.
 SOUNDSCAPE_VERSION="0.2.2"
 
 WEB_REPO="anthony-liddle/peach-of-a-word"
