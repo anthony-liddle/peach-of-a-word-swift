@@ -938,7 +938,9 @@ extension GameStorage {
     static let boardKey = "peach-of-a-word/board/v1"
 
     /// Remember the board now in play. Writes only a change, so a launch that
-    /// opens on the board it remembered costs no write.
+    /// opens on today's board again costs no write. One that opens on a past
+    /// day costs two, since the launch adopts today's board before the past
+    /// day's.
     public func rememberBoardInPlay(dayIndex: Int, todayIndex: Int) {
         let board = BoardInPlay(board: dayIndex, on: todayIndex)
         guard readBoardInPlay() != board, let data = try? JSONEncoder().encode(board) else { return }

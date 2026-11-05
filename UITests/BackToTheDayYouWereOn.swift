@@ -16,7 +16,9 @@ import XCTest
 ///
 /// The first two tests failed on `main` before the fix. The other three passed
 /// there too, since `main` always lands on today; they hold the edges of the
-/// rule, and each was shown to fail against a resume that ignored its edge.
+/// rule, and each was shown to fail against a resume built to ignore its edge:
+/// one that opened the past day under the reminder's title, one that kept it
+/// past the day it was open, and one that let it take the new day's title.
 final class BackToTheDayYouWereOn: XCTestCase {
     private static let size = ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryL"]
 
