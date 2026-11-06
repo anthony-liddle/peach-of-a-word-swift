@@ -25,7 +25,8 @@
 # The project is regenerated first if it went stale (`tools/xcodeproj.sh`),
 # built once for testing into .build/ui-tests, and then run with
 # `test-without-building`, which is what CI's shards do. The result bundle is
-# .build/ui-tests/last.xcresult.
+# .build/ui-tests/last.xcresult. After it, every tap a test had to make twice
+# is printed from the bundle (UITests/SecondTap.swift), whatever the result.
 #
 # Package resolution is off, as it is in CI: a resolution here would rewrite
 # Package.resolved, which Xcode Cloud builds from.
@@ -90,8 +91,14 @@ ONLY=()
 for class in $CLASSES; do ONLY+=("-only-testing:PeachOfAWordUITests/$class"); done
 rm -rf "$DD/last.xcresult"
 echo "running ${CLASSES:-every class} on $DEVICE ($UDID)"
+status=0
 xcodebuild test-without-building \
   -xctestrun "$(ls "$DD"/Build/Products/*.xctestrun | head -1)" \
   -destination "id=$UDID" \
   ${ONLY[@]+"${ONLY[@]}"} \
-  -resultBundlePath "$DD/last.xcresult"
+  -resultBundlePath "$DD/last.xcresult" || status=$?
+
+# Every tap a test had to make twice, passed or not, since a second tap that
+# lands hides the first one's loss. See UITests/SecondTap.swift.
+python3 .github/ui-tests/plan.py taps "$DD/last.xcresult" || true
+exit "$status"

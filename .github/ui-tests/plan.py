@@ -10,6 +10,7 @@
     plan.py warm-up                the warm-up's class
     plan.py balance N              a proposed map for N shards, from its times
     plan.py classes LIST           a list's classes, one per line (smoke, data-only)
+    plan.py taps BUNDLE            the second taps a result bundle recorded
 
 **Why a committed map rather than a split worked out at run time.** A split
 computed on the runner is invisible: nobody can say from the repository which
@@ -296,7 +297,29 @@ def bundle_tests(bundle):
     return found
 
 
-def first_launch(bundle, tests):
+def walk_activities(acts):
+    """Every activity in `acts`, each followed by the ones nested in it."""
+    for a in acts:
+        yield a
+        yield from walk_activities(a.get("childActivities", []))
+
+
+def bundle_activities(bundle, tests):
+    """{"Class/test()": [activity, ...]} for `tests`, nested ones included,
+    through xcresulttool: one call a test, made once for every reader below."""
+    found = {}
+    for test in tests:
+        out = subprocess.run(["xcrun", "xcresulttool", "get", "test-results", "activities",
+                              "--test-id", test, "--path", bundle],
+                             capture_output=True, text=True)
+        if out.returncode != 0:
+            continue
+        found[test] = [a for run in json.loads(out.stdout).get("testRuns", [])
+                       for a in walk_activities(run.get("activities", []))]
+    return found
+
+
+def first_launch(bundle, tests, activities=None):
     """How the first app launch among `tests` went: "8.4s to idle", or
     "timed out" when it never reached its wait for idle, or None.
 
@@ -305,31 +328,56 @@ def first_launch(bundle, tests):
     from the launch to "Wait for ... to idle", the measure the October 2026
     measurements used.
     """
-    def walk(acts):
-        for a in acts:
-            yield a
-            yield from walk(a.get("childActivities", []))
-
+    if activities is None:
+        activities = bundle_activities(bundle, tests)
     first = None
-    for test in tests:
-        out = subprocess.run(["xcrun", "xcresulttool", "get", "test-results", "activities",
-                              "--test-id", test, "--path", bundle],
-                             capture_output=True, text=True)
-        if out.returncode != 0:
-            continue
-        for run in json.loads(out.stdout).get("testRuns", []):
-            for a in walk(run.get("activities", [])):
-                if not a.get("title", "").startswith("Launch "):
-                    continue
-                if first is None or a["startTime"] < first[0]:
-                    idle = next((c["startTime"] for c in walk(a.get("childActivities", []))
-                                 if c.get("title", "").startswith("Wait for ")
-                                 and c["title"].endswith("to idle")), None)
-                    first = (a["startTime"], test, idle)
+    for test, acts in activities.items():
+        for a in acts:
+            if not a.get("title", "").startswith("Launch "):
+                continue
+            if first is None or a["startTime"] < first[0]:
+                idle = next((c["startTime"] for c in walk_activities(a.get("childActivities", []))
+                             if c.get("title", "").startswith("Wait for ")
+                             and c["title"].endswith("to idle")), None)
+                first = (a["startTime"], test, idle)
     if first is None:
         return None
     start, test, idle = first
     return f"timed out, in {test}" if idle is None else f"{idle - start:.1f}s to idle, in {test}"
+
+
+# What `UITests/SecondTap.swift` titles its record with.
+SECOND_TAP = "SECOND TAP: "
+
+
+def second_taps(activities):
+    """Every second tap a test put on the record, by the clock: a tap the app
+    did not answer, made again. `{"test", "what"}`, `what` naming the tap and
+    the simulator. See `UITests/SecondTap.swift` for why each is kept."""
+    taps = sorted((a["startTime"], test, a["title"][len(SECOND_TAP):])
+                  for test, acts in activities.items() for a in acts
+                  if a.get("title", "").startswith(SECOND_TAP))
+    return [{"test": test, "what": what} for _, test, what in taps]
+
+
+def this_run():
+    """This run, as a link to its attempt on GitHub, or "a local run"."""
+    run, attempt = os.environ.get("GITHUB_RUN_ID"), os.environ.get("GITHUB_RUN_ATTEMPT")
+    if not run:
+        return "a local run"
+    url = (f"{os.environ.get('GITHUB_SERVER_URL', 'https://github.com')}/"
+           f"{os.environ.get('GITHUB_REPOSITORY', '')}/actions/runs/{run}")
+    return f"run {run}, attempt {attempt or 1} ({url}/attempts/{attempt or 1})"
+
+
+def taps(bundle):
+    """The second taps a bundle recorded, for a run on this machine."""
+    ran = bundle_tests(bundle) if os.path.exists(bundle) else {}
+    found = second_taps(bundle_activities(bundle, ran))
+    for t in found:
+        print(f"second tap: {t['test']}: {t['what']}")
+    print(f"{len(found)} second tap{'' if len(found) == 1 else 's'} "
+          f"in {len(ran)} test{'' if len(ran) == 1 else 's'}")
 
 
 def warmed(bundle):
@@ -353,10 +401,12 @@ def verify(shard, bundle, classes, out_path):
     for result in ran.values():
         results[result] = results.get(result, 0) + 1
     skips = sorted(i for i, r in ran.items() if r == "Skipped")
-    launch = first_launch(bundle, ran) if ran else None
+    activities = bundle_activities(bundle, ran) if ran else {}
+    launch = first_launch(bundle, ran, activities) if ran else None
+    tapped = second_taps(activities)
     summary = {"shard": shard, "classes": len(classes), "expected": len(expected), "ran": len(ran),
                "results": results, "skipped": skips, "missing": missing, "unexpected": unexpected,
-               "first_launch": launch}
+               "first_launch": launch, "second_taps": tapped}
     if out_path:
         with open(out_path, "w") as f:
             json.dump(summary, f, indent=1)
@@ -365,6 +415,13 @@ def verify(shard, bundle, classes, out_path):
     print(f"  first launch: {launch or 'none found'}")
     for i in skips:
         print(f"  skipped: {i}")
+    # A warning on the run for each, whatever the tests' result: a second tap
+    # that landed passes, and the warning is what keeps it from passing unseen.
+    for t in tapped:
+        print(f"  second tap: {t['test']}: {t['what']}")
+        if os.environ.get("GITHUB_ACTIONS"):
+            print(f"::warning title=A second tap, shard {shard}::{t['test']}: {t['what']}, "
+                  f"in {this_run()}")
     for k in unknown:
         print(f"error: {k} is not a test class in UITests/", file=sys.stderr)
     for i in missing:
@@ -413,6 +470,9 @@ def summary(counts_dir):
             print(f"- **never ran**, shard {c['shard']}: `{i}`")
         for i in c["unexpected"]:
             print(f"- **ran unplanned**, shard {c['shard']}: `{i}`")
+        for t in c.get("second_taps", []):
+            print(f"- **second tap**, shard {c['shard']}: `{t['test']}`: {t['what']}, "
+                  f"in {this_run()}")
     problems = any(c["missing"] or c["unexpected"] for c in counts)
     if not counts or ran != want or problems:
         print(f"\n**{ran} tests ran across the shards, and the plan has {want}.**")
@@ -502,6 +562,8 @@ def main(argv):
         balance(int(args[0]))
     elif command == "classes" and args:
         print("\n".join(class_list(args[0])))
+    elif command == "taps" and args:
+        taps(args[0])
     else:
         fail(f"unknown command: {' '.join(argv[1:])}")
 
