@@ -119,8 +119,9 @@ struct ContentView: View {
     @State private var wentAway = false
 
     /// Whether the title screen is up. Decided at launch by `TitleSchedule`,
-    /// and again on every return to the foreground; the way back on the board
-    /// raises it too.
+    /// which also opens on it when she left the app there earlier today, and
+    /// again on every return to the foreground; the way back on the board
+    /// raises it too. Every change is remembered; see `TitleSchedule.remember`.
     @State private var titleShown: Bool
 
     /// Whether the settings sheet is up, from the title's link.
@@ -152,7 +153,7 @@ struct ContentView: View {
         #endif
         // A day with an outcome has words: the first find writes one.
         Reminder.shared.played = { storage.outcome(dayIndex: $0) != nil }
-        _titleShown = State(initialValue: TitleSchedule.claim(today: GameModel.todayStorageIndex))
+        _titleShown = State(initialValue: TitleSchedule.atLaunch(today: GameModel.todayStorageIndex))
     }
 
     /// One month's worth of sheet, or the large detent when a month cannot fit.
@@ -512,6 +513,12 @@ struct ContentView: View {
         .onChange(of: model.todayStarted) { _, started in
             if started { Reminder.shared.reschedule() }
         }
+        // Where she leaves the app, title or board, so a launch later today
+        // reopens there. From the first frame, so a launch that opens on the
+        // board forgets a title left up by an earlier one.
+        .onChange(of: titleShown, initial: true) { _, up in
+            TitleSchedule.remember(up: up, today: GameModel.todayStorageIndex)
+        }
         // A tap on a reminder, cold or warm, lands on the title. On a cold
         // launch the tap can come before this view exists, so it is looked
         // for on appear as well.
@@ -555,9 +562,10 @@ struct ContentView: View {
             TapRecorder.shared.record(.marker)
             TapRecorder.shared.flush()
             #endif
-            // The past day she was on earlier today, unless the title is up:
-            // a new day's, which leads to today, or a reminder's, which is about
-            // today. Read when the board opens, after any reminder has landed.
+            // The past day she was on earlier today, unless the title is up: a
+            // new day's, which leads to today, a reminder's, which is about
+            // today, or the one she left the app on, which leads to today too.
+            // Read when the board opens, after any reminder has landed.
             await model.load(resumesPastDay: { !titleShown })
             #if DEBUG
             if let debugSeed { model.seedBoard(debugSeed) }
