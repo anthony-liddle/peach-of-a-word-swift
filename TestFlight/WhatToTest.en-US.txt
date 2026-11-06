@@ -1,1 +1,1 @@
-Reopening the app the same day takes you back to the day you were playing, past days included.
+If you close the app from the title screen, it opens on the title screen again the same day.

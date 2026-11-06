@@ -151,6 +151,11 @@ final class GrowingPeach: XCTestCase {
     func testTheSplashKeepsThePlainPeach() {
         let first = launch(["-showTitle", "1", "-seedBoard", "full"])
         XCTAssertTrue(says(first, Self.crown, timeout: 40), "the first launch never reached the crown")
+        // Left on the board, since an app left on the title reopens on the
+        // title (Antoine, 5 November 2026), and this is a launch onto the board.
+        first.buttons["TitlePlay"].tap()
+        XCTAssertTrue(first.buttons["BoardHome"].waitForExistence(timeout: 10),
+                      "Play did not open the board")
         first.terminate()
 
         let app = launch(["-holdLoading", "30"], reset: false)

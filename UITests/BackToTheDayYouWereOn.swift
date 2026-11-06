@@ -14,11 +14,15 @@ import XCTest
 /// and Play goes to today; the past day is a tap away in Past days. A reminder
 /// tapped from cold lands on the title for today's board, wherever she was.
 ///
-/// The first two tests failed on `main` before the fix. The other three passed
-/// there too, since `main` always lands on today; they hold the edges of the
-/// rule, and each was shown to fail against a resume built to ignore its edge:
-/// one that opened the past day under the reminder's title, one that kept it
-/// past the day it was open, and one that let it take the new day's title.
+/// **Closed from the title, it reopens on the title** (Antoine, 5 November):
+/// the app reopens where she left it, and under the title the board is today's.
+///
+/// The two tests of a past day kept failed on `main` before #123; the three of
+/// the title kept failed on `main` before the title was remembered. The next
+/// day and the reminder pass on both, since both land on today; they hold the
+/// rule's edges, and each was shown to fail against a resume built to ignore
+/// its edge: one that took the new day's title, and one that opened the past
+/// day under the reminder's title.
 final class BackToTheDayYouWereOn: XCTestCase {
     private static let size = ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryL"]
 
@@ -61,13 +65,14 @@ final class BackToTheDayYouWereOn: XCTestCase {
         XCTAssertTrue(entry.waitForExistence(timeout: 30), "no way in to Past days",
                       file: file, line: line)
         entry.tap()
-        // **Once more if the sheet does not come.** On 5 November 2026 one tap
-        // here, synthesized on the glyph 1.2 seconds after the board appeared,
-        // opened nothing; the same tap opened the sheet in this class's other
-        // tests and in three reruns of that one. A sheet that never opens still
-        // fails, at the cell below.
+        // **Once more if the sheet does not come, and on the record when it
+        // doesn't.** On 5 November 2026 one tap here, synthesized on the glyph
+        // 1.2 seconds after the board appeared, opened nothing; the same tap
+        // opened the sheet in this class's other tests and in three reruns of
+        // that one. A sheet that never opens still fails, at the cell below.
+        // See `SecondTap`.
         if !app.buttons["Back to the basket"].waitForExistence(timeout: 10) {
-            print("BACKTOTHEDAY the tap on Past days opened nothing: once more")
+            SecondTap.record("Past days opened nothing, so it was tapped again")
             entry.tap()
         }
         let finished = app.buttons.matching(identifier: "ArchiveDayCell")
@@ -156,9 +161,15 @@ final class BackToTheDayYouWereOn: XCTestCase {
     }
 
     /// The title came up over the past day when she came back after midnight,
-    /// and she ended the app there. Opened again that day, it is today's board:
-    /// the past day was left on the day before, and the title has had its day.
-    func testThePastDayIsNotKeptPastTheDayItWasOpen() {
+    /// and she ended the app there. Opened again that day, it is the title:
+    /// she left it there, so it reopens there, and Play goes to today.
+    ///
+    /// In #123 this asked for today's board with no title, which is where that
+    /// build sent her; Antoine's rule since is that the app reopens where she
+    /// left it. The title skips the past day before its date is read, so the
+    /// date rule (`on == today`) is no longer reached from here:
+    /// `BoardInPlayTests` holds it.
+    func testTheNewDaysTitleOverAPastDayReopensOnTheTitle() {
         let first = launch(["-showTitle", "1", "-resetProgress", "1", "-seedArchive", "bea",
                             "-dayOffsetOnResume", "1"])
         waitForPlay(first)
@@ -171,9 +182,55 @@ final class BackToTheDayYouWereOn: XCTestCase {
         first.terminate()
 
         let app = launch(["-dayOffset", "1"])
-        let today = board(app)
-        XCTAssertNil(today.date, "a past day left yesterday came back today: \(today)")
-        XCTAssertFalse(app.buttons["TitlePlay"].exists, "the title came up twice in a day")
+        let today = reopensOnTheTitle(app)
+        XCTAssertNil(today.date, "Play went to the past day, not today: \(today)")
+    }
+
+    /// The title, again, where she left the app on it. Nothing of the board is
+    /// drawn beneath it. Then Play, and the board it goes to.
+    private func reopensOnTheTitle(_ app: XCUIApplication, file: StaticString = #filePath,
+                                   line: UInt = #line) -> Board {
+        let play = waitForPlay(app, file: file, line: line)
+        XCTAssertFalse(app.staticTexts["FoundSummaryCount"].exists,
+                       "a board is showing, not the title", file: file, line: line)
+        play.tap()
+        return board(app, file: file, line: line)
+    }
+
+    /// She went from a past day to the title and closed the app there. It
+    /// reopens on the title, and Play goes to today. Closed again from today's
+    /// board, it opens on today's board: the title gave the past day up.
+    func testClosingFromTheTitleOverAPastDayReopensOnTheTitle() {
+        let day = ["-dayOffset", TestClock.midMonthDayOffset]
+        let first = launch(["-resetProgress", "1", "-seedArchive", "bea"] + day)
+        _ = board(first)
+        openAFinishedDay(first)
+        first.buttons["BoardHome"].tap()
+        waitForPlay(first)
+        first.terminate()
+
+        let app = launch(day)
+        let today = reopensOnTheTitle(app)
+        XCTAssertNil(today.date, "Play went to the past day, not today: \(today)")
+        app.terminate()
+
+        let again = launch(day)
+        let after = board(again)
+        XCTAssertNil(after.date, "the past day came back after Play went to today: \(after)")
+        XCTAssertFalse(again.buttons["TitlePlay"].exists, "the title came back from the board")
+    }
+
+    /// The same from today's board: the title, again.
+    func testClosingFromTheTitleOverTodayReopensOnTheTitle() {
+        let first = launch(["-resetProgress", "1", "-seedArchive", "bea"])
+        _ = board(first)
+        first.buttons["BoardHome"].tap()
+        waitForPlay(first)
+        first.terminate()
+
+        let app = launch([])
+        let today = reopensOnTheTitle(app)
+        XCTAssertNil(today.date, "Play did not go to today: \(today)")
     }
 
     /// A reminder tapped from cold, with a past day open: the title, for

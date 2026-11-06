@@ -14,8 +14,9 @@
 #
 # **Two exceptions, which came after.** `WinterCostumesOnTheDay`'s 187 is its
 # one run on a single simulator, in #106's CI on 29 October, and
-# `BackToTheDayYouWereOn`'s 142 is its one run on a local iPhone 17 simulator
-# on 5 November, added to the lightest shard rather than rebalancing the map.
+# `BackToTheDayYouWereOn`'s 201 is its one run of seven tests on a local
+# iPhone 17 simulator on 5 November, added to the lightest shard rather than
+# rebalancing the map.
 # On a shard either may run over. Replace each with its sharded median once
 # there is one.
 #
@@ -54,7 +55,7 @@
 2        TodayIsTheLocalDate                16
 3        RackAtLargeText                    347
 3        MarkInTheWell                      179
-3        BackToTheDayYouWereOn              142
+3        BackToTheDayYouWereOn              201
 3        MythicGlint                        117
 3        CostumeOnTheDay                    92
 3        ReminderEndToEnd                   90

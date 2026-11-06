@@ -58,13 +58,24 @@ final class SoundSwitch: XCTestCase {
         XCTAssertFalse(isOn(toggle), "the switch did not turn off")
         app.terminate()
 
-        // The same day, so the relaunch opens on the board; the peach goes back
-        // to the title and its settings.
+        // The same day, and the app was left on the title, so the relaunch
+        // reopens there (Antoine, 5 November 2026). Play goes on to the board,
+        // through How to play on a phone that has never played, for Shuffle;
+        // the peach goes back to the title and its settings.
         app.launchArguments = ["-showTitle", "1", "-exposeSound", "1", "-tapTiles", "0,1",
                                "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryL"]
         app.launch()
+        let play = app.buttons["TitlePlay"]
+        XCTAssertTrue(play.waitForExistence(timeout: 30), "the relaunch did not reopen on the title")
+        let ready = expectation(for: NSPredicate(format: "isEnabled == true"), evaluatedWith: play)
+        XCTAssertEqual(XCTWaiter().wait(for: [ready], timeout: 30), .completed,
+                       "Play never became tappable")
+        play.tap()
+        let done = app.buttons["HowToPlayDone"]
+        XCTAssertTrue(done.waitForExistence(timeout: 10), "a phone that never played met no How to play")
+        done.tap()
         let home = app.buttons["BoardHome"]
-        XCTAssertTrue(home.waitForExistence(timeout: 30), "the relaunch did not open on the board")
+        XCTAssertTrue(home.waitForExistence(timeout: 30), "Play did not open the board")
         // Shuffle too, which has a cue of its own since 5 November 2026
         app.buttons["Shuffle"].tap()
         home.tap()
