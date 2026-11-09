@@ -271,6 +271,9 @@ targets:
     platform: iOS
     sources:
       - path: Tests/PeachEngineTests
+      # Tests that play the app's sounds through Soundscape. Here and not in
+      # Package.swift, which has no third-party dependencies and stays so.
+      - path: Tests/SoundTests
       # The three things the suite reads off disk, carried in the bundle.
       #
       # `swift test` runs from the source tree and finds them there. Xcode
@@ -303,6 +306,9 @@ targets:
     dependencies:
       - package: PeachEngine
         product: PeachEngine
+      # SoundTests plays the app's cue file through the player the app uses
+      - package: Soundscape
+        product: Soundscape
     settings:
       base:
         GENERATE_INFOPLIST_FILE: YES
