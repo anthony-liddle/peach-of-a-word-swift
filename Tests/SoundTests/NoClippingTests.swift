@@ -19,14 +19,28 @@ import Testing
 ///
 /// Held to -1 dBTP, the ceiling the mix was set to on the web, in
 /// peach-of-a-word#188, where the same scenes are played through the game.
+/// At both rates the player renders at, the output's: 48 and 44.1 kHz.
 @MainActor
 @Suite("the game's sounds never clip in Bea's mix")
 struct NoClippingTests {
-    static let rate = 48_000.0
     static let ceiling = -1.0
+    nonisolated static let rates = [48_000.0, 44_100.0]
+
+    /// The loudest pile-up a search of every stack found at each rate, in
+    /// frames from the full basket's start: a find under its card, on a
+    /// 128-frame grid at least 150 ms in, and a roll at any frame on it.
+    /// The searched finds were every find after the basket, the basket after
+    /// a find, and the long word with a short find. At 48 kHz it reads -1.09
+    /// dBTP, at 44.1 kHz -1.19. (The mix was set by the basket, a mythic 8 at
+    /// 24064 and a roll at 24687, -1.10 dBTP at 48 kHz, which a search of only
+    /// three finds found the loudest.)
+    static let loudest: [Double: (find: String, at: Int, roll: Int)] = [
+        48_000: ("found-4-mythic-cute", 24448, 25022),
+        44_100: ("found-4-mythic-cute", 22016, 22650),
+    ]
 
     /// A player with the app's cue file loaded, its clock at 0.
-    static func player() async throws -> CuePlayer {
+    static func player(_ rate: Double) async throws -> CuePlayer {
         let player = CuePlayer(output: .manual(.init(sampleRate: rate, channels: 1)))
         let text = try String(
             contentsOf: dataDirectory.appendingPathComponent("peach.cues.json"), encoding: .utf8)
@@ -40,10 +54,10 @@ struct NoClippingTests {
     /// frame, as the game asks for a cue when its tap comes, never ahead:
     /// cues queued ahead would take each other's voices.
     static func played(
-        _ hits: [(cue: String, frame: Int)], seconds: Double, on loaded: CuePlayer? = nil
+        _ hits: [(cue: String, frame: Int)], seconds: Double, rate: Double, on loaded: CuePlayer? = nil
     ) async throws -> [Float] {
         let player: CuePlayer
-        if let loaded { player = loaded } else { player = try await Self.player() }
+        if let loaded { player = loaded } else { player = try await Self.player(rate) }
         player.stop()
         var out: [Float] = []
         func render(to frame: Int) throws {
@@ -60,8 +74,8 @@ struct NoClippingTests {
     }
 
     /// One cue alone, as the player renders it.
-    static func alone(_ cue: String, on player: CuePlayer? = nil) async throws -> [Float] {
-        try await played([(cue, 0)], seconds: 2, on: player)
+    static func alone(_ cue: String, rate: Double, on player: CuePlayer? = nil) async throws -> [Float] {
+        try await played([(cue, 0)], seconds: 2, rate: rate, on: player)
     }
 
     // MARK: True peak
@@ -155,28 +169,28 @@ struct NoClippingTests {
 
     // MARK: The scenes
 
-    @Test("typing twenty letters a second, with two and three taps in one cycle")
-    func typing() async throws {
-        let every = Int(Self.rate / 20)
+    @Test("typing twenty letters a second, with two and three taps in one cycle", arguments: rates)
+    func typing(rate: Double) async throws {
+        let every = Int(rate / 20)
         var hits: [(cue: String, frame: Int)] = (0..<40).map { (cue: "tick", frame: $0 * every) }
         // A second tap in one cycle at the tenth letter, and two more at the twentieth
         hits += [(cue: "tick", frame: 10 * every), (cue: "tick", frame: 20 * every), (cue: "tick", frame: 20 * every)]
-        let dbtp = Self.truePeak(try await Self.played(hits, seconds: 2.5))
-        print("[no clipping] typing: \(dbtp) dBTP")
+        let dbtp = Self.truePeak(try await Self.played(hits, seconds: 2.5, rate: rate))
+        print("[no clipping] \(rate) Hz, typing: \(dbtp) dBTP")
         #expect(dbtp < Self.ceiling, "typing reached \(dbtp) dBTP")
         // Three taps in one cycle add, to about -3.3: a lower peak means a tap
         // went missing, and this scene stopped being the one it says
         #expect(dbtp > -4.5, "typing only reached \(dbtp) dBTP: did the three taps sound together?")
     }
 
-    @Test("ten Shuffles twenty a second, two taps landing on each")
-    func shuffles() async throws {
-        let every = Int(Self.rate / 20)
+    @Test("ten Shuffles twenty a second, two taps landing on each", arguments: rates)
+    func shuffles(rate: Double) async throws {
+        let every = Int(rate / 20)
         let hits: [(cue: String, frame: Int)] = (0..<10).flatMap { i -> [(cue: String, frame: Int)] in
             [(cue: "shuffle", frame: i * every), (cue: "tick", frame: i * every), (cue: "tick", frame: i * every)]
         }
-        let dbtp = Self.truePeak(try await Self.played(hits, seconds: 1.5))
-        print("[no clipping] ten Shuffles: \(dbtp) dBTP")
+        let dbtp = Self.truePeak(try await Self.played(hits, seconds: 1.5, rate: rate))
+        print("[no clipping] \(rate) Hz, ten Shuffles: \(dbtp) dBTP")
         #expect(dbtp < Self.ceiling, "ten Shuffles reached \(dbtp) dBTP")
         // A Shuffle and two taps add to about -3.8
         #expect(dbtp > -5, "ten Shuffles only reached \(dbtp) dBTP: did the taps sound with them?")
@@ -184,33 +198,32 @@ struct NoClippingTests {
 
     /// Every find cue the app plays, with a roll landing on any frame of its
     /// first 27 ms, through its attack and its loudest moment.
-    @Test("a find of any length and rung, with two taps landing on any frame of its first 27 ms")
-    func aFindOnARoll() async throws {
-        let player = try await Self.player()
-        let roll = Oversampled(try await Self.alone("tick", on: player).map { $0 * 2 })
+    @Test("a find of any length and rung, with two taps landing on any frame of its first 27 ms", arguments: rates)
+    func aFindOnARoll(rate: Double) async throws {
+        let player = try await Self.player(rate)
+        let roll = Oversampled(try await Self.alone("tick", rate: rate, on: player).map { $0 * 2 })
         var finds: [String] = Cue.foundLengths.flatMap { length in
             ["set", "uncommon", "rare", "mythic-cute"].map { "found-\(length)-\($0)" }
         }
         finds += ["source", "edition", "invalid"]
         var loudest = (dbtp: -Double.infinity, cue: "", at: 0)
         for cue in finds {
-            let find = Oversampled(try await Self.alone(cue, on: player))
-            let w = Self.worst(find, plus: roll, at: 0...Int(0.027 * Self.rate))
+            let find = Oversampled(try await Self.alone(cue, rate: rate, on: player))
+            let w = Self.worst(find, plus: roll, at: 0...Int(0.027 * rate))
             if w.dbtp > loudest.dbtp { loudest = (w.dbtp, cue, w.at) }
         }
-        print("[no clipping] a find on a roll: \(loudest.cue), \(loudest.at) frames in, \(loudest.dbtp) dBTP")
+        print("[no clipping] \(rate) Hz, a find on a roll: \(loudest.cue), \(loudest.at) frames in, \(loudest.dbtp) dBTP")
         #expect(loudest.dbtp < Self.ceiling, "\(loudest.cue) with a roll \(loudest.at) frames in reached \(loudest.dbtp) dBTP")
     }
 
-    /// The pile-up the mix was set by: the full basket, a mythic find of 8
-    /// half a second into it, 24064 frames, and a roll 623 frames after that.
-    /// Played through the player in one render.
-    @Test("the full basket, a mythic find under its card and a roll on it: the stack the mix was set by")
-    func theStackTheMixWasSetBy() async throws {
+    /// The loudest pile-up, played through the player in one render.
+    @Test("the full basket, a mythic find under its card and a roll on it: the loudest pile-up", arguments: rates)
+    func theLoudestPileUp(rate: Double) async throws {
+        let stack = try #require(Self.loudest[rate])
         let dbtp = Self.truePeak(try await Self.played(
-            [("edition", 0), ("found-8-mythic-cute", 24064), ("tick", 24687), ("tick", 24687)],
-            seconds: 2))
-        print("[no clipping] the basket, a mythic find and a roll 623 frames after it: \(dbtp) dBTP")
+            [("edition", 0), (stack.find, stack.at), ("tick", stack.roll), ("tick", stack.roll)],
+            seconds: 2, rate: rate))
+        print("[no clipping] \(rate) Hz, the basket, \(stack.find) and a roll: \(dbtp) dBTP")
         #expect(dbtp < Self.ceiling, "reached \(dbtp) dBTP")
         // Within 0.3 dB of the ceiling: a louder mix would pass it, and if this
         // ever reads far under, it is no longer the stack that sets the mix
@@ -220,20 +233,21 @@ struct NoClippingTests {
     /// The same stack, summed from the renders alone, over every frame the
     /// roll could land on in the find's first 27 ms: the one played above is
     /// the loudest of them, to within 0.05 dB.
-    @Test("that stack is the loudest of every frame the roll could land on")
-    func theStackAtEveryFrame() async throws {
-        let player = try await Self.player()
-        let basket = try await Self.alone("edition", on: player)
-        let find = try await Self.alone("found-8-mythic-cute", on: player)
-        var both = basket + [Float](repeating: 0, count: 24064 + find.count)
-        for i in find.indices { both[24064 + i] += find[i] }
+    @Test("that pile-up is the loudest of every frame the roll could land on", arguments: rates)
+    func theLoudestPileUpAtEveryFrame(rate: Double) async throws {
+        let stack = try #require(Self.loudest[rate])
+        let player = try await Self.player(rate)
+        let basket = try await Self.alone("edition", rate: rate, on: player)
+        let find = try await Self.alone(stack.find, rate: rate, on: player)
+        var both = basket + [Float](repeating: 0, count: stack.at + find.count)
+        for i in find.indices { both[stack.at + i] += find[i] }
         let under = Oversampled(both)
-        let roll = Oversampled(try await Self.alone("tick", on: player).map { $0 * 2 })
-        let every = Self.worst(under, plus: roll, at: 24064...(24064 + Int(0.027 * Self.rate)))
-        let named = Self.worst(under, plus: roll, at: [24687])
-        print("[no clipping] every frame: a roll at \(every.at), \(every.dbtp) dBTP; at 24687, \(named.dbtp)")
+        let roll = Oversampled(try await Self.alone("tick", rate: rate, on: player).map { $0 * 2 })
+        let every = Self.worst(under, plus: roll, at: stack.at...(stack.at + Int(0.027 * rate)))
+        let named = Self.worst(under, plus: roll, at: [stack.roll])
+        print("[no clipping] \(rate) Hz, every frame: a roll at \(every.at), \(every.dbtp) dBTP; at \(stack.roll), \(named.dbtp)")
         #expect(every.dbtp < Self.ceiling, "a roll at frame \(every.at) reached \(every.dbtp) dBTP")
         #expect(every.dbtp - named.dbtp < 0.05,
-                "a roll at frame \(every.at) reached \(every.dbtp) dBTP, louder than at 24687, \(named.dbtp)")
+                "a roll at frame \(every.at) reached \(every.dbtp) dBTP, louder than at \(stack.roll), \(named.dbtp)")
     }
 }
