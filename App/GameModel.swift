@@ -244,6 +244,11 @@ final class GameModel {
     /// sound off nothing is handed over, so nothing is listed.
     private(set) var askedCues: [Cue] = []
 
+    /// The audio session's category and options as the last cue left them,
+    /// so `-exposeSession 1` can show a test that the game plays with the
+    /// ringer off and mixes with other apps' audio. "none" before any cue.
+    private(set) var sessionSeen = "none"
+
     /// Every Mythic find that glinted since launch, oldest first, so
     /// `-exposeGlint 1` can show a test which finds did, or that none did.
     private(set) var glinted: [String] = []
@@ -1884,6 +1889,9 @@ final class GameModel {
         askedCues.append(cue)
         #endif
         sounds.play(cue)
+        #if DEBUG
+        sessionSeen = Sounds.sessionDescription
+        #endif
     }
 
     /// The sound switch, turned in settings.

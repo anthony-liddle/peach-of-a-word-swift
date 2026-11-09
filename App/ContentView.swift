@@ -253,6 +253,15 @@ struct ContentView: View {
                         .accessibilityIdentifier("DebugSound")
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
                 }
+                // `-exposeSession 1` shows the audio session after the last
+                // cue, so `SoundWithTheRingerOff` can hold the app to the
+                // session that plays with the ringer off.
+                if UserDefaults.standard.bool(forKey: "exposeSession") {
+                    Text(model.sessionSeen)
+                        .font(.caption2)
+                        .accessibilityIdentifier("DebugSession")
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+                }
                 // `-exposeGlint 1` lists the Mythic finds that glinted since
                 // launch, so `MythicGlint` can hold the glint to a find made
                 // by play, and to none under Reduce Motion.
