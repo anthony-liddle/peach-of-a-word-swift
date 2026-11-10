@@ -49,7 +49,7 @@ REPO="anthony-liddle/orchard"
 # somebody look at the numbers rather than inherit them. Expect those tests to
 # fail on a bump; read the diff before editing them, and never loosen one to
 # make a bump quiet.
-VERSION="v1.11.0"
+VERSION="v1.11.1"
 
 # ---------------------------------------------------------------------------
 # THE ARCHIVES THIS REPOSITORY TAKES FROM A RELEASE.
@@ -89,7 +89,9 @@ VERSION="v1.11.0"
 # **The etymology row is the licensing act, and it has been taken.** The corpus
 # is Wiktionary text under CC BY-SA 4.0. 810 entries covering all 626 calendar
 # crowns from orchard v1.11.0, eleven of them written by hand from Wiktionary
-# because their own pages carry no usable English etymology. Until then those
+# because their own pages carry no usable English etymology. v1.11.1 corrects
+# eighty crowns' cards whose meaning or origin was wrong, by rows written from
+# Wiktionary the same way. Until v1.11.0 those
 # eleven were skipped, and their reveal card was quiet. It was listed here on 2026-08-14, on Antoine's decision, after the
 # option space was established as: Wiktionary or no etymology at all. See
 # `Definitions Source Decision.md`. Shipping it obliges the attribution in
@@ -121,9 +123,9 @@ VERSION="v1.11.0"
 # download, a verification and a home in Data/, because the loop below already
 # does all three for every name it finds there.
 ARCHIVES=(
-  "lexicon.tar.gz|7e10f6de8886de661fb320d0af82842edb1a5f6c5b7b15fdc85f44aa9e8563e8|lexicon|enable.txt:98d038730d9046da39c09e834bfe44ad948e5809c54ab2f926106b576c1844a1,scowl95-additions.txt:ffa1a153e2c48a085383bebc0a9a1ae6323756b62e605b07ccf59ea3b6352d38,common-pool.txt:3f07fce97aee84410efccd6aac3308d97a4c122f2a549fb6f943ad2539ddcfdf,beyond-size-70.txt:1c164693fa9d6963d1cc915aa3f65fdc1122ed706c368d8490e094c44ba956d2,beyond-size-95.txt:e9a0eabad9dbea44cffb7ce995df516c68938a33ca15ed2e451f18aaa027b8cd,gloss-provenance.tsv:0b6719c97fc47e0acce41072634b2fff1ca23606d051e2d7fa329a07821481ff"
-  "etymology.tar.gz|f6ada3844c44485a6e18ba250a337bbdbaefea681ba515e77c5d38ccb6ee5030|etymology|etymology.tsv:94e1d1e6d8c9fcee53bde4007b0bc9cf582a15c486595c9eaaff0a51ad991cc3"
-  "definitions.tar.gz|fa0e74e177386fc697b32b84964bdb6469ed22824b1045a1966acf38bdcdbf49|definitions|definitions.tsv:1408a5d259e1b939619db50c761e42f02ba4ca6711db0c10e9acfa95ab1b0e03"
+  "lexicon.tar.gz|23ced962229e8102d221364e78c4d2db23e9c4fb05c1be5977402e1b4467b93d|lexicon|enable.txt:98d038730d9046da39c09e834bfe44ad948e5809c54ab2f926106b576c1844a1,scowl95-additions.txt:ffa1a153e2c48a085383bebc0a9a1ae6323756b62e605b07ccf59ea3b6352d38,common-pool.txt:3f07fce97aee84410efccd6aac3308d97a4c122f2a549fb6f943ad2539ddcfdf,beyond-size-70.txt:1c164693fa9d6963d1cc915aa3f65fdc1122ed706c368d8490e094c44ba956d2,beyond-size-95.txt:e9a0eabad9dbea44cffb7ce995df516c68938a33ca15ed2e451f18aaa027b8cd,gloss-provenance.tsv:0b6719c97fc47e0acce41072634b2fff1ca23606d051e2d7fa329a07821481ff"
+  "etymology.tar.gz|c4a02d68e7602d7cb712e001cf7ef4f5c5f294ac204b6d7c54c6d3de281647f4|etymology|etymology.tsv:e35c4264235731dbf590453dd929d4b644e5b8f6bcf9263330d364d94d04e95f"
+  "definitions.tar.gz|1470a93c8123146c414e56633864fa18a67746b05902f8343fcd161583ce201e|definitions|definitions.tsv:1408a5d259e1b939619db50c761e42f02ba4ca6711db0c10e9acfa95ab1b0e03"
 )
 
 # Split one ARCHIVES row into the four globals the loops below read.
