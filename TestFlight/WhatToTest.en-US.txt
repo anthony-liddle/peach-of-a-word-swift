@@ -1,1 +1,1 @@
-The game's sounds now play with your ringer off, over any music you have on. The Sound switch in Settings turns them off.
+Eighty of the daily words' cards are corrected, so each one shows the meaning you'd expect.
