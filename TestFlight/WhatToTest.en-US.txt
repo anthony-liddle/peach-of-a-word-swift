@@ -1,1 +1,1 @@
-Eighty of the daily words' cards are corrected, so each one shows the meaning you'd expect.
+The game is the same as in the last build. Only one of the tests it goes through before each release has changed.

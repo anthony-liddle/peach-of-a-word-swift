@@ -29,6 +29,19 @@ final class BackToTheDayYouWereOn: XCTestCase {
     /// What the completion card says. A finished day reopened must not show it.
     private static let completionLine = "Every common word these letters can grow, picked."
 
+    /// How long a seeded first launch has to reach the board, or to make Play
+    /// tappable: 60 seconds, as `ArchiveBeaFirstOpen` and `ArchivePeachDays`
+    /// give the same seed. Every other wait here is 30.
+    ///
+    /// **The seed is slow, and only in a test.** `-seedArchive bea` builds
+    /// thirteen past days' puzzles and runs the back-fill over them while the
+    /// splash is up, in a Debug build on a simulator. On CI's runners that has
+    /// taken a median of 24 seconds and up to 42. At 30, three of these
+    /// launches failed, on 9 and 10 November 2026, each with the splash still
+    /// up and the board 0.7 to 1.0 seconds after the wait gave up. Reopened
+    /// over the same history, the app reaches its screen in 2 to 4 seconds.
+    private static let seededLaunch: TimeInterval = 60
+
     /// The board on screen: its date, if it is a past day's, its letters, and
     /// its count of words found.
     private struct Board: Equatable {
@@ -44,10 +57,10 @@ final class BackToTheDayYouWereOn: XCTestCase {
         return app
     }
 
-    private func board(_ app: XCUIApplication, file: StaticString = #filePath,
-                       line: UInt = #line) -> Board {
+    private func board(_ app: XCUIApplication, timeout: TimeInterval = 30,
+                       file: StaticString = #filePath, line: UInt = #line) -> Board {
         let count = app.staticTexts["FoundSummaryCount"]
-        XCTAssertTrue(count.waitForExistence(timeout: 30), "no board on screen",
+        XCTAssertTrue(count.waitForExistence(timeout: timeout), "no board on screen",
                       file: file, line: line)
         let date = app.staticTexts["ArchiveDateRow"]
         let letters = app.buttons.matching(NSPredicate(format: "label MATCHES %@", "^Letter [a-z].*"))
@@ -87,12 +100,12 @@ final class BackToTheDayYouWereOn: XCTestCase {
 
     /// Play, once the board is ready and it can be tapped.
     @discardableResult
-    private func waitForPlay(_ app: XCUIApplication, file: StaticString = #filePath,
-                             line: UInt = #line) -> XCUIElement {
+    private func waitForPlay(_ app: XCUIApplication, timeout: TimeInterval = 30,
+                             file: StaticString = #filePath, line: UInt = #line) -> XCUIElement {
         let play = app.buttons["TitlePlay"]
-        XCTAssertTrue(play.waitForExistence(timeout: 30), "no title", file: file, line: line)
+        XCTAssertTrue(play.waitForExistence(timeout: timeout), "no title", file: file, line: line)
         let enabled = expectation(for: NSPredicate(format: "isEnabled == true"), evaluatedWith: play)
-        XCTAssertEqual(XCTWaiter().wait(for: [enabled], timeout: 30), .completed,
+        XCTAssertEqual(XCTWaiter().wait(for: [enabled], timeout: timeout), .completed,
                        "Play never became tappable", file: file, line: line)
         return play
     }
@@ -110,7 +123,7 @@ final class BackToTheDayYouWereOn: XCTestCase {
         // opens on. See `TestClock.midMonthDayOffset`.
         let day = ["-dayOffset", TestClock.midMonthDayOffset]
         let first = launch(["-resetProgress", "1", "-seedArchive", "bea"] + day)
-        _ = board(first)
+        _ = board(first, timeout: Self.seededLaunch)
         openAFinishedDay(first)
         let before = board(first)
         XCTAssertNotNil(before.date, "the board opened is not a past day's")
@@ -131,7 +144,7 @@ final class BackToTheDayYouWereOn: XCTestCase {
     /// The same through "A day at random", from the title.
     func testADayAtRandomIsStillOpenAfterTheAppEnds() {
         let first = launch(["-showTitle", "1", "-resetProgress", "1", "-seedArchive", "bea"])
-        waitForPlay(first)
+        waitForPlay(first, timeout: Self.seededLaunch)
         first.buttons["TitleRandomDay"].tap()
         XCTAssertTrue(first.staticTexts["ArchiveDateRow"].waitForExistence(timeout: 20),
                       "a day at random did not open a past board")
@@ -150,7 +163,7 @@ final class BackToTheDayYouWereOn: XCTestCase {
     func testTheNextDayOpensOnTheTitleAndPlayGoesToToday() {
         let offset = TestClock.midMonthDayOffset
         let first = launch(["-resetProgress", "1", "-seedArchive", "bea", "-dayOffset", offset])
-        _ = board(first)
+        _ = board(first, timeout: Self.seededLaunch)
         openAFinishedDay(first)
         first.terminate()
 
@@ -172,7 +185,7 @@ final class BackToTheDayYouWereOn: XCTestCase {
     func testTheNewDaysTitleOverAPastDayReopensOnTheTitle() {
         let first = launch(["-showTitle", "1", "-resetProgress", "1", "-seedArchive", "bea",
                             "-dayOffsetOnResume", "1"])
-        waitForPlay(first)
+        waitForPlay(first, timeout: Self.seededLaunch)
         first.buttons["TitleRandomDay"].tap()
         XCTAssertTrue(first.staticTexts["ArchiveDateRow"].waitForExistence(timeout: 20),
                       "a day at random did not open a past board")
@@ -203,7 +216,7 @@ final class BackToTheDayYouWereOn: XCTestCase {
     func testClosingFromTheTitleOverAPastDayReopensOnTheTitle() {
         let day = ["-dayOffset", TestClock.midMonthDayOffset]
         let first = launch(["-resetProgress", "1", "-seedArchive", "bea"] + day)
-        _ = board(first)
+        _ = board(first, timeout: Self.seededLaunch)
         openAFinishedDay(first)
         first.buttons["BoardHome"].tap()
         waitForPlay(first)
@@ -223,7 +236,7 @@ final class BackToTheDayYouWereOn: XCTestCase {
     /// The same from today's board: the title, again.
     func testClosingFromTheTitleOverTodayReopensOnTheTitle() {
         let first = launch(["-resetProgress", "1", "-seedArchive", "bea"])
-        _ = board(first)
+        _ = board(first, timeout: Self.seededLaunch)
         first.buttons["BoardHome"].tap()
         waitForPlay(first)
         first.terminate()
@@ -240,7 +253,7 @@ final class BackToTheDayYouWereOn: XCTestCase {
     func testAReminderTappedFromColdLandsOnTheTitleForToday() {
         let day = ["-dayOffset", TestClock.midMonthDayOffset]
         let first = launch(["-resetProgress", "1", "-seedArchive", "bea", "-seedBoard", "3"] + day)
-        _ = board(first)
+        _ = board(first, timeout: Self.seededLaunch)
         openAFinishedDay(first)
         first.terminate()
 
