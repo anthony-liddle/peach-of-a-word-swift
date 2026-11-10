@@ -220,7 +220,11 @@ the required-reason APIs, so neither this answer nor the privacy manifest
 moves. Read again at 0.2.1, on 2026-10-23: its one change to the sources is
 how `CuePlayer` starts a cue on its audio nodes, so the answer still stands.
 Read again at 0.2.2, on 2026-11-05: no change to its sources at all, only to
-its tests and the cue files they hold to the browsers, so it still stands. "No third-party dependencies" is still true of `Package.swift`, and is
+its tests and the cue files they hold to the browsers, so it still stands.
+Read again at 0.3.0, on 2026-11-09: its one change to the sources lets the app
+choose the audio session's category, `.playback` with `.mixWithOthers`, which
+is no networking, no cryptography and no required-reason API, so it still
+stands. "No third-party dependencies" is still true of `Package.swift`, and is
 no longer the whole app's story.
 
 ## Privacy policy: <https://peachofaword.com/privacy>
