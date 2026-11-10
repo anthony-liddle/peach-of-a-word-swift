@@ -1,3 +1,4 @@
+import AVFoundation
 import Foundation
 import PeachEngine
 import SoundscapePlayer
@@ -9,9 +10,14 @@ import SoundscapePlayer
 /// `GameModel` calls it beside each haptic: `tick` as a tile lands, a find's
 /// cue where its beat is chosen, `invalid` beside a rejection's.
 ///
-/// **On by default, and a mute is remembered** (`SoundSetting`, D5). The player
-/// puts the audio session in the `.ambient` category, so the Ring/Silent switch
-/// silences the cues too, and other apps' music keeps playing under them.
+/// **On by default, and a mute is remembered** (`SoundSetting`, D5). The Sound
+/// switch in Settings is what silences the game, as other games' own switches
+/// do, so the cues play with the ringer off: the player's session is
+/// `.playbackMixingWithOthers`, the audio session's `.playback` category with
+/// `.mixWithOthers`, and other apps' music or podcast keeps playing under them,
+/// neither paused nor lowered (Bea's Ears, 9 November 2026). Until then it was
+/// `.ambient`, which the Ring/Silent switch silences, and Bea had to turn her
+/// ringer on to hear the game, and then heard every text.
 ///
 /// **Off spends nothing.** No cue reaches the player (`GameModel.sound`), the
 /// engine is stopped when the switch is turned off, and a launch with sound off
@@ -27,7 +33,7 @@ import SoundscapePlayer
 /// made outside main-actor code.
 @MainActor
 final class Sounds {
-    private let player = CuePlayer()
+    private let player = CuePlayer(session: .playbackMixingWithOthers)
 
     /// Whether the cues are rendered, or being rendered, so the switch going
     /// on and off again does not render them twice.
@@ -89,6 +95,21 @@ final class Sounds {
                                encoding: .utf8)
         }.value
     }
+
+    #if DEBUG
+    /// The audio session's category, and whether it mixes with other apps'
+    /// audio, for `-exposeSession 1`: "playback, mixWithOthers", say.
+    static var sessionDescription: String {
+        let session = AVAudioSession.sharedInstance()
+        let category = switch session.category {
+        case .playback: "playback"
+        case .ambient: "ambient"
+        case .soloAmbient: "soloAmbient"
+        default: session.category.rawValue
+        }
+        return session.categoryOptions.contains(.mixWithOthers) ? "\(category), mixWithOthers" : category
+    }
+    #endif
 }
 
 /// The sound switch: on by default, and a mute remembered (D5).

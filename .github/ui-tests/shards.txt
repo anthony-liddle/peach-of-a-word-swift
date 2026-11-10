@@ -24,6 +24,9 @@
 # their 63 and 6 are one local run each, on an iPhone SE. Replace them with
 # their sharded medians too.
 #
+# **And `SoundWithTheRingerOff`,** on 9 November: its 10 is one local run on an
+# iPhone 17 simulator, added to the lightest shard. Replace it the same way.
+#
 # To rebalance, or to change the number of shards, update the seconds and
 # print a new map:
 #
@@ -53,6 +56,7 @@
 2        TitleScreenAppears                 27
 2        FirstFindShove                     22
 2        TodayIsTheLocalDate                16
+2        SoundWithTheRingerOff              10
 3        RackAtLargeText                    347
 3        MarkInTheWell                      179
 3        BackToTheDayYouWereOn              201
