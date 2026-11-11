@@ -1,1 +1,1 @@
-The game is the same as in the last build. Only one of the tests it goes through before each release has changed.
+Nothing in the game has changed since the last build. Only a housekeeping file behind the scenes is different.
