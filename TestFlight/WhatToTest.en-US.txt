@@ -1,1 +1,1 @@
-Some small text is easier to read.
+Nothing in the game has changed since the last build. Only a housekeeping file behind the scenes is different.
