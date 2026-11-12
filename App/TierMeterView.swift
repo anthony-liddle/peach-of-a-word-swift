@@ -60,7 +60,9 @@ struct TierMeterView: View {
             HStack(alignment: .firstTextBaseline) {
                 Text(label)
                     .font(CuteFont.display(18, relativeTo: .headline))
-                    .foregroundStyle(completed ? Cute.crown : Cute.ink)
+                    // The peach's colour as text is `crownDeep`: `crown` is a
+                    // fill, 1.89:1 on the page (`LightContrastTests`).
+                    .foregroundStyle(completed ? Cute.crownDeep : Cute.ink)
                     // In the margin before the name, on its first line: an
                     // overlay, so the name keeps its width. See `backButton`.
                     .overlay(alignment: Alignment(horizontal: .leading, vertical: .firstTextBaseline)) {
@@ -159,7 +161,8 @@ struct TierMeterView: View {
                         Text(counted(streak, "day"))
                             .monospacedDigit()
                     }
-                    .foregroundStyle(Cute.crown)
+                    // As the title's streak: text, so `crownDeep`, not the fill.
+                    .foregroundStyle(Cute.crownDeep)
                 }
             }
             .lineLimit(1)
