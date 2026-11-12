@@ -12,6 +12,9 @@ import XCTest
 /// One launch per size, in its own process, for the reason `LayoutBudget`
 /// records: a size is a launch argument and the app reads it once.
 final class RackAtLargeText: XCTestCase {
+    /// How long a control has to come to rest on screen after the board appears.
+    static let settle: TimeInterval = 10
+
     static let sizes = [
         "UICTContentSizeCategoryL",
         "UICTContentSizeCategoryXL",
@@ -46,16 +49,37 @@ final class RackAtLargeText: XCTestCase {
     /// layout a control below the fold can be scrolled to, and a player
     /// looking at the screen they launched into cannot see it. See
     /// `LayoutBudget.controlIsOnScreen`.
+    ///
+    /// **Each control is given time to settle, and that is the whole fix for
+    /// the red of 11 and 12 November.** Read once, the moment the first tile
+    /// appeared, this failed on three CI runs in a row, at XXXL, XL and
+    /// AccessibilityM in turn, and passed both times it ran on a desk, on the
+    /// same board and the same phone. The result bundle's hierarchy
+    /// at the failure said why: the pills still carried their drawn, uppercased
+    /// text, SHUFFLE, PICK WORD and CLEAR, rather than their labels, so
+    /// "Shuffle" matched nothing; and where it did match it was not yet
+    /// hittable, with its frame well inside the window. The board was still
+    /// settling on the slower simulator. A control that is really off screen
+    /// never settles on screen, so it still fails, after `settle`.
     func testEveryControlIsOnScreenAtEverySize() {
         for size in Self.sizes {
             let app = launch(size)
             for label in LayoutBudget.controlLabels {
                 let control = app.buttons[label]
+                // Read once, as before, and waited on only if that read says
+                // no: a waiter polls, and polling every control at every size
+                // added half a minute to a run in which all of them were there.
+                let settled = LayoutBudget.controlIsOnScreen(control, in: app)
+                    || XCTWaiter().wait(for: [expectation(
+                        for: NSPredicate { _, _ in LayoutBudget.controlIsOnScreen(control, in: app) },
+                        evaluatedWith: control)], timeout: Self.settle) == .completed
+                // The bottom is read only if the control is there: reading the
+                // frame of one that is not was a second failure of its own.
                 XCTAssertTrue(
-                    LayoutBudget.controlIsOnScreen(control, in: app),
-                    "\(label) is not fully on screen at rest at \(size): "
-                    + "bottom \(control.frame.maxY) in a "
-                    + "\(app.windows.firstMatch.frame.height)pt window")
+                    settled,
+                    "\(label) is not fully on screen at rest at \(size): bottom "
+                    + (control.exists ? "\(control.frame.maxY)" : "absent")
+                    + " in a \(app.windows.firstMatch.frame.height)pt window")
             }
         }
     }
