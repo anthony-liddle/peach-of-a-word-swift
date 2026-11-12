@@ -70,6 +70,10 @@ struct SourceRevealCard: View {
     /// **Not defaulted, on purpose.** An empty default would compile here and
     /// credit Wiktionary for words it did not write.
     let provenance: GlossProvenance
+    /// Share, under the way out in the pinned bar: the found list's own
+    /// control, so the moment can be shared without closing the card. Nil in
+    /// the previews, which have no board.
+    var share: ShareSummaryButton? = nil
     let onDismiss: () -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -91,7 +95,7 @@ struct SourceRevealCard: View {
                 }
                 .scrollBounceBehavior(.basedOnSize)
 
-                CardWayOut(label: Vocabulary.revealClose, onDismiss: onDismiss)
+                CardWayOut(label: Vocabulary.revealClose, share: share, onDismiss: onDismiss)
             }
         }
         .onAppear {
@@ -133,6 +137,9 @@ private struct RevealContent: View {
                         .fixedSize(horizontal: false, vertical: true)
 
                     Text(word)
+                        // So `ShareFromTheCards` can read the board's own word
+                        // off the card and hold the share to never naming it.
+                        .accessibilityIdentifier("RevealWord")
                         .font(CuteFont.display(38, relativeTo: .largeTitle))
                         .foregroundStyle(Cute.ink)
                         .lineLimit(1)
@@ -226,45 +233,60 @@ private struct RevealContent: View {
 /// every text size, including the 9,047pt AX5 case that this card's own history
 /// records.
 ///
-/// **Only the button is pinned.** The CC BY-SA credit was pinned here too at
-/// first, on the reasoning that attribution is owed to the reader rather than
-/// to a file. At AX5 that reasoning cost more than it bought: the credit took
-/// four lines of accessibility-sized type, the bar took over half the screen,
-/// and the prose it credits was reduced to a sliver. It sits at the foot of
-/// the scrolling content instead, which keeps it reachable without letting it
-/// crowd out the thing it is crediting.
+/// **Only the button is pinned, and on the peach card Share under it.** The
+/// CC BY-SA credit was pinned here too at first, on the reasoning that
+/// attribution is owed to the reader rather than to a file. At AX5 that
+/// reasoning cost more than it bought: the credit took four lines of
+/// accessibility-sized type, the bar took over half the screen, and the prose
+/// it credits was reduced to a sliver. It sits at the foot of the scrolling
+/// content instead, which keeps it reachable without letting it crowd out the
+/// thing it is crediting.
+///
+/// **Share is the peach card's alone.** The definition card shares this bar
+/// and passes none. With its type stopped at AX1 like the button's, it costs
+/// the prose 40pt of 551 on the iPhone SE at AX5, and 28pt at the default
+/// size (12 November 2026, `withdraw`).
 struct CardWayOut: View {
     /// What the way out says, which depends on where the card was opened.
     let label: String
+    /// Share, under the button, on the peach card only.
+    var share: ShareSummaryButton? = nil
     let onDismiss: () -> Void
 
     var body: some View {
-        Button(action: onDismiss) {
-            Text(label)
-                .font(CuteFont.body(15, weight: "SemiBold", relativeTo: .subheadline))
-                .tracking(2.1)
-                .textCase(.uppercase)
-                .foregroundStyle(Cute.paper)
-                // Two lines and a floor, because the label is tracked out and
-                // uppercased and at AX5 it truncated to "BACK TO THE...". A
-                // way out that cannot say what it does is barely better than
-                // one below the fold, which is the whole subject here.
-                .lineLimit(2)
-                .minimumScaleFactor(0.6)
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: .infinity)
-                .frame(minHeight: 52)
-                .padding(.vertical, 6)
-                .background(Capsule().fill(Cute.button))
+        VStack(spacing: 8) {
+            Button(action: onDismiss) {
+                Text(label)
+                    .font(CuteFont.body(15, weight: "SemiBold", relativeTo: .subheadline))
+                    .tracking(2.1)
+                    .textCase(.uppercase)
+                    .foregroundStyle(Cute.paper)
+                    // Two lines and a floor, because the label is tracked out and
+                    // uppercased and at AX5 it truncated to "BACK TO THE...". A
+                    // way out that cannot say what it does is barely better than
+                    // one below the fold, which is the whole subject here.
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.6)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity)
+                    .frame(minHeight: 52)
+                    .padding(.vertical, 6)
+                    .background(Capsule().fill(Cute.button))
+            }
+            .buttonStyle(PillPressStyle())
+
+            if let share {
+                share.accessibilityIdentifier("CardShare")
+            }
         }
-        .buttonStyle(PillPressStyle())
-        // **The label grows to AX1 and stops**, which is the rule the play
-        // screen's controls follow and for the same reason. The bar is pinned,
-        // so every point it grows is taken from the prose above it, and the
-        // prose is what a reader at AX5 opened the card to read. Unbounded, the
-        // label ran to two lines of AX5 type in a 115pt pill. It stays words:
-        // the reader who turned the text up still has to read what the way out
-        // says. See `Controls`.
+        // **The bar's type grows to AX1 and stops**, which is the rule the
+        // play screen's controls follow and for the same reason. The bar is
+        // pinned, so every point it grows is taken from the prose above it,
+        // and the prose is what a reader at AX5 opened the card to read.
+        // Unbounded, the label ran to two lines of AX5 type in a 115pt pill.
+        // It stays words: the reader who turned the text up still has to read
+        // what the way out says. See `Controls`. Share under it stops at AX1
+        // with it.
         .dynamicTypeSize(...DynamicTypeSize.accessibility1)
         .padding(.horizontal, 28)
         .padding(.top, 12)

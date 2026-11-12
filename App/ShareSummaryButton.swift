@@ -1,7 +1,9 @@
 import SwiftUI
 import PeachEngine
 
-/// The daily share, which travels with the summary row.
+/// The daily share, which travels with the summary row, and opens on the two
+/// cards for the big finds as well (`CompletionCard`, `CardWayOut`), built
+/// from the same values each time.
 ///
 /// It moved out of `FoundListView` when the summary was pinned, because it has
 /// always lived on that row and the row is now somewhere else. Its own file
@@ -20,6 +22,7 @@ struct ShareSummaryButton: View {
                 .foregroundStyle(Cute.accent)
         }
         .accessibilityLabel("Share your result")
+        .modifier(ExposedShareText(text: shareText))
     }
 
     /// Spoiler safe by construction: `DailyShareResult` has no source-word
@@ -45,5 +48,25 @@ struct ShareSummaryButton: View {
             setLabel: Vocabulary.onPageLabel.lowercased(),
             offPageLabel: Vocabulary.offPageLabel.lowercased()
         ))
+    }
+}
+
+/// `-exposeShare 1` puts a Share's text in its accessibility value, so
+/// `ShareFromTheCards` can hold a card's Share to the found list's. Without
+/// it the text only exists inside the system's share sheet. Debug builds only,
+/// and opt in, so VoiceOver never reads the whole share in normal use.
+private struct ExposedShareText: ViewModifier {
+    let text: String
+
+    func body(content: Content) -> some View {
+        #if DEBUG
+        if UserDefaults.standard.bool(forKey: "exposeShare") {
+            content.accessibilityValue(text)
+        } else {
+            content
+        }
+        #else
+        content
+        #endif
     }
 }

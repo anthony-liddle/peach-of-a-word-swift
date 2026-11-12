@@ -14,6 +14,10 @@ import SwiftUI
 struct CompletionCard: View {
     let setTotal: Int
     let score: Int
+    /// Share, under Keep playing: the found list's own control, so the peak
+    /// can be shared without closing the card first. Nil in the preview,
+    /// which has no board.
+    var share: ShareSummaryButton? = nil
     let onDismiss: () -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -69,20 +73,32 @@ struct CompletionCard: View {
                     }
                     .monospacedDigit()
 
-                    // Deliberately not "Done". Completion is not the end of the
-                    // rack: the off-page ladder is still open and the board is
-                    // still live behind this sheet.
-                    Button(action: onDismiss) {
-                        Text("Keep playing")
-                            .font(CuteFont.body(15, weight: "SemiBold", relativeTo: .subheadline))
-                            .tracking(2.1)
-                            .textCase(.uppercase)
-                            .foregroundStyle(Cute.paper)
-                            .frame(maxWidth: .infinity)
-                            .frame(minHeight: 52)
-                            .background(Capsule().fill(Cute.button))
+                    VStack(spacing: 8) {
+                        // Deliberately not "Done". Completion is not the end
+                        // of the rack: the off-page ladder is still open and
+                        // the board is still live behind this sheet.
+                        Button(action: onDismiss) {
+                            Text("Keep playing")
+                                .font(CuteFont.body(15, weight: "SemiBold", relativeTo: .subheadline))
+                                .tracking(2.1)
+                                .textCase(.uppercase)
+                                .foregroundStyle(Cute.paper)
+                                .frame(maxWidth: .infinity)
+                                .frame(minHeight: 52)
+                                .background(Capsule().fill(Cute.button))
+                        }
+                        .buttonStyle(PillPressStyle())
+
+                        // Under the card's button and quieter than it. At the
+                        // default text size and the medium detent the card
+                        // opens at, it is on screen on the iPhone 16 and 17
+                        // (measured 12 November 2026). On the SE it isn't,
+                        // and nor is all of Keep playing: see
+                        // `ShareFromTheCards`.
+                        if let share {
+                            share.accessibilityIdentifier("CardShare")
+                        }
                     }
-                    .buttonStyle(PillPressStyle())
                     .padding(.top, 4)
                 }
                 .padding(.horizontal, 28)
