@@ -1923,13 +1923,13 @@ private struct PillButton: View {
     // broken.
     private var fill: Color {
         if disabled { return Cute.paperDeep }
-        return kind == .primary ? Cute.accent : Cute.paperDeep
+        return kind == .primary ? Cute.button : Cute.paperDeep
     }
 
     private var border: Color {
         if disabled { return Cute.rule }
         switch kind {
-        case .primary: return Cute.accent
+        case .primary: return Cute.button
         case .utility: return Cute.rule
         case .delete: return Cute.ink
         }

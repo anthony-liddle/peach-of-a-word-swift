@@ -45,17 +45,22 @@ struct PeachMinimalApp: App {
 
     var body: some Scene {
         WindowGroup {
-            #if DEBUG
-            // `-costumeGallery 1`: every costume at every size, in place of the
-            // game. See `CostumeGallery`.
-            if UserDefaults.standard.bool(forKey: "costumeGallery") {
-                CostumeGallery()
-            } else {
+            Group {
+                #if DEBUG
+                // `-costumeGallery 1`: every costume at every size, in place of
+                // the game. See `CostumeGallery`.
+                if UserDefaults.standard.bool(forKey: "costumeGallery") {
+                    CostumeGallery()
+                } else {
+                    ContentView()
+                }
+                #else
                 ContentView()
+                #endif
             }
-            #else
-            ContentView()
-            #endif
+            // The player's appearance, System, Light or Dark, on every window
+            // from the first frame the game draws. See `AppearanceSetting`.
+            .onAppear { AppearanceSetting.apply() }
         }
     }
 }

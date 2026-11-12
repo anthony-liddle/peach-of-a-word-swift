@@ -100,7 +100,7 @@ struct HowItWorks: View {
                         .frame(maxWidth: .infinity)
                         .frame(minHeight: 52)
                         .padding(.vertical, 6)
-                        .background(Capsule().fill(Cute.accent))
+                        .background(Capsule().fill(Cute.button))
                 }
                 .buttonStyle(PillPressStyle())
                 // Settings, under it now, has a Close of its own.

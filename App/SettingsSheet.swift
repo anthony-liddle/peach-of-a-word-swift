@@ -18,6 +18,7 @@ struct SettingsSheet: View {
     /// On by default; a mute is remembered (D5). `@AppStorage`'s default
     /// covers a phone that has never written the key. See `SoundSetting`.
     @AppStorage(SoundSetting.key) private var soundOn = true
+    @AppStorage(AppearanceSetting.key) private var appearance: AppearanceSetting = .system
     @State private var explaining = false
     private var reminder: Reminder { .shared }
 
@@ -55,6 +56,7 @@ struct SettingsSheet: View {
                                 .accessibilityAddTraits(.isHeader)
                             soundCard
                             reminderCard
+                            appearanceCard
                             rows
                         }
                         .padding(.horizontal, 22)
@@ -71,6 +73,7 @@ struct SettingsSheet: View {
         }
         .tint(Cute.accentDeep)
         .onChange(of: soundOn) { onSound(soundOn) }
+        .onChange(of: appearance) { AppearanceSetting.apply(appearance) }
         .sheet(isPresented: $explaining) {
             HowItWorks { explaining = false }
                 .presentationDetents([.large])
@@ -111,6 +114,32 @@ struct SettingsSheet: View {
         // The card by its own name, so a test can hold it to the switch alone.
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("SettingsSoundCard")
+    }
+
+    /// Appearance: System, which follows the phone, Light or Dark, as a
+    /// segmented control under its name, the way iOS offers a short choice.
+    /// VoiceOver hears "Appearance" and each choice, selected or not. It takes
+    /// effect at once, on this sheet too. See `AppearanceSetting`.
+    private var appearanceCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(Vocabulary.appearance)
+                .font(CuteFont.body(17, weight: "SemiBold", relativeTo: .body))
+                .foregroundStyle(Cute.ink)
+                .accessibilityHidden(true)
+            Picker(Vocabulary.appearance, selection: $appearance) {
+                ForEach(AppearanceSetting.allCases) { choice in
+                    Text(choice.title).tag(choice)
+                }
+            }
+            .pickerStyle(.segmented)
+            .accessibilityIdentifier("SettingsAppearance")
+        }
+        .padding(18)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(card.fill(Cute.paperDeep))
+        .overlay(card.stroke(Cute.tileEdge, lineWidth: 1))
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("SettingsAppearanceCard")
     }
 
     /// The daily reminder: its switch, off by default, and its time once it is
@@ -245,7 +274,7 @@ struct SheetCloseButton: View {
                 .frame(maxWidth: .infinity)
                 .frame(minHeight: 52)
                 .padding(.vertical, 6)
-                .background(Capsule().fill(Cute.accent))
+                .background(Capsule().fill(Cute.button))
         }
         .buttonStyle(PillPressStyle())
         .padding(.horizontal, 22)

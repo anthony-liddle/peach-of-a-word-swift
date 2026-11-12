@@ -1,1 +1,1 @@
-Nothing in the game has changed since the last build. Only a housekeeping file behind the scenes is different.
+The game has a dark mode now. It follows your phone, or choose in Settings.

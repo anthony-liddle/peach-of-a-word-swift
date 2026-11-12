@@ -255,7 +255,7 @@ struct CardWayOut: View {
                 .frame(maxWidth: .infinity)
                 .frame(minHeight: 52)
                 .padding(.vertical, 6)
-                .background(Capsule().fill(Cute.accent))
+                .background(Capsule().fill(Cute.button))
         }
         .buttonStyle(PillPressStyle())
         // **The label grows to AX1 and stops**, which is the rule the play
