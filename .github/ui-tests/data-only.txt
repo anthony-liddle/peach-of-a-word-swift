@@ -45,6 +45,7 @@ RackScrollTests               the meter and well's height above the rack, agains
 RackShape                     the eight tiles of today's source word
 RevealButtonReach             the longest and shortest etymology entries
 RungSheetDefinitions          27 October's word, fragment, and its Mythic words' definitions
+ShareFromTheCards             today's source word, and its rank and counts on the crown card; withdraw's entry
 TapTheWell                    24 October's words: tel, aret, lay and lyt
 TitleAndTopRowAtEverySize     today's rank name and count, chosen as the tightest top row
 WinterCostumesOnTheDay        the winter costume days' boards replayed from the calendar, and industry's reveal card

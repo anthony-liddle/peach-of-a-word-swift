@@ -344,7 +344,8 @@ struct ContentView: View {
                     SourceRevealCard(
                         word: word,
                         entry: entry,
-                        provenance: model.glossProvenance
+                        provenance: model.glossProvenance,
+                        share: cardShare
                     ) { model.moment = nil }
                         // Large only, and the board is covered whenever this is
                         // up. No crown carrying an entry has ever fitted the
@@ -355,7 +356,7 @@ struct ContentView: View {
                         // the long ones usable. See `SourceRevealCard`.
                         .presentationDetents([.large])
                 case .completion(let setTotal, let score):
-                    CompletionCard(setTotal: setTotal, score: score) { model.moment = nil }
+                    CompletionCard(setTotal: setTotal, score: score, share: cardShare) { model.moment = nil }
                         .presentationDetents([.medium, .large])
                 case .definition(let word, let category):
                     // `DefinitionSheet` rather than `DefinitionCard`, because a
@@ -891,6 +892,16 @@ struct ContentView: View {
     /// line reports one. See `GameModel.revealWellFind`.
     private var wellOpens: (() -> Void)? {
         model.wellFind == nil ? nil : { model.revealWellFind() }
+    }
+
+    /// Share for the two cards that open for the big finds: the found list's
+    /// own control, built from the very values `foundList` builds its Share
+    /// from, so a card shares what the list would at that moment. Nil until
+    /// there is a board, as the list itself is.
+    private var cardShare: ShareSummaryButton? {
+        guard let puzzle = model.puzzle, let standing = model.standing else { return nil }
+        return ShareSummaryButton(puzzle: puzzle, found: model.found,
+                                  standing: standing, boardDate: model.boardDate)
     }
 
     private var foundList: some View {
