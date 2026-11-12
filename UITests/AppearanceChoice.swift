@@ -4,8 +4,8 @@ import XCTest
 /// Light draws it light, and System draws it as the phone is.
 ///
 /// **Through Settings, not a launch argument.** A launch argument sits in the
-/// argument domain and would win over what the picker writes, so the test would
-/// pass whatever the picker did. So it taps the picker, as a player does, and
+/// argument domain and would win over what a tap writes, so the test would pass
+/// whatever the choices did. So it taps a choice, as a player does, and
 /// relaunches to see the choice kept.
 ///
 /// **What is drawn, read from the screen.** The page beside Settings' cards, by
@@ -13,24 +13,30 @@ import XCTest
 /// Display P3. Light's page is near white and Cocoa's near black, so the two
 /// can't be mistaken for each other.
 final class AppearanceChoice: XCTestCase {
-    private func launch(_ arguments: [String]) -> XCUIApplication {
+    private func launch(_ arguments: [String], size: String = "UICTContentSizeCategoryL") -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = arguments + ["-openSettings", "1",
-                                           "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryL"]
+                                           "-UIPreferredContentSizeCategoryName", size]
         app.launch()
-        XCTAssertTrue(picker(app).waitForExistence(timeout: 30), "no appearance in Settings")
+        XCTAssertTrue(card(app).waitForExistence(timeout: 30), "no appearance in Settings")
         return app
     }
 
-    private func picker(_ app: XCUIApplication) -> XCUIElement {
-        app.segmentedControls["SettingsAppearance"]
+    private func card(_ app: XCUIApplication) -> XCUIElement {
+        app.descendants(matching: .any)["SettingsAppearanceCard"]
+    }
+
+    /// A choice, by its name, as a button in the Appearance card.
+    private func choice(_ name: String, in app: XCUIApplication) -> XCUIElement {
+        card(app).buttons[name]
     }
 
     private func choose(_ name: String, in app: XCUIApplication,
                         file: StaticString = #filePath, line: UInt = #line) {
-        let choice = picker(app).buttons[name]
-        XCTAssertTrue(choice.waitForExistence(timeout: 5), "no \(name) in the picker",
+        let choice = choice(name, in: app)
+        XCTAssertTrue(choice.waitForExistence(timeout: 5), "no \(name) in the card",
                       file: file, line: line)
+        if !choice.isHittable { app.swipeUp() }
         choice.tap()
         XCTAssertTrue(choice.isSelected, "\(name) isn't selected after its tap", file: file, line: line)
     }
@@ -57,7 +63,7 @@ final class AppearanceChoice: XCTestCase {
 
     func testTheChoiceChoosesWhatIsDrawn() {
         let app = launch(["-resetProgress", "1"])
-        XCTAssertTrue(picker(app).buttons["System"].isSelected, "a fresh install isn't on System")
+        XCTAssertTrue(choice("System", in: app).isSelected, "a fresh install isn't on System")
         let phone = pageBrightness(app)
 
         choose("Dark", in: app)
@@ -78,7 +84,28 @@ final class AppearanceChoice: XCTestCase {
         first.terminate()
 
         let again = launch([])
-        XCTAssertTrue(picker(again).buttons["Dark"].isSelected, "Dark wasn't kept")
+        XCTAssertTrue(choice("Dark", in: again).isSelected, "Dark wasn't kept")
         XCTAssertLessThan(pageBrightness(again), 0.25, "the kept Dark didn't draw the page dark")
+    }
+
+    /// At the largest text, each choice grows with its name: at least as tall
+    /// as the Sound switch's row, whose name is set the same size. iOS's
+    /// segmented control, the picker until 12 November 2026, stays its own
+    /// height at every size (Antoine's call that day: a list, with a
+    /// checkmark).
+    func testTheChoicesGrowWithTheLargestText() {
+        let app = launch(["-resetProgress", "1"], size: "UICTContentSizeCategoryAccessibilityXXXL")
+        let sound = app.switches["SettingsSound"]
+        XCTAssertTrue(sound.waitForExistence(timeout: 5), "no Sound switch in Settings")
+        for name in ["System", "Light", "Dark"] {
+            let row = choice(name, in: app)
+            XCTAssertTrue(row.waitForExistence(timeout: 5), "no \(name) in the card")
+            XCTAssertGreaterThanOrEqual(row.frame.height, sound.frame.height,
+                                        "\(name) is \(row.frame.height) points tall at the largest text, " +
+                                        "and the Sound row \(sound.frame.height)")
+        }
+        // Chosen by a tap there too, and the choice moves.
+        choose("Dark", in: app)
+        XCTAssertFalse(choice("System", in: app).isSelected, "System is still selected beside Dark")
     }
 }
