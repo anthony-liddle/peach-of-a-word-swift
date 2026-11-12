@@ -43,3 +43,6 @@ DerivedData/
 # Where ci_scripts/ci_post_clone.sh unpacks its pinned XcodeGen. Written into
 # the repo root because that is the only writable place it can rely on.
 .ci-tools/
+
+# Claude Code worktrees: one per task, removed once its work merges.
+.claude/worktrees/
