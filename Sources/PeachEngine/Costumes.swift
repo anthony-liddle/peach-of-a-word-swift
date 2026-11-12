@@ -248,8 +248,12 @@ extension Costume {
         spoken: "wearing a top hat",
         replacesFace: false,
         parts: [
+            CostumePart("M21.2 20.5 C21.8 16 79.3 24.1 78.6 28.5 C78 33 20.6 24.9 21.2 20.5 Z",
+                        fill: "#8C86AA", stroke: "#8C86AA", strokeWidth: 2.4),
             CostumePart("M21.2 20.5 C21.8 16 79.3 24.1 78.6 28.5 C78 33 20.6 24.9 21.2 20.5 Z", fill: "#2E2A3A"),
             CostumePart("M35 1.7 C35.2 0.2 70.8 5.2 70.6 6.7 L65.8 26.2 L34.2 21.8 Z", fill: "#2E2A3A"),
+            CostumePart("M35.9 14.5 L36 2.8 C36.2 1.3 69.8 6.3 69.6 7.8 L66.7 18.5",
+                        stroke: "#8C86AA", strokeWidth: 1.4),
             CostumePart("M34.5 14.8 L67.4 19.4 L66.1 24.7 L34.4 20.3 Z", fill: "#FFD34D"),
             CostumePart("M36.3 2.9 L35.8 21", stroke: "#6C6588", strokeWidth: 1.6),
             CostumePart("M23.4 19.3 C34.6 18.8 66.3 23.3 76.9 26.8", stroke: "#6C6588", strokeWidth: 1.4),
