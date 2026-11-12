@@ -357,8 +357,8 @@ struct TitlePlayButton: View {
             .padding(.vertical, 6)
             .frame(maxWidth: .infinity)
             .frame(minHeight: height)
-            .background(Capsule().fill(ready ? Cute.accent : Cute.paperDeep))
-            .overlay(Capsule().stroke(ready ? Cute.accent : Cute.rule, lineWidth: 1))
+            .background(Capsule().fill(ready ? Cute.button : Cute.paperDeep))
+            .overlay(Capsule().stroke(ready ? Cute.button : Cute.rule, lineWidth: 1))
         }
         .buttonStyle(PillPressStyle())
         .disabled(!ready)

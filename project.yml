@@ -92,7 +92,12 @@ targets:
         # What the home screen shows. The target is PeachOfAWord for tooling;
         # the human-facing name has the spaces.
         CFBundleDisplayName: Peach of a Word
-        UILaunchScreen: {}
+        # The launch screen is the page's colour in each appearance, so a dark
+        # phone sees no white flash before the game. It follows the phone, not
+        # the game's own setting: iOS draws it before any of the game's code
+        # runs. See `AppearanceSetting`.
+        UILaunchScreen:
+          UIColorName: LaunchBackground
         # Point the plist at the build settings rather than repeating their
         # values. XcodeGen writes literal defaults for both of these, so the
         # settings below and the bundle drift apart silently: bumping
@@ -112,12 +117,10 @@ targets:
         # UserDefaults, and the only cryptography anywhere near it is whatever
         # the OS does underneath, which is exempt by definition.
         ITSAppUsesNonExemptEncryption: false
-        # Light only. Cute draws its own colours and has no dark appearance,
-        # but a system switch, a navigation bar and a page indicator follow the
-        # phone's, and so did the blank launch screen. Settings brings the
-        # first two onto a screen, so the whole app is held light here rather
-        # than view by view.
-        UIUserInterfaceStyle: Light
+        # No UIUserInterfaceStyle: the game follows the phone, light or dark,
+        # unless the player chooses one in Settings (`AppearanceSetting`). It
+        # was held light here until the dark mode build of November 2026, when
+        # every Cute colour got a dark value.
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
         # Every way up on an iPad, where App Review often runs iPhone apps.

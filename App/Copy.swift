@@ -382,6 +382,14 @@ enum Vocabulary {
     /// October 2026. See `SettingsSheet.soundCard`.
     static let soundSwitch = "Sound"
 
+    /// The appearance's name in Settings, and its three choices, in the plain
+    /// words iOS's own Settings uses for the same thing. See
+    /// `AppearanceSetting`.
+    static let appearance = "Appearance"
+    static let appearanceSystem = "System"
+    static let appearanceLight = "Light"
+    static let appearanceDark = "Dark"
+
     /// The daily reminder's switch, under Sound. See `Reminder`.
     static let reminderSwitch = "Daily reminder"
     /// Its time, shown once it is on.

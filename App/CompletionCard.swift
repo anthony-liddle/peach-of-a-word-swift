@@ -80,7 +80,7 @@ struct CompletionCard: View {
                             .foregroundStyle(Cute.paper)
                             .frame(maxWidth: .infinity)
                             .frame(minHeight: 52)
-                            .background(Capsule().fill(Cute.accent))
+                            .background(Capsule().fill(Cute.button))
                     }
                     .buttonStyle(PillPressStyle())
                     .padding(.top, 4)

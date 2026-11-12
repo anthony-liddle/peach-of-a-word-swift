@@ -87,3 +87,4 @@
 4        ArchiveWayOut                      18
 4        MessageLineShove                   10
 4        AStartThatFails                    6
+4        AppearanceChoice                   45

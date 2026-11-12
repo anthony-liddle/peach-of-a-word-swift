@@ -9,7 +9,7 @@ struct CostumeTests {
     /// The SHA-256 of `canonicalCostumeTable()`. The web pins the same value in
     /// `src/ui/costumes.test.ts`, so a costume or a day changed in one app and
     /// not the other fails in the one that was not changed.
-    static let tableSHA256 = "8ca85d325a075be36611aecb411f081b5537a8db053fff8e13ec22a45e5a74d3"
+    static let tableSHA256 = "352148807734e0286fcd82f96e5171d0180116accf68aca2f5d30761e7670f8b"
 
     @Test("every part is absolute M, L, C and Z, and parses", arguments: Costume.allCases)
     func parses(costume: Costume) throws {

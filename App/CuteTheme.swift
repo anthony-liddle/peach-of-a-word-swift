@@ -5,6 +5,11 @@ import UIKit
 /// under `[data-theme='cute']` and expressed in SwiftUI rather than ported as
 /// CSS.
 ///
+/// **Every colour has a dark value, Cocoa, since the dark mode build.** The
+/// game follows the phone, or the player's choice in Settings
+/// (`AppearanceSetting`). Cocoa is the light theme's own ink turned into the
+/// night, measured in the vault's `reports/2026-11-11 Dark Mode.md`.
+///
 /// The hex values are copied exactly. The shapes and shadows are copied in
 /// spirit: a hard offset shadow with no blur, which is what
 /// `0 5px 0 var(--surface-shadow)` produces, reads as the same soft-bubble look
@@ -14,21 +19,21 @@ import UIKit
 /// bundled from the Google Fonts repository under the OFL. See `CuteFont`.
 enum Cute {
     // Surfaces
-    static let paper = Color(hex: 0xFFF4EE)
-    static let paperDeep = Color(hex: 0xFFFFFF)
-    static let paperEdge = Color(hex: 0xFFD9C8)
-    static let rule = Color(hex: 0xFFE0D2)
+    static let paper = Color(light: 0xFFF4EE, dark: 0x2B1A14)
+    static let paperDeep = Color(light: 0xFFFFFF, dark: 0x3B2720)
+    static let paperEdge = Color(light: 0xFFD9C8, dark: 0x5A3D31)
+    static let rule = Color(light: 0xFFE0D2, dark: 0x4A3229, darkHigh: 0x7A5747)
 
     // Ink
-    static let ink = Color(hex: 0x6B4636)       // warm cocoa, 6.9:1 on the bg
-    static let inkSoft = Color(hex: 0x6F5142)   // 6:1
-    static let inkFaint = Color(hex: 0x7E5C4A)  // 5:1
+    static let ink = Color(light: 0x6B4636, dark: 0xFFEADF, darkHigh: 0xFFF6F0)       // warm cocoa, 6.9:1 on the bg
+    static let inkSoft = Color(light: 0x6F5142, dark: 0xF0CFBF, darkHigh: 0xFBE3D7)   // 6:1
+    static let inkFaint = Color(light: 0x7E5C4A, dark: 0xD9B3A1, darkHigh: 0xF1D1C2)  // 5:1
 
     // Accents
-    static let accent = Color(hex: 0xC42E60)      // candy pink
-    static let accentDeep = Color(hex: 0xA8264F)
-    static let crown = Color(hex: 0xFF9E58)       // peach
-    static let discovery = Color(hex: 0x6E4FB8)   // the rarity ladder purple
+    static let accent = Color(light: 0xC42E60, dark: 0xFF8BAE, darkHigh: 0xFFA9C3)      // candy pink
+    static let accentDeep = Color(light: 0xA8264F, dark: 0xFF6F99, darkHigh: 0xFF93B4)
+    static let crown = Color(light: 0xFF9E58, dark: 0xFF9E58)       // peach
+    static let discovery = Color(light: 0x6E4FB8, dark: 0xC4B0FF, darkHigh: 0xD6C8FF)   // the rarity ladder purple
 
     /// The source word as *text*, which is not the same value as the peach.
     ///
@@ -41,7 +46,7 @@ enum Cute {
     /// The distinction is invisible in a screenshot and obvious in a
     /// stylesheet, which is why matching the web by eye would have shipped the
     /// fill.
-    static let crownDeep = Color(hex: 0xA0531A)   // source-word text, 4.7:1
+    static let crownDeep = Color(light: 0xA0531A, dark: 0xFFB47E, darkHigh: 0xFFC79C)   // source-word text, 4.7:1
 
     /// A finished day on the calendar: the pink at 0.32 over the paper, held as
     /// a solid.
@@ -50,21 +55,30 @@ enum Cute {
     /// draws it over flat paper, but the title's week strip draws it over the
     /// page's gradient, and at the foot `ink` on it fell to 4.33:1. Solid, it is
     /// the colour Past days always rendered, and `ink` reads on it at 4.68:1
-    /// wherever the cell sits (`LightContrastTests`).
-    static let finishedDay = Color(hex: 0xECB5C1)
+    /// wherever the cell sits (`LightContrastTests`). Dark's is the same blend,
+    /// Cocoa's pink over Cocoa's page, and Increase Contrast's its own pink's.
+    static let finishedDay = Color(light: 0xECB5C1, dark: 0x6F3E45, darkHigh: 0x6F484C)
+
+    /// The big pink buttons' fill: Play, Pick word, and the way out of every
+    /// card and sheet. The pink today, but its own token: on a dark page these
+    /// are the brightest thing on screen, and if they glare first thing in the
+    /// morning they tone down here, in one place, without moving the pink in
+    /// text, the heart or the meter. `AppearanceContrastTests` holds every
+    /// button to it.
+    static let button = Color(light: 0xC42E60, dark: 0xFF8BAE, darkHigh: 0xFFA9C3)
 
     // Tiles
-    static let tileFace = Color(hex: 0xFFFFFF)
-    static let tileEdge = Color(hex: 0xFFD9C8)
-    static let surfaceShadow = Color(hex: 0xFFC9B4)
+    static let tileFace = Color(light: 0xFFFFFF, dark: 0x3B2720)
+    static let tileEdge = Color(light: 0xFFD9C8, dark: 0x5A3D31, darkHigh: 0xA27A68)
+    static let surfaceShadow = Color(light: 0xFFC9B4, dark: 0x150C08)
 
     /// `--page-bg: linear-gradient(180deg, #fff4ee, #ffe6dc)`
     /// The foot of the page gradient, for anything pinned to the bottom edge
     /// that must sit on the page rather than on a band of its own.
-    static let pageFoot = Color(hex: 0xFFE6DC)
+    static let pageFoot = Color(light: 0xFFE6DC, dark: 0x22140F)
 
     static let pageBackground = LinearGradient(
-        colors: [Color(hex: 0xFFF4EE), pageFoot],
+        colors: [paper, pageFoot],
         startPoint: .top,
         endPoint: .bottom
     )
@@ -154,6 +168,37 @@ enum CuteFont {
 }
 
 extension Color {
+    /// A colour in each appearance: light, dark, and dark with Increase
+    /// Contrast on, which is `dark` unless the dark mode report measured a
+    /// reason to move it.
+    ///
+    /// **Resolved by UIKit, per view, from its traits,** so a sheet, the Safari
+    /// page and the status bar all follow the same appearance the page does,
+    /// and nothing holds a colour from before the appearance changed. Light has
+    /// no Increase Contrast value of its own: the light theme already reads at
+    /// 4.5:1 everywhere, and its Increase Contrast pass is a later one.
+    ///
+    /// Written as literals in this one form so `AppearanceContrastTests` can
+    /// read every value from the source, as the web's `indexCss.test.ts`
+    /// reads its stylesheet. The values are the dark mode report's Cocoa,
+    /// from its `palettes.json`, not picked here.
+    init(light: UInt32, dark: UInt32, darkHigh: UInt32? = nil) {
+        self.init(uiColor: UIColor { traits in
+            let hex: UInt32
+            if traits.userInterfaceStyle == .dark {
+                hex = traits.accessibilityContrast == .high ? (darkHigh ?? dark) : dark
+            } else {
+                hex = light
+            }
+            return UIColor(
+                red: CGFloat((hex >> 16) & 0xFF) / 255,
+                green: CGFloat((hex >> 8) & 0xFF) / 255,
+                blue: CGFloat(hex & 0xFF) / 255,
+                alpha: 1
+            )
+        })
+    }
+
     /// Build a Color from a 24-bit RGB literal, so the CSS hex values can be
     /// copied across unchanged and stay greppable against `src/index.css`.
     init(hex: UInt32) {
