@@ -2,7 +2,8 @@ import PeachEngine
 import SwiftUI
 
 /// Settings, a sheet from the title screen: the sound switch, the daily
-/// reminder, How the words work, Licences, and the privacy policy.
+/// reminder, the appearance, How the words work, Licences, and the privacy
+/// policy.
 ///
 /// **A short list,** as the design pass mocked and Antoine chose: the switch on
 /// top, and three rows that open what they name.
@@ -116,25 +117,53 @@ struct SettingsSheet: View {
         .accessibilityIdentifier("SettingsSoundCard")
     }
 
-    /// Appearance: System, which follows the phone, Light or Dark, as a
-    /// segmented control under its name, the way iOS offers a short choice.
-    /// VoiceOver hears "Appearance" and each choice, selected or not. It takes
-    /// effect at once, on this sheet too. See `AppearanceSetting`.
+    /// Appearance: System, which follows the phone, Light or Dark, as three
+    /// rows under its name, with a checkmark on the chosen one, the way iOS's
+    /// own Settings lists a short choice. Each row grows with the text, to the
+    /// largest size. It was a segmented control until 12 November 2026, which
+    /// stays its own height at every size; Antoine chose the list that day.
+    ///
+    /// VoiceOver hears "Appearance" as a heading, then each choice as a
+    /// button, selected or not; the checkmark is the picture of that, and
+    /// silent. It takes effect at once, on this sheet too. See
+    /// `AppearanceSetting`.
     private var appearanceCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 0) {
             Text(Vocabulary.appearance)
                 .font(CuteFont.body(17, weight: "SemiBold", relativeTo: .body))
                 .foregroundStyle(Cute.ink)
-                .accessibilityHidden(true)
-            Picker(Vocabulary.appearance, selection: $appearance) {
-                ForEach(AppearanceSetting.allCases) { choice in
-                    Text(choice.title).tag(choice)
+                .accessibilityAddTraits(.isHeader)
+                .padding(.horizontal, 18)
+                .padding(.top, 18)
+                .padding(.bottom, 14)
+            // A rule above every choice, the first too, so the name reads as
+            // the card's, not as a fourth row.
+            ForEach(AppearanceSetting.allCases) { choice in
+                divider
+                Button { appearance = choice } label: {
+                    HStack(spacing: 12) {
+                        Text(choice.title)
+                            .font(CuteFont.body(17, relativeTo: .body))
+                            .foregroundStyle(Cute.ink)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Spacer(minLength: 8)
+                        Image(systemName: "checkmark")
+                            .font(.body.weight(.semibold))
+                            .foregroundStyle(Cute.accentDeep)
+                            .opacity(appearance == choice ? 1 : 0)
+                            .accessibilityHidden(true)
+                    }
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 12)
+                    .frame(minHeight: 52)
+                    .contentShape(Rectangle())
                 }
+                .buttonStyle(.plain)
+                .accessibilityLabel(choice.title)
+                .accessibilityAddTraits(appearance == choice ? .isSelected : [])
             }
-            .pickerStyle(.segmented)
-            .accessibilityIdentifier("SettingsAppearance")
         }
-        .padding(18)
+        .padding(.bottom, 6)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(card.fill(Cute.paperDeep))
         .overlay(card.stroke(Cute.tileEdge, lineWidth: 1))
