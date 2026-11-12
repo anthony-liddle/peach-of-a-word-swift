@@ -71,9 +71,11 @@ struct CrownTests {
     func colour() throws {
         let theme = Self.appSource("CuteTheme.swift")
         try #require(!theme.isEmpty, "CuteTheme.swift was not found")
-        let line = #/static let crown = Color\(hex: 0x([0-9A-Fa-f]{6})\)/#
-        let hex = try #require(theme.firstMatch(of: line), "no Cute.crown").output.1
-        #expect("#" + hex.uppercased() == CompletionCrown.fill)
+        // The same peach in both appearances: the crown doesn't change in dark.
+        let line = #/static let crown = Color\(light: 0x([0-9A-Fa-f]{6}), dark: 0x([0-9A-Fa-f]{6})\)/#
+        let match = try #require(theme.firstMatch(of: line), "no Cute.crown").output
+        #expect("#" + match.1.uppercased() == CompletionCrown.fill)
+        #expect("#" + match.2.uppercased() == CompletionCrown.fill)
     }
 
     @Test("the card draws the table's outline, where the table places it")

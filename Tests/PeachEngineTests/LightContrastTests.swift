@@ -30,10 +30,10 @@ struct LightContrastTests {
         return ""
     }
 
-    /// Every `Cute` colour written as `static let name = Color(hex: 0x…)`.
+    /// Every `Cute` colour's light value, written `static let name = Color(light: 0x…, …)`.
     private static let palette: [String: UInt32] = {
         var out: [String: UInt32] = [:]
-        let line = #/static let (\w+) = Color\(hex: 0x([0-9A-Fa-f]{6})\)/#
+        let line = #/static let (\w+) = Color\(light: 0x([0-9A-Fa-f]{6})/#
         for match in appSource("CuteTheme.swift").matches(of: line) {
             out[String(match.output.1)] = UInt32(match.output.2, radix: 16)
         }
