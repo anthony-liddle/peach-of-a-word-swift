@@ -43,6 +43,16 @@ enum Cute {
     /// fill.
     static let crownDeep = Color(hex: 0xA0531A)   // source-word text, 4.7:1
 
+    /// A finished day on the calendar: the pink at 0.32 over the paper, held as
+    /// a solid.
+    ///
+    /// As a 0.32 wash it took its colour from whatever was behind it. Past days
+    /// draws it over flat paper, but the title's week strip draws it over the
+    /// page's gradient, and at the foot `ink` on it fell to 4.33:1. Solid, it is
+    /// the colour Past days always rendered, and `ink` reads on it at 4.68:1
+    /// wherever the cell sits (`LightContrastTests`).
+    static let finishedDay = Color(hex: 0xECB5C1)
+
     // Tiles
     static let tileFace = Color(hex: 0xFFFFFF)
     static let tileEdge = Color(hex: 0xFFD9C8)

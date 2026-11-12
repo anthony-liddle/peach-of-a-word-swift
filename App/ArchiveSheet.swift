@@ -1066,7 +1066,7 @@ struct ArchiveCellFace: View {
         switch mark {
         case .notYet, .noRecord: .clear
         case .incomplete: Cute.paperEdge
-        case .cleared: Cute.accent.opacity(0.32)
+        case .cleared: Cute.finishedDay
         case .basket: Cute.accent
         }
     }
