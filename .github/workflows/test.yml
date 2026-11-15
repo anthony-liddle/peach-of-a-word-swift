@@ -375,9 +375,16 @@ jobs:
   #
   # `fail-fast: false`, so one shard failing does not cancel the others and
   # their results still say what passed.
+  #
+  # **An hour, then the shard fails.** On 15 November 2026 xcodebuild hung on
+  # `main` while closing the app to relaunch it, and printed nothing more.
+  # With no limit, GitHub's default would have held that runner for six
+  # hours. The longest passing shard in the 30 green runs before it took 47.8
+  # minutes. The result bundle is still kept, since that step runs always.
   ui-shard:
     needs: [plan, ui-build]
     runs-on: macos-26
+    timeout-minutes: 60
     name: ui-shard-${{ matrix.shard }}
     strategy:
       fail-fast: false

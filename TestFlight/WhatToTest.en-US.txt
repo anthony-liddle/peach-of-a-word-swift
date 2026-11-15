@@ -1,1 +1,1 @@
-Version 1.1. The game is the same as in the last build.
+Nothing in the game has changed since the last build. Only the checks that run before each build are different.
