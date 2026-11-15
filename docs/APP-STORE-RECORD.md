@@ -88,6 +88,19 @@ App Store Connect will not accept it. Distribution runs through Xcode Cloud,
 which carries its own signing, and that is the only path a build reaches
 TestFlight by.
 
+### The version: 1.1 since 1.0 was approved
+
+**1.0 was approved on 2026-11-15, as build 1.0 (84).** Once a version is
+approved, App Store Connect refuses any new build that carries it, so with
+`MARKETING_VERSION` still at 1.0 every Xcode Cloud upload would fail, and
+TestFlight builds would stop with it. `project.yml` says 1.1 from that day.
+
+**1.1, not 1.0.1,** because the update after 1.0 adds features (Antoine,
+2026-11-15). The version has two parts, as 1.0 did.
+
+`MARKETING_VERSION` is the only place the version is written. `App/Info.plist`
+and the generated project read it, and no test pins it.
+
 ## Age rating: 13+
 
 Apple replaced the old tiers in 2025. 12+ and 17+ are gone, replaced by 13+,
