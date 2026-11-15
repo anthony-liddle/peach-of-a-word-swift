@@ -1320,12 +1320,9 @@ final class GameModel {
         // which is the whole reason the zero-find case was conceded.
         guard !found.isEmpty else { return }
 
-        let reached = rungReached(standing)
-
-        if let existing = storage.outcome(dayIndex: day), existing.reached >= reached { return }
-        storage.recordOutcome(
-            dayIndex: day, DayOutcome(reached: reached, on: today, fromStreak: false)
-        )
+        // Raise only, by the engine's rule, which the import from the web
+        // shares, so the two can't drift.
+        storage.raiseOutcome(dayIndex: day, reached: rungReached(standing), on: today)
     }
 
     /// Take a streak handed over by the web build, if the accept rule allows it.

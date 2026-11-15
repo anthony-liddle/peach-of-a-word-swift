@@ -1050,10 +1050,11 @@ extension GameStorage {
         // Both stores. The play record used to live entirely in the daily blob;
         // now everything older than the board in play is under `archiveKey`.
         let dayProgress = allDayProgress()
+        // The same days the import fills for a web run (`DaysImport.swift`).
         var run: ClosedRange<Int>?
-        if streak.count > 0, let last = streak.lastClearedDayIndex {
-            let firstOfRun = max(firstPlayableDayIndex, last - streak.count + 1)
-            if firstOfRun <= last { run = firstOfRun...last }
+        if let last = streak.lastClearedDayIndex {
+            run = Self.run(count: streak.count, lastClearedDayIndex: last,
+                           firstPlayableDayIndex: firstPlayableDayIndex, todayIndex: last)
         }
 
         var counts = BackFillCounts(fromPlay: 0, fromStreak: 0)
