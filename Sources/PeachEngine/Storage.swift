@@ -145,7 +145,7 @@ public final class GameStorage {
 
     // MARK: Reading and writing
 
-    private func read() -> PersistedState {
+    func read() -> PersistedState {
         guard let data = store.data(forKey: Self.storageKey) else { return .empty }
         do {
             let decoded = try JSONDecoder().decode(PersistedState.self, from: data)
@@ -171,7 +171,7 @@ public final class GameStorage {
     /// only the board in play here, and `retirePastDays` moves a day out as soon
     /// as it stops being that board, so `days` holds one entry, or two while a
     /// board is in flight across midnight.
-    private func write(_ state: PersistedState) {
+    func write(_ state: PersistedState) {
         var state = state
         state.version = PersistedState.currentVersion
         guard let data = try? JSONEncoder().encode(state) else { return }
@@ -709,14 +709,14 @@ extension GameStorage {
     /// understand.
     static let outcomesKey = "peach-of-a-word/outcomes/v1"
 
-    private func readOutcomes() -> OutcomeState {
+    func readOutcomes() -> OutcomeState {
         guard let data = store.data(forKey: Self.outcomesKey) else { return .empty }
         // Corrupt or truncated costs the outcomes and nothing else. The streak
         // lives under a different key and is not in reach of this failure.
         return (try? JSONDecoder().decode(OutcomeState.self, from: data)) ?? .empty
     }
 
-    private func writeOutcomes(_ state: OutcomeState) {
+    func writeOutcomes(_ state: OutcomeState) {
         var state = state
         state.version = OutcomeState.currentVersion
         guard let data = try? JSONEncoder().encode(state) else { return }
