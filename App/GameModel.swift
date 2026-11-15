@@ -1353,6 +1353,77 @@ final class GameModel {
         return took
     }
 
+    // MARK: Days from the web
+
+    /// What a pasted text would bring, or nil when it isn't days copied from
+    /// the web's transfer page. Writes nothing: the question reads this.
+    ///
+    /// **Waits for the word lists and the one-time back-fill first** (rule 10):
+    /// the calendar gives each day's crown, and the back-fill writes the
+    /// floors an import must not get ahead of. `.ready` comes after both.
+    func planDaysImport(_ text: String) async -> DaysImportPlan? {
+        while case .loading = phase {
+            try? await Task.sleep(for: .milliseconds(100))
+        }
+        guard case .ready = phase, let lexicon, let transfer = DaysTransfer(text: text) else {
+            return nil
+        }
+        let first = Self.firstPlayableStorageIndex
+        return storage.planImport(
+            transfer, todayIndex: Self.todayStorageIndex, firstPlayableDayIndex: first
+        ) { day in
+            PeachEngine.sourceWord(calendar: lexicon.calendar, dailyIndex: day - first)
+        }
+    }
+
+    /// Bring the planned days in, then read the board on screen again.
+    ///
+    /// **The board is reloaded before anything can save over it** (rule 1). The
+    /// model holds the day's words in memory and the next find saves that list,
+    /// so a merge into the stored words while the board still held the old
+    /// list would be erased by one more word. Settings is a sheet over the
+    /// board, so no find can land while this runs, and the reload happens
+    /// before the sheet can close.
+    func importDays(_ plan: DaysImportPlan) async -> DaysImportResult? {
+        guard case .ready = phase, let lexicon else { return nil }
+        let puzzles = await Self.buildPuzzles(storageDays: plan.days.keys.sorted(), lexicon: lexicon)
+        let result = storage.applyImport(
+            plan, todayIndex: Self.todayStorageIndex,
+            firstPlayableDayIndex: Self.firstPlayableStorageIndex, puzzles: puzzles
+        )
+        if let puzzle, let day = storageDayIndex {
+            adopt(puzzle, storageDay: day, isArchive: isArchiveBoard)
+        }
+        return result
+    }
+
+    #if DEBUG
+    /// A days payload made from this app's own calendar, for the UI test
+    /// `-pasteDays sample`: today and the two days before, each with its crown
+    /// found, and a streak of three ending today. It goes through the same
+    /// parse, question and import as a paste.
+    func sampleDaysPayload() -> String? {
+        guard let lexicon else { return nil }
+        let today = Self.todayStorageIndex
+        let first = Self.firstPlayableStorageIndex
+        var days: [String: Any] = [:]
+        for day in (today - 2)...today {
+            guard let crown = PeachEngine.sourceWord(calendar: lexicon.calendar, dailyIndex: day - first)
+            else { return nil }
+            days[String(day)] = ["sourceWord": crown, "found": [crown]]
+        }
+        let body: [String: Any] = [
+            "v": 1, "streak": ["count": 3, "lastClearedDayIndex": today], "days": days,
+        ]
+        guard let data = try? JSONSerialization.data(withJSONObject: body) else { return nil }
+        let base64url = data.base64EncodedString()
+            .replacingOccurrences(of: "+", with: "-")
+            .replacingOccurrences(of: "/", with: "_")
+            .replacingOccurrences(of: "=", with: "")
+        return "Peach of a Word days: " + base64url
+    }
+    #endif
+
     // MARK: The archive
 
     /// Expand a transferred streak run into per-day outcomes. Once.
@@ -1403,25 +1474,7 @@ final class GameModel {
         // it was always going to do for days with no words at all. Days after
         // today are left out; see `backFillWalkDays`.
         let days = storage.backFillWalkDays(todayIndex: Self.todayStorageIndex)
-        var puzzles: [Int: Puzzle] = [:]
-        await withTaskGroup(of: (Int, Puzzle?).self) { group in
-            var next = 0
-            func submit() {
-                guard next < days.count else { return }
-                let day = days[next]
-                next += 1
-                let daily = day - Self.firstPlayableStorageIndex
-                guard daily >= 0 else { return submit() }
-                group.addTask {
-                    (day, await Self.buildPuzzle(dailyIndex: daily, lexicon: lexicon))
-                }
-            }
-            for _ in 0..<min(4, days.count) { submit() }
-            while let (day, puzzle) = await group.next() {
-                if let puzzle { puzzles[day] = puzzle }
-                submit()
-            }
-        }
+        let puzzles = await Self.buildPuzzles(storageDays: days, lexicon: lexicon)
 
         return storage.backFillOutcomes(
             firstPlayableDayIndex: Self.firstPlayableStorageIndex
@@ -1960,6 +2013,32 @@ extension GameModel {
                 return .failure(error)
             }
         }.value
+    }
+
+    /// Build the boards for some storage days, four at a time, off the main
+    /// actor. A day before the first board, or one the calendar can't give,
+    /// has none. The back-fill's builder and the import's.
+    nonisolated static func buildPuzzles(storageDays days: [Int], lexicon: Lexicon) async -> [Int: Puzzle] {
+        var puzzles: [Int: Puzzle] = [:]
+        await withTaskGroup(of: (Int, Puzzle?).self) { group in
+            var next = 0
+            func submit() {
+                guard next < days.count else { return }
+                let day = days[next]
+                next += 1
+                let daily = day - firstPlayableStorageIndex
+                guard daily >= 0 else { return submit() }
+                group.addTask {
+                    (day, await buildPuzzle(dailyIndex: daily, lexicon: lexicon))
+                }
+            }
+            for _ in 0..<min(4, days.count) { submit() }
+            while let (day, puzzle) = await group.next() {
+                if let puzzle { puzzles[day] = puzzle }
+                submit()
+            }
+        }
+        return puzzles
     }
 
     /// Build the board for a position in the daily sequence.

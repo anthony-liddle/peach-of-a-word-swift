@@ -32,6 +32,7 @@ CostumeOnTheDay               Halloween's board replayed from the calendar, and 
 CueAtEachMoment               today's source word inside its basket, for which cue a find asks
 DailyReminder                 17 July's word, courtesy, typed to play the day
 DayRollsOverOnForeground      today's and tomorrow's source words, which must differ
+DaysFromTheWeb                three days' crowns from the calendar, for the sample paste
 DefinitionCardExits           the first chip's definition, whose length decides drag or scroll
 DefinitionReveal              Uncommon, Rare and source chips on today's board, and Rare definitions
 FirstFindShove                a word learned from today's board, and the list after it

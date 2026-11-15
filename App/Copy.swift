@@ -416,6 +416,80 @@ enum Vocabulary {
     /// from the game's own site.
     static let privacyHint = "Opens the policy from the game's website"
 
+    // MARK: - Days from the web
+
+    /// The Settings card that takes days pasted from the web's transfer page,
+    /// its question and its one message after. **Proposals,** each waiting for
+    /// Antoine's line in `Game Copy.md`. The button itself is iOS's own Paste,
+    /// whose label the system sets, so the card's line says what to paste.
+    static let daysTitle = "Days from the web"
+    static let daysNote = "Played at peachofaword.com? Copy your days at "
+        + "peachofaword.com/transfer, in the browser you play in, then paste them here."
+    static let daysNotACopy = "That isn't a copy of your days. Copy them again at "
+        + "peachofaword.com/transfer, then paste."
+    static let daysNothing = "There's nothing in that copy to bring."
+    static let daysQuestionDetail = "Words you found here stay, and the web's are added to them."
+    static let daysBring = "Bring"
+    static let daysNotNow = "Not now"
+    static let daysBringing = "Bringing your days across"
+
+    /// "Bring 14 days from the web?", or the streak alone when no day's words
+    /// can come.
+    static func daysQuestion(_ plan: DaysImportPlan) -> String {
+        switch plan.days.count {
+        case 0: "Bring your streak from the web?"
+        case 1: "Bring 1 day from the web?"
+        case let n: "Bring \(n) days from the web?"
+        }
+    }
+
+    /// The one message after an import: what came across, the streak, and what
+    /// stayed behind and why. Counts only what changed, so a second paste of
+    /// the same days says nothing came across.
+    ///
+    /// - Parameter webStreakGoing: whether the paste carried a streak still
+    ///   going, which is the only kind the app takes. Ended runs fill days and
+    ///   say nothing about the streak.
+    static func daysResult(_ r: DaysImportResult, webStreakGoing: Bool) -> String {
+        func n(_ count: Int, _ one: String, _ many: String) -> String {
+            count == 1 ? "1 \(one)" : "\(count) \(many)"
+        }
+        var lines: [String] = []
+        if r.cameAcross == 0 {
+            lines.append("Nothing new came across.")
+        } else {
+            lines.append("\(n(r.cameAcross, "day", "days")) came across.")
+            let finished = r.finished > 0
+                ? (r.finished == 1 ? "1 is finished" : "\(r.finished) are finished") : nil
+            let peaches = r.peaches > 0
+                ? (r.peaches == 1 ? "1 has its peach" : "\(r.peaches) have their peach") : nil
+            switch (finished, peaches) {
+            case let (f?, p?): lines.append("\(f), and \(p).")
+            case let (f?, nil): lines.append("\(f).")
+            case let (nil, p?): lines.append("\(p).")
+            case (nil, nil): break
+            }
+        }
+        if r.streakTaken {
+            lines.append("Your streak is \(r.streak).")
+        } else if webStreakGoing {
+            lines.append("Your streak here was already as long, so it stays.")
+        }
+        if r.differentWord > 0 {
+            lines.append("\(n(r.differentWord, "day", "days")) had a different word here, "
+                + "so \(r.differentWord == 1 ? "it stays" : "they stay") on the web.")
+        }
+        if r.tomorrow > 0 {
+            lines.append("\(r.tomorrow == 1 ? "1 day is" : "\(r.tomorrow) days are") still "
+                + "tomorrow here. Paste again tomorrow to bring \(r.tomorrow == 1 ? "it" : "them").")
+        }
+        if r.unknownWords > 0 {
+            lines.append("\(r.unknownWords == 1 ? "1 word isn't" : "\(r.unknownWords) words aren't") "
+                + "in the app's word lists.")
+        }
+        return lines.joined(separator: " ")
+    }
+
     /// The Licences list's entries: a title, and a sentence on what each
     /// covers, which heads its page too.
     ///
