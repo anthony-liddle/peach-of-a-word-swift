@@ -1,1 +1,1 @@
-Version 1.2. Settings has a new section for transferring days from the website. It won't do anything until the website's side is ready.
+Nothing in the game has changed since the last build. Some of the checks that run before each build are new.
