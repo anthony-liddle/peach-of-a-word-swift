@@ -88,6 +88,17 @@ App Store Connect will not accept it. Distribution runs through Xcode Cloud,
 which carries its own signing, and that is the only path a build reaches
 TestFlight by.
 
+### The version: 1.2 since 1.1 was approved
+
+**1.1 was approved and released on 2026-11-16, as build 1.1 (110),** live at
+17:46 UTC by Apple's lookup data. Xcode Cloud's next build, 113, of #138's
+merge at 17:58, failed at Archive: "Preparing build for App Store Connect
+failed", the refusal of a build that carries an approved version. So
+`project.yml` says 1.2 from that day, as it said 1.1 the day 1.0 was approved.
+
+**1.2 is the update that brings a web player's days into the app** (#139 and
+#140), with the website's side going live once 1.2 is on the App Store.
+
 ### The version: 1.1 since 1.0 was approved
 
 **1.0 was approved on 2026-11-15, as build 1.0 (84).** Once a version is
