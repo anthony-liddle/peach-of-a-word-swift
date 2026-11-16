@@ -441,7 +441,16 @@ struct ContentView: View {
         // are pages of text and medium would open on a fragment.
         .sheet(isPresented: $settingsShown) {
             SettingsSheet(onSound: { model.soundSwitched(on: $0) },
-                          onClose: { settingsShown = false })
+                          onClose: { settingsShown = false },
+                          onPlanDays: { await model.planDaysImport($0) },
+                          onBringDays: { await model.importDays($0) },
+                          sampleDays: {
+                              #if DEBUG
+                              model.sampleDaysPayload()
+                              #else
+                              nil
+                              #endif
+                          })
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
         }

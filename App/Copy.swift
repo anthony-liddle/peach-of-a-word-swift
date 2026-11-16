@@ -416,6 +416,81 @@ enum Vocabulary {
     /// from the game's own site.
     static let privacyHint = "Opens the policy from the game's website"
 
+    // MARK: - Days from the web
+
+    /// The Settings section that takes days pasted from the web's transfer
+    /// page, its question and its one message after. Antoine's, approved in
+    /// `Game Copy.md` on 16 November 2026. The button itself is iOS's own
+    /// Paste, whose label the system sets, so the line says what to paste.
+    static let daysTitle = "Transfer from the website"
+    static let daysNote = "If you play at peachofaword.com, open peachofaword.com/transfer "
+        + "in the same browser, copy your days, and paste them here."
+    static let daysNotACopy = "That isn't your days. Copy them again at peachofaword.com/transfer."
+    static let daysNothing = "There's nothing in that copy to transfer."
+    static let daysQuestionDetail = "Nothing in the app is replaced. Words you found on the website are added."
+    static let daysBring = "Transfer"
+    static let daysNotNow = "Not now"
+    static let daysBringing = "Transferring your days"
+
+    /// "Transfer 14 days from the website?", or, when no day's words can come,
+    /// the streak if it's still going, or its days as finished if it has
+    /// ended, since an ended run fills its days and doesn't become the streak.
+    static func daysQuestion(_ plan: DaysImportPlan, streakGoing: Bool) -> String {
+        switch plan.days.count {
+        case 0 where streakGoing: "Transfer your streak from the website?"
+        case 0: "Transfer your finished days from the website?"
+        case 1: "Transfer 1 day from the website?"
+        case let n: "Transfer \(n) days from the website?"
+        }
+    }
+
+    /// The one message after a transfer: what came across, the streak, and
+    /// what stayed behind and why. Counts only what changed, so a second paste
+    /// of the same days says there's nothing new.
+    ///
+    /// - Parameter webStreakGoing: whether the paste carried a streak still
+    ///   going, which is the only kind the app takes. Ended runs fill days and
+    ///   say nothing about the streak.
+    static func daysResult(_ r: DaysImportResult, webStreakGoing: Bool) -> String {
+        var lines: [String] = []
+        if r.cameAcross == 0 {
+            lines.append("Nothing new to transfer.")
+        } else {
+            lines.append(r.cameAcross == 1 ? "1 day transferred." : "\(r.cameAcross) days transferred.")
+            let finished = r.finished > 0
+                ? (r.finished == 1 ? "1 is finished" : "\(r.finished) are finished") : nil
+            let peaches = r.peaches > 0
+                ? (r.peaches == 1 ? "1 has its peach" : "\(r.peaches) have their peach") : nil
+            switch (finished, peaches) {
+            case let (f?, p?): lines.append("\(f), and \(p).")
+            case let (f?, nil): lines.append("\(f).")
+            case let (nil, p?): lines.append("\(p).")
+            case (nil, nil): break
+            }
+        }
+        if r.streakTaken {
+            lines.append("Your streak is \(r.streak).")
+        } else if webStreakGoing {
+            lines.append("The app's streak was already as long, so it stays.")
+        }
+        if r.differentWord > 0 {
+            lines.append(r.differentWord == 1
+                ? "1 day had a different word in the app, so it wasn't transferred."
+                : "\(r.differentWord) days had a different word in the app, so they weren't transferred.")
+        }
+        if r.tomorrow > 0 {
+            lines.append(r.tomorrow == 1
+                ? "1 day hasn't started here yet. Paste again tomorrow to transfer it."
+                : "\(r.tomorrow) days haven't started here yet. Paste again tomorrow to transfer them.")
+        }
+        if r.unknownWords > 0 {
+            lines.append(r.unknownWords == 1
+                ? "1 word isn't in the app's word lists, so it was left out."
+                : "\(r.unknownWords) words aren't in the app's word lists, so they were left out.")
+        }
+        return lines.joined(separator: " ")
+    }
+
     /// The Licences list's entries: a title, and a sentence on what each
     /// covers, which heads its page too.
     ///

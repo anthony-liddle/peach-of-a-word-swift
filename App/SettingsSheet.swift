@@ -15,12 +15,24 @@ struct SettingsSheet: View {
     /// The switch, turned: the game stops or starts the player.
     let onSound: (Bool) -> Void
     let onClose: () -> Void
+    /// A pasted text's plan, or nil when it isn't days from the web.
+    var onPlanDays: (String) async -> DaysImportPlan? = { _ in nil }
+    /// Bring the planned days in. Nil when the game isn't ready to.
+    var onBringDays: (DaysImportPlan) async -> DaysImportResult? = { _ in nil }
+    /// The UI test's payload from the app's own calendar, `-pasteDays sample`.
+    var sampleDays: () -> String? = { nil }
 
     /// On by default; a mute is remembered (D5). `@AppStorage`'s default
     /// covers a phone that has never written the key. See `SoundSetting`.
     @AppStorage(SoundSetting.key) private var soundOn = true
     @AppStorage(AppearanceSetting.key) private var appearance: AppearanceSetting = .system
     @State private var explaining = false
+    /// Days from the web: the plan the question asks about, whether it's
+    /// asking, whether the import is running, and its one message after.
+    @State private var daysPlan: DaysImportPlan?
+    @State private var daysAsking = false
+    @State private var daysBringing = false
+    @State private var daysMessage: String?
     private var reminder: Reminder { .shared }
 
     /// The pages pushed onto the list: Licences, then an entry's page, and from
@@ -59,6 +71,7 @@ struct SettingsSheet: View {
                             reminderCard
                             appearanceCard
                             rows
+                            daysCard
                         }
                         .padding(.horizontal, 22)
                         .padding(.vertical, 24)
@@ -66,6 +79,9 @@ struct SettingsSheet: View {
                     }
                     .scrollBounceBehavior(.basedOnSize)
                     SheetCloseButton(action: onClose)
+                        // Not while days come across: the board reloads before
+                        // the sheet can close, so no find saves over them.
+                        .disabled(daysBringing)
                 }
             }
             .toolbar(.hidden, for: .navigationBar)
@@ -73,6 +89,15 @@ struct SettingsSheet: View {
             .navigationDestination(for: Licences.Page.self) { LicenceTextPage(page: $0) }
         }
         .tint(Cute.accentDeep)
+        .interactiveDismissDisabled(daysBringing)
+        .alert(daysPlan.map { Vocabulary.daysQuestion($0, streakGoing: streakGoing($0)) } ?? "",
+               isPresented: $daysAsking,
+               presenting: daysPlan) { plan in
+            Button(Vocabulary.daysBring) { Task { await bring(plan) } }
+            Button(Vocabulary.daysNotNow, role: .cancel) { daysPlan = nil }
+        } message: { _ in
+            Text(Vocabulary.daysQuestionDetail)
+        }
         .onChange(of: soundOn) { onSound(soundOn) }
         .onChange(of: appearance) { AppearanceSetting.apply(appearance) }
         .sheet(isPresented: $explaining) {
@@ -85,6 +110,14 @@ struct SettingsSheet: View {
         // `-openPrivacy 1` the policy, for tests and pictures: simctl cannot
         // tap. The explainer's hook was the colophon's, and moved with the way
         // in; both need `-openSettings 1`.
+        // `-pasteDays sample` pastes a payload the app makes from its own
+        // calendar, and `-pasteDays <text>` that text, as if from the
+        // clipboard. Everything after the paste is the real path.
+        .task {
+            guard let pasted = UserDefaults.standard.string(forKey: "pasteDays") else { return }
+            try? await Task.sleep(for: .seconds(1))
+            await paste(pasted == "sample" ? sampleDays() ?? "" : pasted)
+        }
         .task {
             let defaults = UserDefaults.standard
             guard defaults.bool(forKey: "openExplainer") || defaults.bool(forKey: "openPrivacy") else { return }
@@ -246,6 +279,92 @@ struct SettingsSheet: View {
         }
         .background(card.fill(Cute.paperDeep))
         .overlay(card.stroke(Cute.tileEdge, lineWidth: 1))
+    }
+
+    /// Transfer from the website: a line on where to copy the days, iOS's own Paste, and
+    /// the one message after. **The Paste button asks iOS for no permission:**
+    /// the player's tap on it is the permission, which is why it's this button
+    /// and not a read of the clipboard.
+    private var daysCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(Vocabulary.daysTitle)
+                .font(CuteFont.body(16, weight: "SemiBold", relativeTo: .body))
+                .foregroundStyle(Cute.ink)
+                .accessibilityAddTraits(.isHeader)
+            Text(Vocabulary.daysNote)
+                .font(CuteFont.body(13, relativeTo: .footnote))
+                .foregroundStyle(Cute.inkFaint)
+                .fixedSize(horizontal: false, vertical: true)
+            if daysBringing {
+                HStack(spacing: 10) {
+                    ProgressView()
+                    Text(Vocabulary.daysBringing)
+                        .font(CuteFont.body(14, relativeTo: .subheadline))
+                        .foregroundStyle(Cute.ink)
+                }
+                .accessibilityElement(children: .combine)
+            } else {
+                PasteButton(payloadType: String.self) { strings in
+                    guard let text = strings.first else { return }
+                    Task { @MainActor in await paste(text) }
+                }
+                .buttonBorderShape(.capsule)
+                .tint(Cute.accent)
+                .accessibilityIdentifier("SettingsPasteDays")
+            }
+            if let daysMessage {
+                Text(daysMessage)
+                    .font(CuteFont.body(14, relativeTo: .subheadline))
+                    .foregroundStyle(Cute.ink)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("SettingsDaysMessage")
+            }
+        }
+        .padding(18)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(card.fill(Cute.paperDeep))
+        .overlay(card.stroke(Cute.tileEdge, lineWidth: 1))
+    }
+
+    /// A paste: its plan, then the question, or a line saying why not.
+    private func paste(_ text: String) async {
+        daysMessage = nil
+        guard let plan = await onPlanDays(text) else {
+            say(Vocabulary.daysNotACopy)
+            return
+        }
+        guard !plan.days.isEmpty || plan.streak != nil else {
+            say(Vocabulary.daysNothing)
+            return
+        }
+        daysPlan = plan
+        daysAsking = true
+    }
+
+    /// Bring them in, then say what came across.
+    private func bring(_ plan: DaysImportPlan) async {
+        daysBringing = true
+        let result = await onBringDays(plan)
+        daysBringing = false
+        daysPlan = nil
+        guard let result else {
+            say(Vocabulary.daysNotACopy)
+            return
+        }
+        say(Vocabulary.daysResult(result, webStreakGoing: streakGoing(plan)))
+    }
+
+    /// Whether the paste's streak is still going, by this phone's today: the
+    /// only kind the app takes as its streak.
+    private func streakGoing(_ plan: DaysImportPlan) -> Bool {
+        plan.streak.map { $0.lastClearedDayIndex >= GameModel.todayStorageIndex - 1 } ?? false
+    }
+
+    /// Show a line in the card and say it, since the card may be off screen
+    /// for someone reading by VoiceOver.
+    private func say(_ line: String) {
+        daysMessage = line
+        UIAccessibility.post(notification: .announcement, argument: line)
     }
 
     private var divider: some View {
