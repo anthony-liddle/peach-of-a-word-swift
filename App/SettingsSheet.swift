@@ -90,7 +90,8 @@ struct SettingsSheet: View {
         }
         .tint(Cute.accentDeep)
         .interactiveDismissDisabled(daysBringing)
-        .alert(daysPlan.map(Vocabulary.daysQuestion) ?? "", isPresented: $daysAsking,
+        .alert(daysPlan.map { Vocabulary.daysQuestion($0, streakGoing: streakGoing($0)) } ?? "",
+               isPresented: $daysAsking,
                presenting: daysPlan) { plan in
             Button(Vocabulary.daysBring) { Task { await bring(plan) } }
             Button(Vocabulary.daysNotNow, role: .cancel) { daysPlan = nil }
@@ -280,7 +281,7 @@ struct SettingsSheet: View {
         .overlay(card.stroke(Cute.tileEdge, lineWidth: 1))
     }
 
-    /// Days from the web: a line on where to copy them, iOS's own Paste, and
+    /// Transfer from the website: a line on where to copy the days, iOS's own Paste, and
     /// the one message after. **The Paste button asks iOS for no permission:**
     /// the player's tap on it is the permission, which is why it's this button
     /// and not a read of the clipboard.
@@ -350,8 +351,13 @@ struct SettingsSheet: View {
             say(Vocabulary.daysNotACopy)
             return
         }
-        let going = plan.streak.map { $0.lastClearedDayIndex >= GameModel.todayStorageIndex - 1 } ?? false
-        say(Vocabulary.daysResult(result, webStreakGoing: going))
+        say(Vocabulary.daysResult(result, webStreakGoing: streakGoing(plan)))
+    }
+
+    /// Whether the paste's streak is still going, by this phone's today: the
+    /// only kind the app takes as its streak.
+    private func streakGoing(_ plan: DaysImportPlan) -> Bool {
+        plan.streak.map { $0.lastClearedDayIndex >= GameModel.todayStorageIndex - 1 } ?? false
     }
 
     /// Show a line in the card and say it, since the card may be off screen

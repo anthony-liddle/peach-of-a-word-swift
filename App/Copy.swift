@@ -418,47 +418,45 @@ enum Vocabulary {
 
     // MARK: - Days from the web
 
-    /// The Settings card that takes days pasted from the web's transfer page,
-    /// its question and its one message after. **Proposals,** each waiting for
-    /// Antoine's line in `Game Copy.md`. The button itself is iOS's own Paste,
-    /// whose label the system sets, so the card's line says what to paste.
-    static let daysTitle = "Days from the web"
-    static let daysNote = "Played at peachofaword.com? Copy your days at "
-        + "peachofaword.com/transfer, in the browser you play in, then paste them here."
-    static let daysNotACopy = "That isn't a copy of your days. Copy them again at "
-        + "peachofaword.com/transfer, then paste."
-    static let daysNothing = "There's nothing in that copy to bring."
-    static let daysQuestionDetail = "Words you found here stay, and the web's are added to them."
-    static let daysBring = "Bring"
+    /// The Settings section that takes days pasted from the web's transfer
+    /// page, its question and its one message after. Antoine's, approved in
+    /// `Game Copy.md` on 16 November 2026. The button itself is iOS's own
+    /// Paste, whose label the system sets, so the line says what to paste.
+    static let daysTitle = "Transfer from the website"
+    static let daysNote = "If you play at peachofaword.com, open peachofaword.com/transfer "
+        + "in the same browser, copy your days, and paste them here."
+    static let daysNotACopy = "That isn't your days. Copy them again at peachofaword.com/transfer."
+    static let daysNothing = "There's nothing in that copy to transfer."
+    static let daysQuestionDetail = "Nothing in the app is replaced. Words you found on the website are added."
+    static let daysBring = "Transfer"
     static let daysNotNow = "Not now"
-    static let daysBringing = "Bringing your days across"
+    static let daysBringing = "Transferring your days"
 
-    /// "Bring 14 days from the web?", or the streak alone when no day's words
-    /// can come.
-    static func daysQuestion(_ plan: DaysImportPlan) -> String {
+    /// "Transfer 14 days from the website?", or, when no day's words can come,
+    /// the streak if it's still going, or its days as finished if it has
+    /// ended, since an ended run fills its days and doesn't become the streak.
+    static func daysQuestion(_ plan: DaysImportPlan, streakGoing: Bool) -> String {
         switch plan.days.count {
-        case 0: "Bring your streak from the web?"
-        case 1: "Bring 1 day from the web?"
-        case let n: "Bring \(n) days from the web?"
+        case 0 where streakGoing: "Transfer your streak from the website?"
+        case 0: "Transfer your finished days from the website?"
+        case 1: "Transfer 1 day from the website?"
+        case let n: "Transfer \(n) days from the website?"
         }
     }
 
-    /// The one message after an import: what came across, the streak, and what
-    /// stayed behind and why. Counts only what changed, so a second paste of
-    /// the same days says nothing came across.
+    /// The one message after a transfer: what came across, the streak, and
+    /// what stayed behind and why. Counts only what changed, so a second paste
+    /// of the same days says there's nothing new.
     ///
     /// - Parameter webStreakGoing: whether the paste carried a streak still
     ///   going, which is the only kind the app takes. Ended runs fill days and
     ///   say nothing about the streak.
     static func daysResult(_ r: DaysImportResult, webStreakGoing: Bool) -> String {
-        func n(_ count: Int, _ one: String, _ many: String) -> String {
-            count == 1 ? "1 \(one)" : "\(count) \(many)"
-        }
         var lines: [String] = []
         if r.cameAcross == 0 {
-            lines.append("Nothing new came across.")
+            lines.append("Nothing new to transfer.")
         } else {
-            lines.append("\(n(r.cameAcross, "day", "days")) came across.")
+            lines.append(r.cameAcross == 1 ? "1 day transferred." : "\(r.cameAcross) days transferred.")
             let finished = r.finished > 0
                 ? (r.finished == 1 ? "1 is finished" : "\(r.finished) are finished") : nil
             let peaches = r.peaches > 0
@@ -473,19 +471,22 @@ enum Vocabulary {
         if r.streakTaken {
             lines.append("Your streak is \(r.streak).")
         } else if webStreakGoing {
-            lines.append("Your streak here was already as long, so it stays.")
+            lines.append("The app's streak was already as long, so it stays.")
         }
         if r.differentWord > 0 {
-            lines.append("\(n(r.differentWord, "day", "days")) had a different word here, "
-                + "so \(r.differentWord == 1 ? "it stays" : "they stay") on the web.")
+            lines.append(r.differentWord == 1
+                ? "1 day had a different word in the app, so it wasn't transferred."
+                : "\(r.differentWord) days had a different word in the app, so they weren't transferred.")
         }
         if r.tomorrow > 0 {
-            lines.append("\(r.tomorrow == 1 ? "1 day is" : "\(r.tomorrow) days are") still "
-                + "tomorrow here. Paste again tomorrow to bring \(r.tomorrow == 1 ? "it" : "them").")
+            lines.append(r.tomorrow == 1
+                ? "1 day hasn't started here yet. Paste again tomorrow to transfer it."
+                : "\(r.tomorrow) days haven't started here yet. Paste again tomorrow to transfer them.")
         }
         if r.unknownWords > 0 {
-            lines.append("\(r.unknownWords == 1 ? "1 word isn't" : "\(r.unknownWords) words aren't") "
-                + "in the app's word lists.")
+            lines.append(r.unknownWords == 1
+                ? "1 word isn't in the app's word lists, so it was left out."
+                : "\(r.unknownWords) words aren't in the app's word lists, so they were left out.")
         }
         return lines.joined(separator: " ")
     }

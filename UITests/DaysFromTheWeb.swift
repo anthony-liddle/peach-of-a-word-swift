@@ -1,7 +1,7 @@
 import XCTest
 
 /// Days from the web, brought in through Settings: the paste, the question,
-/// Bring, the one message after, and the title's streak.
+/// Transfer, the one message after, and the title's streak.
 ///
 /// **Everything after the paste is the real path.** `-pasteDays sample` hands
 /// the card a payload the app writes from its own calendar, as if from the
@@ -45,14 +45,14 @@ final class DaysFromTheWeb: XCTestCase {
     /// closes.
     func testDaysComeAcrossWithTheStreak() {
         let app = launch(paste: "sample")
-        let question = app.alerts["Bring 3 days from the web?"]
+        let question = app.alerts["Transfer 3 days from the website?"]
         XCTAssertTrue(question.waitForExistence(timeout: 60), "no question after the paste")
-        question.buttons["Bring"].tap()
+        question.buttons["Transfer"].tap()
 
-        XCTAssertTrue(message(app).waitForExistence(timeout: 60), "no message after Bring")
+        XCTAssertTrue(message(app).waitForExistence(timeout: 60), "no message after Transfer")
         XCTAssertEqual(
             message(app).label,
-            "3 days came across. 3 are finished, and 3 have their peach. Your streak is 3."
+            "3 days transferred. 3 are finished, and 3 have their peach. Your streak is 3."
         )
 
         closeToTheTitle(app)
@@ -63,37 +63,37 @@ final class DaysFromTheWeb: XCTestCase {
     /// The same days again change nothing, and say so: rule 7.
     func testTheSameDaysTwiceBringNothingNew() {
         var app = launch(paste: "sample")
-        XCTAssertTrue(app.alerts["Bring 3 days from the web?"].waitForExistence(timeout: 60))
-        app.alerts.buttons["Bring"].tap()
+        XCTAssertTrue(app.alerts["Transfer 3 days from the website?"].waitForExistence(timeout: 60))
+        app.alerts.buttons["Transfer"].tap()
         XCTAssertTrue(message(app).waitForExistence(timeout: 60))
         app.terminate()
 
         app = launch(paste: "sample", reset: false)
-        XCTAssertTrue(app.alerts["Bring 3 days from the web?"].waitForExistence(timeout: 60))
-        app.alerts.buttons["Bring"].tap()
+        XCTAssertTrue(app.alerts["Transfer 3 days from the website?"].waitForExistence(timeout: 60))
+        app.alerts.buttons["Transfer"].tap()
         XCTAssertTrue(message(app).waitForExistence(timeout: 60))
         XCTAssertEqual(
             message(app).label,
-            "Nothing new came across. Your streak here was already as long, so it stays."
+            "Nothing new to transfer. The app's streak was already as long, so it stays."
         )
     }
 
     /// Not now writes nothing: no message, and no streak on the title.
     func testNotNowBringsNothing() {
         let app = launch(paste: "sample")
-        let question = app.alerts["Bring 3 days from the web?"]
+        let question = app.alerts["Transfer 3 days from the website?"]
         XCTAssertTrue(question.waitForExistence(timeout: 60))
         question.buttons["Not now"].tap()
-        XCTAssertFalse(message(app).waitForExistence(timeout: 3), "a message without Bring")
+        XCTAssertFalse(message(app).waitForExistence(timeout: 3), "a message without Transfer")
         closeToTheTitle(app)
-        XCTAssertFalse(titleStreak(app).exists, "a streak without Bring")
+        XCTAssertFalse(titleStreak(app).exists, "a streak without Transfer")
     }
 
     /// Text that isn't days from the web is refused with a line, and no question.
     func testOtherTextIsRefused() {
         let app = launch(paste: "Hello from a group chat")
         XCTAssertTrue(message(app).waitForExistence(timeout: 60), "nothing said about the paste")
-        XCTAssertTrue(message(app).label.hasPrefix("That isn't a copy of your days."))
+        XCTAssertTrue(message(app).label.hasPrefix("That isn't your days."))
         XCTAssertFalse(app.alerts.firstMatch.exists, "asked about text that isn't days")
     }
 }
