@@ -1,1 +1,1 @@
-Settings has a new section for transferring days from the website. It won't do anything until the website's side is ready.
+Version 1.2. Settings has a new section for transferring days from the website. It won't do anything until the website's side is ready.
