@@ -66,6 +66,22 @@ struct StreakTransferTests {
         #expect(StreakTransfer(url: url("PeachOfAWord://streak?count=53&lastCleared=239&v=1")) != nil)
     }
 
+    /// The links the web's transfer page writes, at peachofaword.com/transfer.
+    ///
+    /// **One direction, at five links:** that this parser reads what the page
+    /// writes. The rows come from the web repo's shared fixture,
+    /// `src/transfer/streakLinks.fixture.json`, which the web's own test holds
+    /// its writer to, by way of `scripts/streak-link-parity.mjs`, which writes
+    /// `StreakLinkVectors.swift`. Nothing keeps the two copies in step but that
+    /// script, so a change to the page's links that skips it goes unnoticed
+    /// here.
+    @Test("parses every link the web's transfer page writes", arguments: streakLinkVectors)
+    func parsesTheWebsLinks(vector: StreakLinkVector) {
+        let t = StreakTransfer(url: url(vector.link))
+        #expect(t?.count == vector.count)
+        #expect(t?.lastClearedDayIndex == vector.lastClearedDayIndex)
+    }
+
     /// Values the parser passes through untouched. Nothing here is trusted:
     /// range and liveness are `GameStorage.adoptStreak`'s job, and splitting it
     /// that way is what lets the accept rule be tested without a URL and the

@@ -1,1 +1,1 @@
-Nothing in the game has changed since the last build. Underneath, it can now read past days copied from the website, which a later build will put to use.
+Nothing in the game has changed since the last build. One of the checks that run before each build is new.
