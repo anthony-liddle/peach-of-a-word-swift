@@ -66,9 +66,13 @@ struct ShippedDefinitionsTests {
     /// **Unmoved at v1.9.1, measured rather than assumed.** `thousand`'s row
     /// was rewritten to the numeral its reveal carries, by a curated row that
     /// overrides a generated one, as `sel`'s did, so the count stays put.
-    @Test("has the row count orchard v1.9.1 publishes")
+    ///
+    /// **24,573 to 24,568 at v1.11.2, by the five rows of the hate words it
+    /// denied:** `heil`, `heiled`, `heils`, `nazi` and `nazis`. No other gloss
+    /// moved.
+    @Test("has the row count orchard v1.11.2 publishes")
     func rowCount() {
-        #expect(readDefinitions().count == 24_573)
+        #expect(readDefinitions().count == 24_568)
     }
 
     /// Every crown has a gloss row.

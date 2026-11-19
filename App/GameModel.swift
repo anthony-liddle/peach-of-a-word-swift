@@ -699,7 +699,12 @@ final class GameModel {
         // Every board that opens, by every route, so a launch later today
         // opens on it. See `load`.
         storage.rememberBoardInPlay(dayIndex: storageDay, todayIndex: Self.todayStorageIndex)
-        found = storage.loadDayProgress(dayIndex: storageDay, sourceWord: p.sourceWord)
+        // Only the saved words the lists still accept: a denied word goes, with
+        // its points, rather than grading Mythic. See `restoredFinds`.
+        found = restoredFinds(
+            storage.loadDayProgress(dayIndex: storageDay, sourceWord: p.sourceWord),
+            on: p
+        )
 
         // **Today's index, not the board's.** This read `currentStreak(todayIndex:
         // day)`, which was correct only because `day` was always today. Handed a

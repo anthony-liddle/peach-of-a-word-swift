@@ -1,1 +1,1 @@
-Nothing in the game has changed since the last build. Some of the checks that run before each build are new.
+A few words that shouldn't count no longer do.
