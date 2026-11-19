@@ -16,6 +16,13 @@ struct HateWordsTests {
         "nazify", "nazified", "nazifies", "nazifying", "nazification", "nazifications",
         "denazify", "denazified", "denazifies", "denazifying", "denazification", "denazifications",
         "klan", "klans", "klanism", "klansman", "klansmen",
+        // The sweep that followed, decided by Antoine the same day.
+        "hitler", "hitlerian", "hitlerism",
+        "fuhrer", "fuhrers", "fuehrer", "fuehrers",
+        "gestapo", "gestapos", "herrenvolk", "herrenvolks",
+        "aryan", "aryans", "aryanize",
+        "blackshirt", "blackshirts", "blackshirted", "brownshirt", "brownshirts",
+        "swastika", "swastikas", "swastikaed", "swastica", "swasticas",
     ]
 
     /// Unrelated words that only share the letters.
@@ -43,6 +50,25 @@ struct HateWordsTests {
         #expect(validateGuess("nazi", puzzle: salute, found: []) == .notAWord)
         let group = try Self.puzzle(for: "klansman")
         #expect(validateGuess("klansman", puzzle: group, found: []) == .notAWord)
+    }
+
+    @Test("hitler and swastika, from the sweep, are answered as if they were not words")
+    func sweepRefused() throws {
+        #expect(validateGuess("hitler", puzzle: try Self.puzzle(for: "hitlerxy"), found: []) == .notAWord)
+        #expect(validateGuess("swastika", puzzle: try Self.puzzle(for: "swastika"), found: []) == .notAWord)
+    }
+
+    /// Antoine, 19 November 2026: out of the basket, as `racist` was.
+    @Test("fascist is still a word, but never in a basket")
+    func fascistDemoted() throws {
+        #expect(!(try readWordList("common-pool.txt").contains("fascist")))
+        if case .valid(_, _, let rung, _) = validateGuess(
+            "fascist", puzzle: try Self.puzzle(for: "fascistz"), found: []
+        ) {
+            #expect(rung != .set)
+        } else {
+            Issue.record("fascist should still be a word")
+        }
     }
 
     @Test("nazir and klang, which only share the letters, are still words")
