@@ -88,6 +88,17 @@ App Store Connect will not accept it. Distribution runs through Xcode Cloud,
 which carries its own signing, and that is the only path a build reaches
 TestFlight by.
 
+### The version: 1.3 since 1.2 was approved
+
+**1.2 was approved and released on 2026-11-20, as build 1.2 (117).** Antoine
+released it by hand, so it went out with the website's days page, and the US
+App Store page showed it by 20:11 UTC. So `project.yml` says 1.3 from that day.
+
+**This time the version moved before any build was refused.** No iOS merge
+came between 1.2's release and this one, so no Xcode Cloud build failed at
+Archive the way 113 did after 1.1. Every merge after this reaches TestFlight
+as 1.3.
+
 ### The version: 1.2 since 1.1 was approved
 
 **1.1 was approved and released on 2026-11-16, as build 1.1 (110),** live at
