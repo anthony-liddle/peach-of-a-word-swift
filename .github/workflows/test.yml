@@ -356,11 +356,16 @@ jobs:
       - name: Pack the build
         run: tar -C "$RUNNER_TEMP/dd/Build" -czf "$RUNNER_TEMP/ui-test-build.tgz" Products
 
+      # **Kept three days, so a rerun the next day still has a build to test.**
+      # "Re-run failed jobs" reuses this job's success and downloads its build.
+      # Kept one day, it was gone when `ebd18fc`'s shard 3 was rerun on 20
+      # November 2026, more than a day after the run: the download failed, and
+      # every test in the shard "never ran".
       - uses: actions/upload-artifact@v7
         with:
           name: ui-test-build
           path: ${{ runner.temp }}/ui-test-build.tgz
-          retention-days: 1
+          retention-days: 3
           compression-level: 0
 
   # One shard of the UI tests: its classes from the map, on its own simulator.
