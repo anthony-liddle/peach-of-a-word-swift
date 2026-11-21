@@ -269,12 +269,16 @@ targets:
   # Duplicating the run costs a couple of minutes of the monthly compute budget.
   # A pipeline that archives untested code is worse than one that checks twice.
   #
-  # A logic test bundle with no host application: nothing here launches the app
-  # or touches UIKit. `AppVocabularyTests` reads `App/*.swift` as text and the
-  # engine tests read `Data/` from `repositoryRoot`, both resolved from
-  # `#filePath` at compile time. That works under the simulator, which shares the
-  # build machine's filesystem, and would not on a device. These never run on a
-  # device.
+  # A logic test bundle with no host application: nothing here launches the app.
+  # `AppVocabularyTests` reads `App/*.swift` as text and the engine tests read
+  # `Data/` from `repositoryRoot`, both resolved from `#filePath` at compile
+  # time. That works under the simulator, which shares the build machine's
+  # filesystem, and would not on a device. These never run on a device.
+  #
+  # **One app file is compiled in, and it touches UIKit:** `App/Feel.swift`, for
+  # `Tests/AppTests`. With no host the bundle can't reach the app's code, so the
+  # file is built a second time here, and its tests stand in for the haptics
+  # hardware a simulator doesn't have.
   PeachOfAWordTests:
     type: bundle.unit-test
     platform: iOS
@@ -283,6 +287,10 @@ targets:
       # Tests that play the app's sounds through Soundscape. Here and not in
       # Package.swift, which has no third-party dependencies and stays so.
       - path: Tests/SoundTests
+      # Tests of the app's own code, which `swift test` can't build: it runs on
+      # macOS, with no UIKit. Each app file they test is listed after them.
+      - path: Tests/AppTests
+      - path: App/Feel.swift
       # The three things the suite reads off disk, carried in the bundle.
       #
       # `swift test` runs from the source tree and finds them there. Xcode

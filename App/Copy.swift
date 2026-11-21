@@ -381,8 +381,11 @@ enum Vocabulary {
     /// The sound switch's name, and all it says: the line under it went on 23
     /// October 2026. See `SettingsSheet.soundCard`.
     static let soundSwitch = "Sound"
-    /// Word counts by length's switch, under Sound, and the line under it,
-    /// which VoiceOver hears as its hint. See `LengthCountsSetting`.
+    /// The haptics' switch, under Sound, and all it says too. See
+    /// `VibrationSetting`.
+    static let vibrationSwitch = "Vibration"
+    /// Word counts by length's switch, under Vibration, and the line under
+    /// it, which VoiceOver hears as its hint. See `LengthCountsSetting`.
     static let lengthCountsSwitch = "Word counts by length"
     static let lengthCountsNote = "Turn off to hide each length until you find a word that long."
 
@@ -394,7 +397,7 @@ enum Vocabulary {
     static let appearanceLight = "Light"
     static let appearanceDark = "Dark"
 
-    /// The daily reminder's switch, under Sound. See `Reminder`.
+    /// The daily reminder's switch, under Word counts by length. See `Reminder`.
     static let reminderSwitch = "Daily reminder"
     /// Its time, shown once it is on.
     static let reminderTime = "Time"

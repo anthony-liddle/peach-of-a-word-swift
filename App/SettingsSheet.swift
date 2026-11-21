@@ -1,9 +1,9 @@
 import PeachEngine
 import SwiftUI
 
-/// Settings, a sheet from the title screen: the sound switch, word counts by
-/// length, the daily reminder, the appearance, How the words work, Licences, and the privacy
-/// policy.
+/// Settings, a sheet from the title screen: the sound and vibration switches,
+/// word counts by length, the daily reminder, the appearance, How the words
+/// work, Licences, and the privacy policy.
 ///
 /// **A short list,** as the design pass mocked and Antoine chose: the switch on
 /// top, and three rows that open what they name.
@@ -25,6 +25,9 @@ struct SettingsSheet: View {
     /// On by default; a mute is remembered (D5). `@AppStorage`'s default
     /// covers a phone that has never written the key. See `SoundSetting`.
     @AppStorage(SoundSetting.key) private var soundOn = true
+    /// On by default too, and nothing to tell the game: `Feel` reads it before
+    /// each haptic. See `VibrationSetting`.
+    @AppStorage(VibrationSetting.key) private var vibrationOn = true
     /// On by default; the found list reads the same key. See
     /// `LengthCountsSetting`.
     @AppStorage(LengthCountsSetting.key) private var lengthCountsOn = true
@@ -71,6 +74,7 @@ struct SettingsSheet: View {
                                 .foregroundStyle(Cute.ink)
                                 .accessibilityAddTraits(.isHeader)
                             soundCard
+                            vibrationCard
                             lengthCountsCard
                             reminderCard
                             appearanceCard
@@ -152,6 +156,23 @@ struct SettingsSheet: View {
         // The card by its own name, so a test can hold it to the switch alone.
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("SettingsSoundCard")
+    }
+
+    /// Vibration, under Sound and drawn as it is: the switch alone, which
+    /// turns off every haptic the game plays (Antoine, 21 November 2026).
+    /// iOS's own System Haptics switch still silences them too, as it does
+    /// every app's.
+    private var vibrationCard: some View {
+        Toggle(isOn: $vibrationOn) {
+            Text(Vocabulary.vibrationSwitch)
+                .font(CuteFont.body(17, weight: "SemiBold", relativeTo: .body))
+                .foregroundStyle(Cute.ink)
+        }
+        .tint(Cute.accent)
+        .accessibilityIdentifier("SettingsVibration")
+        .padding(18)
+        .background(card.fill(Cute.paperDeep))
+        .overlay(card.stroke(Cute.tileEdge, lineWidth: 1))
     }
 
     /// Word counts by length: the switch, and a line under it that says what

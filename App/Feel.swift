@@ -38,11 +38,27 @@ enum Feel {
     // UIKit and every caller is GameModel, which is already @MainActor, so
     // nothing changes at runtime and no call site needed touching.
 
+    /// What plays every haptic below: the phone's generators and the game's own
+    /// patterns. `FeelTests` puts a stand-in here.
+    @MainActor
+    static var player: any HapticPlayer = DeviceHaptics()
+
+    /// The player while Vibration is on, and nothing while it is off.
+    ///
+    /// **The switch is read here, once,** and every function below plays
+    /// through this, a pattern and its fallback alike, so turning it off stops
+    /// them all. Each function reads it first, so off, `completion()` doesn't
+    /// schedule its two later beats either.
+    @MainActor
+    private static var playing: (any HapticPlayer)? {
+        VibrationSetting.isOn ? player : nil
+    }
+
     /// Picking up a tile. The lightest thing in the app, because it happens
     /// most: eight or more per word.
     @MainActor
     static func tilePress() {
-        UIImpactFeedbackGenerator(style: .light).impactOccurred(intensity: 0.58)
+        playing?.impact(.light, intensity: 0.58)
     }
 
     /// A word accepted. Clearly more than a tile, clearly less than the peach.
@@ -64,8 +80,8 @@ enum Feel {
     /// is the behaviour every device had before this.
     @MainActor
     static func find() {
-        guard !Haptics.shared.play(.find) else { return }
-        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        guard let playing, !playing.play(.find) else { return }
+        playing.notify(.success)
     }
 
     /// A tile that cannot be picked, because it is already on the stick.
@@ -84,7 +100,7 @@ enum Feel {
     /// no rather than a telling off. Same reasoning as `reject`.
     @MainActor
     static func refuse() {
-        UIImpactFeedbackGenerator(style: .soft).impactOccurred(intensity: 0.45)
+        playing?.impact(.soft, intensity: 0.45)
     }
 
     /// A word rejected. Deliberately softer than a find rather than harsher:
@@ -92,29 +108,26 @@ enum Feel {
     /// `.warning` was tried and felt like being told off.
     @MainActor
     static func reject() {
-        UIImpactFeedbackGenerator(style: .rigid).impactOccurred(intensity: 0.5)
+        playing?.impact(.rigid, intensity: 0.5)
     }
 
     /// The source word. A crescendo that resolves into one sharp hit.
     @MainActor
     static func sourceWord() {
-        guard !Haptics.shared.play(.sourceWord) else { return }
-        UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
+        guard let playing, !playing.play(.sourceWord) else { return }
+        playing.impact(.heavy, intensity: nil)
     }
 
     /// Completion: every common word the rack can spell. The rarest thing in
     /// the game and now the largest thing it does.
     @MainActor
     static func completion() {
-        guard !Haptics.shared.play(.completion) else { return }
+        guard let playing, !playing.play(.completion) else { return }
         // The fallback has to be audibly bigger too, so it is three beats
         // rather than one.
-        let heavy = UIImpactFeedbackGenerator(style: .heavy)
-        heavy.impactOccurred()
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.14) { heavy.impactOccurred() }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.30) {
-            UINotificationFeedbackGenerator().notificationOccurred(.success)
-        }
+        playing.impact(.heavy, intensity: nil)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.14) { playing.impact(.heavy, intensity: nil) }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.30) { playing.notify(.success) }
     }
 
     /// The cute theme's signature easing.
@@ -129,6 +142,61 @@ enum Feel {
     static let settle = Animation.spring(response: 0.45, dampingFraction: 0.85)
 }
 
+/// The game's Vibration switch, in Settings beside Sound: on by default.
+///
+/// **Absent means on,** for the reason `SoundSetting` gives: `bool(forKey:)`
+/// reads false for a key never written, which would turn the haptics off on
+/// every phone that updated into this build.
+enum VibrationSetting {
+    static let key = "vibrationOn"
+
+    static var isOn: Bool {
+        let defaults = UserDefaults.standard
+        return defaults.object(forKey: key) == nil ? true : defaults.bool(forKey: key)
+    }
+}
+
+/// What plays a haptic: the system's feedback generators and the game's own
+/// patterns, the two kinds `Feel` uses.
+///
+/// `Feel` plays through one of these rather than calling UIKit itself, so
+/// `FeelTests` can put a stand-in in its place and see what each function
+/// asks for, on a simulator with no haptics hardware.
+///
+/// `Sendable` so `Feel.completion()`'s fallback can hand it to its two
+/// delayed beats.
+@MainActor
+protocol HapticPlayer: Sendable {
+    /// One impact. A nil intensity is the generator's own,
+    /// `impactOccurred()`, which isn't the same call as an intensity of 1.
+    func impact(_ style: UIImpactFeedbackGenerator.FeedbackStyle, intensity: CGFloat?)
+    func notify(_ type: UINotificationFeedbackGenerator.FeedbackType)
+    /// False if the pattern could not play, so the caller falls back.
+    func play(_ pattern: Haptics.Pattern) -> Bool
+}
+
+/// The phone's own haptics: a new generator for each beat, and the patterns
+/// through `Haptics.shared`.
+@MainActor
+struct DeviceHaptics: HapticPlayer {
+    func impact(_ style: UIImpactFeedbackGenerator.FeedbackStyle, intensity: CGFloat?) {
+        let generator = UIImpactFeedbackGenerator(style: style)
+        if let intensity {
+            generator.impactOccurred(intensity: intensity)
+        } else {
+            generator.impactOccurred()
+        }
+    }
+
+    func notify(_ type: UINotificationFeedbackGenerator.FeedbackType) {
+        UINotificationFeedbackGenerator().notificationOccurred(type)
+    }
+
+    func play(_ pattern: Haptics.Pattern) -> Bool {
+        Haptics.shared.play(pattern)
+    }
+}
+
 /// The two custom patterns.
 ///
 /// **On respecting the user's haptic setting.** Reduce Motion is not the
@@ -137,6 +205,9 @@ enum Feel {
 /// `UIFeedbackGenerator` and `CHHapticEngine` are silenced by the system when
 /// it is off, so honouring it requires nothing here beyond not working around
 /// it.
+///
+/// **The game's own switch is `VibrationSetting`,** read by `Feel` before
+/// anything reaches here. Off, the engine is never made.
 @MainActor
 final class Haptics {
     static let shared = Haptics()
