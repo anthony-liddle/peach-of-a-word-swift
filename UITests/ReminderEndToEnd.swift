@@ -33,6 +33,18 @@ final class ReminderEndToEnd: XCTestCase {
         return n.count == 2 && n[0] > n[1]
     }
 
+    /// Whether the tap on the switch arrived, within five seconds: the switch
+    /// came on, or iOS's alert came up to ask, which only a switch turned on
+    /// does.
+    static func answered(_ toggle: XCUIElement, or allow: XCUIElement) -> Bool {
+        let deadline = Date().addingTimeInterval(5)
+        while Date() < deadline {
+            if allow.exists || (toggle.value as? String) == "1" { return true }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.25))
+        }
+        return false
+    }
+
     func testARealReminderTappedFromColdLandsOnTheTitle() throws {
         // A moved Debug clock moves the dates the reminder is scheduled on,
         // and none would fall two minutes from now.
@@ -52,10 +64,24 @@ final class ReminderEndToEnd: XCTestCase {
         app.launch()
         let toggle = app.switches["SettingsReminder"]
         XCTAssertTrue(toggle.waitForExistence(timeout: 30), "no reminder switch in settings")
-        toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.93, dy: 0.5)).tap()
+        let knob = toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.93, dy: 0.5))
+        knob.tap()
+
+        // **Once more, if the switch didn't move,** as `DailyReminder`'s
+        // `flip` does. A tap on the knob has left the switch off on 24 October
+        // and 1 November 2026, and on 20 November in the third of five runs in
+        // a row on an iOS 26.5 simulator, where nothing on screen changed after
+        // it. A switch the game won't turn on still fails below, as "not
+        // scheduled".
+        let allow = springboard.buttons["Allow"]
+        if !Self.answered(toggle, or: allow) {
+            XCTContext.runActivity(named: "The switch didn't move: tap it again") { _ in
+                print("ReminderEndToEnd: the switch didn't move 5 seconds after the tap, so it was tapped again")
+                knob.tap()
+            }
+        }
 
         // iOS's own alert, the first time this simulator is asked.
-        let allow = springboard.buttons["Allow"]
         if allow.waitForExistence(timeout: 10) { allow.tap() }
 
         // The reminder two minutes out, handed to iOS. The probe says
@@ -94,6 +120,22 @@ final class ReminderEndToEnd: XCTestCase {
                 .matching(NSPredicate(format: "label CONTAINS %@", "still on the tree")).firstMatch
             XCTAssertTrue(banner.waitForExistence(timeout: 200), "no reminder came")
             banner.tap()
+
+            // **Once more, if the banner is still up.** A tap iOS acts on puts
+            // the banner away at once and asks for the game. On CI, at least six
+            // times since November, iOS never asked for the game. In the screen
+            // recordings of #144's and #145's failures (20 November 2026) the
+            // banner stayed still after the tap and went back up on its own
+            // timer about six seconds later. So a banner still up two seconds
+            // after the tap gets one more. A game that opens and then fails is
+            // still caught below: by then its banner is gone, so there's no
+            // second tap.
+            if !banner.waitForNonExistence(timeout: 2), banner.exists, banner.isHittable {
+                XCTContext.runActivity(named: "The banner is still up: tap it again") { _ in
+                    print("ReminderEndToEnd: the banner was still up 2 seconds after the tap, so it was tapped again")
+                    banner.tap()
+                }
+            }
 
             XCTAssertTrue(app.wait(for: .runningForeground, timeout: 30), "the tap did not open the game")
             XCTAssertTrue(app.buttons["TitleSettings"].waitForExistence(timeout: 30),

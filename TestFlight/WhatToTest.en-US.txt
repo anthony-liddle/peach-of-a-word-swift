@@ -1,1 +1,1 @@
-Nothing in the game has changed since the last build. Only the checks that run before each build are different: they keep what they built for three days now.
+Nothing in the game has changed since the last build. Only a check that runs before each build is different: the one that taps the daily reminder.
