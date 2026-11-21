@@ -122,10 +122,23 @@ func classifyFound(_ found: [String], in puzzle: Puzzle) -> [FoundWord] {
     }
 }
 
+/// Word counts by length, in Settings beside Sound: whether the found list shows
+/// every length in the basket from the first find, each with its count, or a
+/// length only once a word that long is found (Antoine and Bea, 21 November
+/// 2026). On by default, as the web is; Bea turns it off for the harder game.
+/// The basket's total shows either way.
+///
+/// Read through `@AppStorage` with a default of on, which also covers a phone
+/// that has never written the key, the trap `SoundSetting` describes.
+enum LengthCountsSetting {
+    static let key = "lengthCountsOn"
+}
+
 /// Group finds by length, longest first.
 ///
 /// Every length that has set words appears, plus any length with an off-page
-/// find, so an uncracked length still shows what is missing.
+/// find, so an uncracked length still shows what is missing. With Word counts
+/// by length off, `FoundListView` shows only the groups with a find in them.
 func buildGroups(_ words: [FoundWord], in puzzle: Puzzle) -> [LengthGroup] {
     var setTotalByLength: [Int: Int] = [:]
     for word in puzzle.commonWords {

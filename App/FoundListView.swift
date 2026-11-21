@@ -228,6 +228,9 @@ struct FoundListView: View {
     var glint: GameModel.Glint? = nil
     var onSelect: (FoundWord) -> Void = { _ in }
 
+    /// Word counts by length, from Settings. See `LengthCountsSetting`.
+    @AppStorage(LengthCountsSetting.key) private var lengthCounts = true
+
     #if DEBUG
     /// The key's numbers for `-exposeKeyFit 1`. See `KeyFitProbe`.
     @State private var keyFit: [String: KeyFitProbe.Reading] = [:]
@@ -362,8 +365,12 @@ struct FoundListView: View {
                 // The summary is no longer here. It is pinned above the scroll
                 // as `FoundSummary`, because a status line you have to scroll
                 // to find is not a status line.
+                // Every length from the first find, each with its count, as the
+                // web shows them (Antoine and Bea, 21 November 2026). With Word
+                // counts by length off, a length shows once she has a word that
+                // long, of either kind, which is how the app showed them before.
                 ForEach(buildGroups(words, in: puzzle)) { group in
-                    if !group.setWords.isEmpty || !group.offPageWords.isEmpty {
+                    if lengthCounts || !group.setWords.isEmpty || !group.offPageWords.isEmpty {
                         groupView(group)
                     }
                 }

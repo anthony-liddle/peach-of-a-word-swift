@@ -1,8 +1,8 @@
 import PeachEngine
 import SwiftUI
 
-/// Settings, a sheet from the title screen: the sound switch, the daily
-/// reminder, the appearance, How the words work, Licences, and the privacy
+/// Settings, a sheet from the title screen: the sound switch, word counts by
+/// length, the daily reminder, the appearance, How the words work, Licences, and the privacy
 /// policy.
 ///
 /// **A short list,** as the design pass mocked and Antoine chose: the switch on
@@ -25,6 +25,9 @@ struct SettingsSheet: View {
     /// On by default; a mute is remembered (D5). `@AppStorage`'s default
     /// covers a phone that has never written the key. See `SoundSetting`.
     @AppStorage(SoundSetting.key) private var soundOn = true
+    /// On by default; the found list reads the same key. See
+    /// `LengthCountsSetting`.
+    @AppStorage(LengthCountsSetting.key) private var lengthCountsOn = true
     @AppStorage(AppearanceSetting.key) private var appearance: AppearanceSetting = .system
     @State private var explaining = false
     /// Days from the web: the plan the question asks about, whether it's
@@ -68,6 +71,7 @@ struct SettingsSheet: View {
                                 .foregroundStyle(Cute.ink)
                                 .accessibilityAddTraits(.isHeader)
                             soundCard
+                            lengthCountsCard
                             reminderCard
                             appearanceCard
                             rows
@@ -148,6 +152,30 @@ struct SettingsSheet: View {
         // The card by its own name, so a test can hold it to the switch alone.
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("SettingsSoundCard")
+    }
+
+    /// Word counts by length: the switch, and a line under it that says what
+    /// turning it off does (Antoine and Bea, 21 November 2026). VoiceOver hears
+    /// the line as the switch's hint, so it isn't read twice.
+    private var lengthCountsCard: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Toggle(isOn: $lengthCountsOn) {
+                Text(Vocabulary.lengthCountsSwitch)
+                    .font(CuteFont.body(17, weight: "SemiBold", relativeTo: .body))
+                    .foregroundStyle(Cute.ink)
+            }
+            .tint(Cute.accent)
+            .accessibilityHint(Vocabulary.lengthCountsNote)
+            .accessibilityIdentifier("SettingsLengthCounts")
+            Text(Vocabulary.lengthCountsNote)
+                .font(CuteFont.body(14, relativeTo: .subheadline))
+                .foregroundStyle(Cute.inkFaint)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityHidden(true)
+        }
+        .padding(18)
+        .background(card.fill(Cute.paperDeep))
+        .overlay(card.stroke(Cute.tileEdge, lineWidth: 1))
     }
 
     /// Appearance: System, which follows the phone, Light or Dark, as three
