@@ -1,1 +1,1 @@
-Nothing new to try in this one: it adds a check of the Paste button in Settings, and the game is the same.
+Nothing in the game has changed since the last build. Only the checks that run before each build are different: they keep what they built for three days now.
