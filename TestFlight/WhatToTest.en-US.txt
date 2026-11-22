@@ -1,1 +1,1 @@
-Nothing in the game has changed since the last build. Only a check that runs before each build is different: the one that taps the daily reminder.
+The basket now shows how many words of each length there are. To keep them hidden until you find one, turn off Word counts by length in Settings.

@@ -30,6 +30,9 @@
 # **And `ShareFromTheCards`,** on 12 November: its 130 is one local run on an
 # iPhone 17 simulator, added to the lightest shard. Replace it the same way.
 #
+# **And `LengthCounts`,** on 21 November: its 32 is one local run on an iPhone
+# 17 Pro Max simulator, added to the lightest shard. Replace it the same way.
+#
 # To rebalance, or to change the number of shards, update the seconds and
 # print a new map:
 #
@@ -47,6 +50,7 @@
 1        OneBeatPerFind                     22
 1        KeyAtEverySize                     63
 1        TransferFromTheWebPage             2
+1        LengthCounts                       32
 2        ArchivePeachDays                   500
 2        DailyReminder                      145
 2        TitleAndTopRowAtEverySize          107
