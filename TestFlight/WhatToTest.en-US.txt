@@ -1,1 +1,1 @@
-The basket now shows how many words of each length there are. To keep them hidden until you find one, turn off Word counts by length in Settings.
+You can turn off the game's vibration now, with the new Vibration switch in Settings.
