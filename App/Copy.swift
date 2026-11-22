@@ -384,7 +384,7 @@ enum Vocabulary {
     /// Word counts by length's switch, under Sound, and the line under it,
     /// which VoiceOver hears as its hint. See `LengthCountsSetting`.
     static let lengthCountsSwitch = "Word counts by length"
-    static let lengthCountsNote = "Turn this off to see each length only once you've found a word that long."
+    static let lengthCountsNote = "Turn off to hide each length until you find a word that long."
 
     /// The appearance's name in Settings, and its three choices, in the plain
     /// words iOS's own Settings uses for the same thing. See
