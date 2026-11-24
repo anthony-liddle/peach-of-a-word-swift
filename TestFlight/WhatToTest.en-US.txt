@@ -1,1 +1,1 @@
-Each word's card has a flag at its foot now, for a word or a definition that looks wrong. From this build, flags really send, so flag anything you spot.
+Each word's card now has a flag at the bottom, for a word, a definition or a grade that looks wrong. Flags send right away, so flag anything you spot.
