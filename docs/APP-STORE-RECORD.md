@@ -262,6 +262,12 @@ is no networking, no cryptography and no required-reason API, so it still
 stands. "No third-party dependencies" is still true of `Package.swift`, and is
 no longer the whole app's story.
 
+**Since the flag, November 2026 (for 1.4), the app makes one network call:**
+a flagged word, posted to `peachofaword.com/api/flag` over HTTPS with the OS's
+own `URLSession` (`App/FlagServer.swift`), and only from a Release build. That
+is the OS's encryption, which Apple counts as exempt, so the answer still
+stands. There is still no cryptography of the app's own.
+
 ## Privacy policy: <https://peachofaword.com/privacy>
 
 Hosted on the game's own domain rather than a portfolio site, because that is
@@ -274,3 +280,12 @@ Analytics, which is cookieless and aggregate, but it is not nothing. A page
 claiming "no analytics" across both would have been false about the web.
 
 The matching App Privacy declaration for this app is **Data Not Collected**.
+
+**From 1.4, the flag, this is no longer the app's story.** The app sends the
+words a player chooses to flag, with the board's day, the reason, the platform,
+the version and a random ID made for that flag alone, and nothing about the
+player. The privacy manifest declares it already: Other User Content, not
+linked, not tracking, for App Functionality. The App Store label moves from
+Data Not Collected to the same, settled and published before 1.4 is submitted
+(the flagging build's stop 3), since App Review reads the label against the
+build it reviews. 1.3 sends nothing, and its label stays Data Not Collected.

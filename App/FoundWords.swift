@@ -22,6 +22,18 @@ enum WordCategory: Hashable {
         }
     }
 
+    /// The grade a flag can disagree with: the rung, or none for the source
+    /// word, whose card is the peach's.
+    var flagGrade: Rung? {
+        switch self {
+        case .source: nil
+        case .set: .set
+        case .uncommon: .uncommon
+        case .rare: .rare
+        case .mythic: .mythic
+        }
+    }
+
     /// True for an off-page ladder word: shown with inline points, marked by
     /// shape, and never counted in a group's "X of Y".
     var isOffPage: Bool {

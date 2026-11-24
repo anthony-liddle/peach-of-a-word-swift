@@ -342,6 +342,9 @@ final class GameModel {
     /// under yesterday's key rather than leaking into today.
     private var storageDayIndex: Int?
 
+    /// The board's calendar day, as a flag names it. Nil before a board is up.
+    var boardDay: String? { storageDayIndex.map { flagDay(storageDay: $0) } }
+
     /// The moment this board was built for. Captured with the day index, for the
     /// same reason: if midnight passes while the app is open the board on screen
     /// is still yesterday's, and a share of it must say yesterday's date.

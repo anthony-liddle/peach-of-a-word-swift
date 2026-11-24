@@ -36,6 +36,7 @@ DaysFromTheWeb                three days' crowns from the calendar, for the samp
 DefinitionCardExits           the first chip's definition, whose length decides drag or scroll
 DefinitionReveal              Uncommon, Rare and source chips on today's board, and Rare definitions
 FirstFindShove                a word learned from today's board, and the list after it
+FlagOnTheCards                a basket word's grade on today's board, and 27 October's Mythic word
 LicencesList                  the text of both Soundscape licence files
 MarkInTheWell                 24 October's board, literary, where tel is Mythic
 MeterTopRung                  the seeded basket reaching the top rung's share of par

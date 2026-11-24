@@ -1,1 +1,1 @@
-You can turn off the game's vibration now, with the new Vibration switch in Settings.
+Each word's card now has a flag at the bottom, for a word, a definition or a grade that looks wrong. Flags send right away, so flag anything you spot.

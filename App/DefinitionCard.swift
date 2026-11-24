@@ -249,6 +249,13 @@ struct DefinitionCard: View {
                                 .fixedSize(horizontal: false, vertical: true)
                                 .padding(.top, 16)
                         }
+
+                        // The flag, at the foot of the scroll, never in the
+                        // pinned way out: it's there for a word that's wrong,
+                        // not something every card asks of a player.
+                        FlagControl(word: word.lowercased(),
+                                    card: definition != nil ? .definition : .noDefinition,
+                                    grade: category.flagGrade)
                     }
                     .padding(.horizontal, 28)
                     .padding(.vertical, 32)

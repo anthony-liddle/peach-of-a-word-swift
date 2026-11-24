@@ -1,4 +1,5 @@
 import Foundation
+import PeachEngine
 
 /// When the title screen appears: each new day's first open, the first launch
 /// after installing, and a launch the same day after she left the app on the
@@ -87,7 +88,8 @@ enum TitleSchedule {
     static func resetForFreshInstall(defaults: UserDefaults = .standard) {
         guard defaults.bool(forKey: "resetProgress") else { return }
         for key in [lastShownKey, leftUpKey, SoundSetting.key, VibrationSetting.key,
-                    LengthCountsSetting.key, HowToPlayFirstRun.key, AppearanceSetting.key]
+                    LengthCountsSetting.key, HowToPlayFirstRun.key, AppearanceSetting.key,
+                    FlagStore.key]
             + Reminder.freshInstallKeys {
             defaults.removeObject(forKey: key)
         }

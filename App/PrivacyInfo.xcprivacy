@@ -3,9 +3,15 @@
 <!--
   The app's privacy manifest, which App Store Connect reads from the bundle.
 
-  No tracking, no tracking domains and no collected data: the app sends
-  nothing anywhere. The one required-reason API it uses is UserDefaults, for
-  found words, day outcomes and the streak, read and written only by this app,
+  No tracking and no tracking domains. One type of data is collected: the
+  words a player flags from a card, sent to the game's own server at
+  peachofaword.com. A flag is something the player chooses to write, so it's
+  Other User Content; it carries nothing about the player and a random ID made
+  for that flag alone, so it's not linked; and it's for fixing the words, App
+  Functionality, never tracking. The App Store label says the same.
+
+  The one required-reason API is UserDefaults, for found words, day outcomes,
+  the streak and the flags waiting to send, read and written only by this app,
   which is reason CA92.1. See Apple's "Describing use of required reason API".
   Wired in through project.yml, since the .xcodeproj is generated.
 -->
@@ -16,7 +22,20 @@
 	<key>NSPrivacyTrackingDomains</key>
 	<array/>
 	<key>NSPrivacyCollectedDataTypes</key>
-	<array/>
+	<array>
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeOtherUserContent</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+	</array>
 	<key>NSPrivacyAccessedAPITypes</key>
 	<array>
 		<dict>

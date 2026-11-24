@@ -90,8 +90,14 @@ struct SourceRevealCard: View {
             // possible outcome for the one line Bea reacted to.
             VStack(spacing: 0) {
                 ScrollView {
-                    RevealContent(word: word, entry: entry, provenance: provenance,
-                                  landed: landed || reduceMotion)
+                    VStack(spacing: 0) {
+                        RevealContent(word: word, entry: entry, provenance: provenance,
+                                      landed: landed || reduceMotion)
+                        // The flag, under the credit, as on a found word's card.
+                        FlagControl(word: word.lowercased(), card: .peach, grade: nil)
+                            .padding(.horizontal, 28)
+                            .padding(.bottom, 24)
+                    }
                 }
                 .scrollBounceBehavior(.basedOnSize)
 
