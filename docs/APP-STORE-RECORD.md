@@ -88,6 +88,18 @@ App Store Connect will not accept it. Distribution runs through Xcode Cloud,
 which carries its own signing, and that is the only path a build reaches
 TestFlight by.
 
+### The version: 1.4 since 1.3 was submitted
+
+**1.3 was submitted for review on 2026-11-24, without the word flag.** It ships
+what `main` held that day, the found list's counts by length and the Vibration
+switch, and the flag goes in 1.4 (Antoine, 24 November). So `project.yml` says
+1.4 from that day, before any flag PR merges.
+
+**This time the version moves before 1.3 is approved,** and for a different
+reason: so that no build carrying the flag is ever a 1.3 build, and 1.3's
+review stays on the build that was submitted. Every merge after this reaches
+TestFlight as 1.4.
+
 ### The version: 1.3 since 1.2 was approved
 
 **1.2 was approved and released on 2026-11-20, as build 1.2 (117).** Antoine
