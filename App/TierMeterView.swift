@@ -53,45 +53,80 @@ struct TierMeterView: View {
         completed ? Vocabulary.crownName : Vocabulary.tierNames[min(standing.index, Vocabulary.tierNames.count - 1)]
     }
 
+    /// The rank's name, with the way back in the margin before it.
+    private var rankText: some View {
+        Text(label)
+            .font(CuteFont.display(18, relativeTo: .headline))
+            // The peach's colour as text is `crownDeep`: `crown` is a
+            // fill, 1.89:1 on the page (`LightContrastTests`).
+            .foregroundStyle(completed ? Cute.crownDeep : Cute.ink)
+            .probingWordBreaks("rank", words: label.split(separator: " ").map(String.init)) {
+                Text($0).font(CuteFont.display(18, relativeTo: .headline))
+            }
+            // In the margin before the name, on its first line: an
+            // overlay, so the name keeps its width. See `backButton`.
+            .overlay(alignment: Alignment(horizontal: .leading, vertical: .firstTextBaseline)) {
+                if let onHome { backButton(onHome).offset(x: -(chevronWidth + chevronGap)) }
+            }
+    }
+
+    /// The points total, with the calendar riding it.
+    private var pointsText: some View {
+        Text(counted(standing.score, "point"))
+            .font(CuteFont.body(15, weight: "Bold", relativeTo: .subheadline))
+            .foregroundStyle(Cute.ink)
+            .monospacedDigit()
+            .accessibilityIdentifier("MeterPoints")
+            .probingWordBreaks("points", words: counted(standing.score, "point")
+                .split(separator: " ").map(String.init)) {
+                Text($0).font(CuteFont.body(15, weight: "Bold", relativeTo: .subheadline))
+                    .monospacedDigit()
+            }
+            // **Overlaid on the points total, not on the row.**
+            //
+            // Anchoring to the row centres the glyph on the row, and the
+            // row is not what it should line up with: the HStack aligns
+            // its two texts on their first baseline, so an 18pt rank
+            // label and a 15pt points total have different centres, and
+            // the row's centre is neither. That left the glyph 1.25pt
+            // off at default and 1.75pt at XXXL after it was moved off
+            // the meter's corner, where it had been 9.25pt off.
+            //
+            // Overlaid on the points total itself, the vertical answer
+            // is exact at every text size by construction. The offset
+            // then puts it back where it was horizontally: the box's
+            // trailing edge lands on the column edge, inside the width
+            // the row reserves above.
+            .overlay(alignment: .trailing) {
+                if let onOpenArchive { archiveButton(onOpenArchive).offset(x: glyphReserve) }
+            }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             // A baseline-aligned row, rank on the left and the bold total on the
             // right, spaced apart.
-            HStack(alignment: .firstTextBaseline) {
-                Text(label)
-                    .font(CuteFont.display(18, relativeTo: .headline))
-                    // The peach's colour as text is `crownDeep`: `crown` is a
-                    // fill, 1.89:1 on the page (`LightContrastTests`).
-                    .foregroundStyle(completed ? Cute.crownDeep : Cute.ink)
-                    // In the margin before the name, on its first line: an
-                    // overlay, so the name keeps its width. See `backButton`.
-                    .overlay(alignment: Alignment(horizontal: .leading, vertical: .firstTextBaseline)) {
-                        if let onHome { backButton(onHome).offset(x: -(chevronWidth + chevronGap)) }
-                    }
-                Spacer(minLength: 8)
-                Text(counted(standing.score, "point"))
-                    .font(CuteFont.body(15, weight: "Bold", relativeTo: .subheadline))
-                    .foregroundStyle(Cute.ink)
-                    .monospacedDigit()
-                    .accessibilityIdentifier("MeterPoints")
-                    // **Overlaid on the points total, not on the row.**
-                    //
-                    // Anchoring to the row centres the glyph on the row, and the
-                    // row is not what it should line up with: the HStack aligns
-                    // its two texts on their first baseline, so an 18pt rank
-                    // label and a 15pt points total have different centres, and
-                    // the row's centre is neither. That left the glyph 1.25pt
-                    // off at default and 1.75pt at XXXL after it was moved off
-                    // the meter's corner, where it had been 9.25pt off.
-                    //
-                    // Overlaid on the points total itself, the vertical answer
-                    // is exact at every text size by construction. The offset
-                    // then puts it back where it was horizontally: the box's
-                    // trailing edge lands on the column edge, inside the width
-                    // the row reserves above.
-                    .overlay(alignment: .trailing) {
-                        if let onOpenArchive { archiveButton(onOpenArchive).offset(x: glyphReserve) }
-                    }
+            //
+            // **Each on its own line where the two can't share one.** In one
+            // row at the largest sizes, the two split the width and each could
+            // be left narrower than a word: "First Spro" over "ut", and "point"
+            // over "s", on an SE at AX5 (24 November 2026). Stacked, each has
+            // the whole width, and a line breaks only at a space. Where the row
+            // fits, it's the row, as it always was. `WholeWordsAtEverySize`
+            // holds both.
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .firstTextBaseline) {
+                    rankText
+                    Spacer(minLength: 8)
+                    pointsText
+                }
+                VStack(alignment: .leading, spacing: 2) {
+                    rankText
+                        .fixedSize(horizontal: false, vertical: true)
+                    // Trailing, so the calendar keeps its corner.
+                    pointsText
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                }
             }
             // Width reserved for the calendar, which is drawn as an overlay
             // rather than as a third item in this row. See `archiveButton` for why.

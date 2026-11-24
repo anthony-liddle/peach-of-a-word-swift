@@ -414,15 +414,36 @@ struct FoundListView: View {
         if let best = words.reduce(nil, { (b: FoundWord?, w) in
             b == nil || w.score > b!.score ? w : b
         }) {
-            HStack(spacing: 8) {
-                Text("Best word")
-                    .font(CuteFont.body(12, weight: "SemiBold", relativeTo: .caption))
-                    .tracking(1.4)
-                    .textCase(.uppercase)
-                    .foregroundStyle(Cute.inkFaint)
-                WordChip(found: best, glint: glintSeq(for: best)) { onSelect(best) }
+            // The chip beside its label where both fit on one line, and under
+            // it where they don't: side by side at the largest sizes, the chip
+            // was squeezed narrower than its word, "acin" over "g" on an
+            // iPhone 17 Pro Max at AX5 (21 November 2026).
+            // `WholeWordsAtEverySize` holds it.
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 8) {
+                    bestWordLabel
+                    bestWordChip(best)
+                }
+                VStack(alignment: .leading, spacing: 4) {
+                    bestWordLabel
+                    bestWordChip(best)
+                }
             }
         }
+    }
+
+    private var bestWordLabel: some View {
+        Text("Best word")
+            .font(CuteFont.body(12, weight: "SemiBold", relativeTo: .caption))
+            .tracking(1.4)
+            .textCase(.uppercase)
+            .foregroundStyle(Cute.inkFaint)
+    }
+
+    private func bestWordChip(_ best: FoundWord) -> some View {
+        WordChip(found: best, glint: glintSeq(for: best)) { onSelect(best) }
+            // One word, so any second line is a broken word.
+            .probingWordBreaks("best", words: [best.word]) { _ in WordChip(found: best) }
     }
 
     /// What the marks mean.
