@@ -223,7 +223,7 @@ struct ContentView: View {
                 // Not drawn while the title covers it, so nothing beneath the
                 // title can be reached by touch or by VoiceOver. The model
                 // loads from the root's `.task`, not from this view.
-                if !titleShown { game }
+                if !titleShown { game.wordFlags(day: model.boardDay) }
                 #if DEBUG
                 // `-exposeToday 1` prints the two day indices the app computed,
                 // so `TodayIsTheLocalDate` can hold them to the phone's own date.
@@ -384,6 +384,7 @@ struct ContentView: View {
             // still describes what they do.
             .presentationDragIndicator(.visible)
             .environment(\.peachCostume, model.costume)
+            .wordFlags(day: model.boardDay)
         }
         // The feedback line, spoken.
         //
@@ -453,6 +454,7 @@ struct ContentView: View {
                           })
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
+                .wordFlags(day: nil)
         }
         // How to play: from Play on a first run, or from the title's link.
         .sheet(item: $howToPlay) { shown in
@@ -503,6 +505,8 @@ struct ContentView: View {
                 wentAway = true
                 return
             }
+            // Flags waiting since the last time go now.
+            WordFlags.becameActive()
             #if DEBUG
             // Only after actually going away. Launching runs inactive to
             // active, which is a change like any other, so setting this on any
@@ -546,6 +550,8 @@ struct ContentView: View {
         }
         .onAppear {
             if Reminder.shared.titleRequested { answerReminder() }
+            // Flags waiting from before go now, and whenever the network comes back.
+            WordFlags.start()
         }
         .task {
             #if DEBUG

@@ -16,7 +16,7 @@ import UserNotifications
 /// when the switch or the time changes, and at the day's first find.
 ///
 /// **Nothing leaves the phone.** It is scheduled on the phone, by the phone,
-/// with no server and no push token, so "Data Not Collected" stays true. The
+/// with no server and no push token, so the reminder collects nothing. The
 /// switch and the time are two `UserDefaults` keys, which the privacy manifest
 /// already declares (`CA92.1`).
 @MainActor @Observable

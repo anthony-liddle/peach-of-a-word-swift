@@ -111,3 +111,33 @@ final class FlagNetwork {
         monitor.start(queue: DispatchQueue(label: "flag-network"))
     }
 }
+
+/// The app's one list of flags, and when it sends: at launch, whenever the
+/// network comes back, on each return to the app, and the moment a flag is
+/// made or taken back. The ones not just made retry no more than once every
+/// 10 minutes (`FlagStore`).
+@MainActor
+enum WordFlags {
+    static let network = FlagNetwork()
+    static let store = FlagStore(
+        storage: UserDefaults.standard,
+        transport: FlagServer.transport,
+        now: { Date() },
+        newId: { UUID().uuidString },
+        version: FlagServer.bundleVersion,
+        online: { network.isOnline }
+    )
+    private static var started = false
+
+    /// Once a process, after `-resetProgress` has cleared the list.
+    static func start() {
+        guard !started else { return }
+        started = true
+        network.start { Task { await store.send(.online) } }
+        Task { await store.send(.launch) }
+    }
+
+    static func becameActive() {
+        Task { await store.send(.active) }
+    }
+}

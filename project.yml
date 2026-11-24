@@ -116,6 +116,10 @@ targets:
         # calls at all: the word lists ship in the bundle, progress lives in
         # UserDefaults, and the only cryptography anywhere near it is whatever
         # the OS does underneath, which is exempt by definition.
+        #
+        # Since the flag (November 2026), one call: a flagged word, posted to
+        # peachofaword.com over HTTPS with the OS's own URLSession. That's the
+        # OS's encryption, which Apple counts as exempt, so the answer stands.
         ITSAppUsesNonExemptEncryption: false
         # No UIUserInterfaceStyle: the game follows the phone, light or dark,
         # unless the player chooses one in Settings (`AppearanceSetting`). It

@@ -33,6 +33,10 @@ struct SettingsSheet: View {
     @AppStorage(LengthCountsSetting.key) private var lengthCountsOn = true
     @AppStorage(AppearanceSetting.key) private var appearance: AppearanceSetting = .system
     @State private var explaining = false
+    /// Your flags, its own sheet (Antoine, 22 November). Nil in previews.
+    @Environment(\.flagStore) private var flagStore
+    @State private var listingFlags = false
+    @AccessibilityFocusState private var flagsRowFocused: Bool
     /// Days from the web: the plan the question asks about, whether it's
     /// asking, whether the import is running, and its one message after.
     @State private var daysPlan: DaysImportPlan?
@@ -112,6 +116,13 @@ struct SettingsSheet: View {
             HowItWorks { explaining = false }
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
+        }
+        .sheet(isPresented: $listingFlags, onDismiss: { flagsRowFocused = true }) {
+            if let flagStore {
+                YourFlagsSheet(store: flagStore) { listingFlags = false }
+                    .presentationDetents([.large])
+                    .presentationDragIndicator(.visible)
+            }
         }
         #if DEBUG
         // Once Settings is up, `-openExplainer 1` opens How the words work and
@@ -325,6 +336,19 @@ struct SettingsSheet: View {
             .buttonStyle(.plain)
             .accessibilityHint(Vocabulary.privacyHint)
             .accessibilityIdentifier("SettingsPrivacy")
+            // Your flags: only the row, with its count, never the flagged words,
+            // and only once something is flagged. Under the privacy policy
+            // (Antoine, 22 November). It opens the list as its own sheet.
+            if let flagStore, !flagStore.list.isEmpty {
+                divider
+                Button { listingFlags = true } label: {
+                    SettingsRow(title: FlagCopy.yourFlags, note: nil, trailing: "chevron.right",
+                                value: "\(flagStore.list.count)")
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("SettingsFlags")
+                .accessibilityFocused($flagsRowFocused)
+            }
         }
         .background(card.fill(Cute.paperDeep))
         .overlay(card.stroke(Cute.tileEdge, lineWidth: 1))
@@ -426,6 +450,8 @@ private struct SettingsRow: View {
     let title: String
     let note: String?
     let trailing: String
+    /// A count, before the chevron: Your flags' only.
+    var value: String? = nil
 
     var body: some View {
         HStack(alignment: .center, spacing: 12) {
@@ -441,6 +467,11 @@ private struct SettingsRow: View {
             }
             .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 8)
+            if let value {
+                Text(value)
+                    .font(CuteFont.body(16, relativeTo: .body))
+                    .foregroundStyle(Cute.inkFaint)
+            }
             Image(systemName: trailing)
                 .font(.footnote.weight(.semibold))
                 .foregroundStyle(Cute.inkFaint)

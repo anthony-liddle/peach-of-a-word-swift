@@ -37,6 +37,10 @@
 # iPhone 17 Pro Max simulator, added to the lightest shard. Replace it the same
 # way.
 #
+# **And `FlagOnTheCards`,** on 24 November: its 190 is one local run on an
+# iPhone 17 Pro simulator, added to the lightest shard. Replace it the same
+# way.
+#
 # To rebalance, or to change the number of shards, update the seconds and
 # print a new map:
 #
@@ -56,6 +60,7 @@
 1        TransferFromTheWebPage             2
 1        LengthCounts                       32
 1        VibrationSwitch                    26
+1        FlagOnTheCards                     190
 2        ArchivePeachDays                   500
 2        DailyReminder                      145
 2        TitleAndTopRowAtEverySize          107
