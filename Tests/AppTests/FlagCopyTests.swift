@@ -73,6 +73,26 @@ struct FlagCopyTests {
         #expect(FlagCopy.full == "50 flags are waiting to send. They'll go once you're online.")
     }
 
+    // MARK: The refused word (step 6)
+
+    @Test func wordsTheRefusedWordsFlagAndItsPopup() {
+        #expect(FlagCopy.suggestLabel == "Suggest this word")
+        #expect(FlagCopy.suggestQuestion("zorp") == "Suggest “zorp” for the dictionary?")
+        #expect(FlagCopy.suggestCancel == "Cancel")
+        #expect(FlagCopy.suggestSend == "Suggest")
+    }
+
+    /// One not-sent line for every case a suggestion didn't go, offline or
+    /// not: "when you're online" is false with the server busy or switched off
+    /// (Antoine, 23 November). The web says the same.
+    @Test func confirmsASuggestionWithOneLineForEveryCaseItDidntGo() {
+        #expect(FlagCopy.suggestedLine(sent: true) == "✓ Suggestion sent.")
+        #expect(FlagCopy.suggestedLine(sent: false) == "✓ Suggestion saved. It'll send later.")
+        #expect(FlagCopy.suggestedSpoken(sent: true) == "Suggested. Sent.")
+        #expect(FlagCopy.suggestedSpoken(sent: false) == "Suggested. Waiting to send.")
+        #expect(!FlagCopy.suggestedLine(sent: false).contains("online"))
+    }
+
     @Test func neverNamesAnyoneInTheGamesOwnScreens() {
         let all = [
             FlagCopy.flagLabel, FlagCopy.flagHint, FlagCopy.pickerTitle("zorp"), FlagCopy.pickerNote,

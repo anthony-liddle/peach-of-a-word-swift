@@ -81,4 +81,16 @@ struct WellLineTests {
         #expect(line.shown == "Already found. Keep going.")
         #expect(line.spoken == "Already found. Keep going.")
     }
+
+    /// A suggestion's confirmation shows a tick and says it in words, as a
+    /// flag's state is said: "✓ Suggestion sent." to the eye, "Suggested.
+    /// Sent." to the ear. No mark, since it's no find.
+    @Test("a line can show one thing and say another, with no mark")
+    func shownAndSpoken() {
+        let line = WellLine(shown: "✓ Suggestion sent.", spoken: "Suggested. Sent.")
+        #expect(line.mark == nil)
+        #expect(line.shown == "✓ Suggestion sent.")
+        #expect(line.spoken == "Suggested. Sent.")
+        #expect(line.name == "Suggested. Sent")
+    }
 }

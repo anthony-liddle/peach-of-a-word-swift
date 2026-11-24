@@ -41,6 +41,10 @@
 # iPhone 17 Pro simulator, added to the lightest shard. Replace it the same
 # way.
 #
+# **And `RefusedWordFlag`,** on 24 November: its 170 is one local run on an
+# iPhone 17 Pro simulator, added to the lightest shard. Replace it the same
+# way.
+#
 # To rebalance, or to change the number of shards, update the seconds and
 # print a new map:
 #
@@ -76,6 +80,7 @@
 2        TodayIsTheLocalDate                16
 2        SoundWithTheRingerOff              10
 2        ShareFromTheCards                  130
+2        RefusedWordFlag                    170
 3        RackAtLargeText                    347
 3        MarkInTheWell                      179
 3        BackToTheDayYouWereOn              201
