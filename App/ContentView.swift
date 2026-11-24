@@ -306,6 +306,15 @@ struct ContentView: View {
                     .font(.caption2)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
                 }
+                // `-exposeWordBreaks 1` says, for the meter's rank and points
+                // and the found list's best word, whether any word is wider
+                // than its room, so `WholeWordsAtEverySize` can hold them whole.
+                if WordBreakProbe<Text>.isOn {
+                    Text(WordBreakReadings.shared.summary)
+                        .font(.caption2)
+                        .accessibilityIdentifier("DebugWordBreaks")
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+                }
                 // `-exposeTopRow 1` prints the meter's height beside its copy's,
                 // so `TitleAndTopRowAtEverySize` can hold the way back to no cost.
                 if TopRowProbe.isOn {
