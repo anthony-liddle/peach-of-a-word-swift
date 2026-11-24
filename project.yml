@@ -291,6 +291,9 @@ targets:
       # macOS, with no UIKit. Each app file they test is listed after them.
       - path: Tests/AppTests
       - path: App/Feel.swift
+      - path: App/Copy.swift
+      - path: App/FlagCopy.swift
+      - path: App/FlagServer.swift
       # The three things the suite reads off disk, carried in the bundle.
       #
       # `swift test` runs from the source tree and finds them there. Xcode

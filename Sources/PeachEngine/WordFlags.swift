@@ -130,6 +130,11 @@ public struct FlagRequest: Sendable {
     public let method: Method
     /// The JSON body, exactly as it goes.
     public let body: Data
+
+    public init(method: Method, body: Data) {
+        self.method = method
+        self.body = body
+    }
 }
 
 /// Sends a request and gives back the server's status, or nil for no
@@ -184,16 +189,16 @@ public enum FlagSendReason: Sendable { case made, launch, online, active }
 @Observable
 public final class FlagStore {
     /// The `UserDefaults` key the list lives under.
-    public static let key = "wordFlags"
+    public nonisolated static let key = "wordFlags"
     /// At most this many wait at once; the card says so in place of its flag.
-    public static let maxWaiting = 50
+    public nonisolated static let maxWaiting = 50
     /// How long a flag lasts, on the server and here.
-    public static let keepDays = 60
+    public nonisolated static let keepDays = 60
     /// The most flags, or IDs to forget, in one request: the server's limit.
-    public static let maxPerRequest = 20
+    public nonisolated static let maxPerRequest = 20
     /// The largest body the server reads.
-    public static let maxBodyBytes = 4096
-    static let retry: TimeInterval = 10 * 60
+    public nonisolated static let maxBodyBytes = 4096
+    nonisolated static let retry: TimeInterval = 10 * 60
 
     struct Forget: Codable, Equatable {
         let id: String
