@@ -126,6 +126,9 @@ struct ContentView: View {
 
     /// Whether the settings sheet is up, from the title's link.
     @State private var settingsShown = false
+    /// The refused word the popup is asking about, nil while it's closed. At
+    /// the root, since the well is built once per layout arm.
+    @State private var suggesting: String?
 
     /// How to play, if it is up, and why: a first run goes on to the board.
     private enum HowToPlayShown: Identifiable {
@@ -437,6 +440,18 @@ struct ContentView: View {
             // them, where a month does not fit whatever the sheet is given.
             .presentationDetents(archiveDetents(presentation.height))
             .presentationDragIndicator(.visible)
+        }
+        // The refused word's popup, the system's alert: it asks first, so
+        // nothing is sent without its Suggest (Antoine, 21 November). Cancel
+        // has the cancel role. The system stacks the two at the largest sizes.
+        .alert(FlagCopy.suggestQuestion(suggesting ?? ""),
+               isPresented: Binding(get: { suggesting != nil },
+                                    set: { if !$0 { suggesting = nil } })) {
+            Button(FlagCopy.suggestCancel, role: .cancel) { suggesting = nil }
+            Button(FlagCopy.suggestSend) {
+                if let word = suggesting { suggest(word) }
+                suggesting = nil
+            }
         }
         // Settings, from the title's link. Large, since the licences behind it
         // are pages of text and medium would open on a fragment.
@@ -767,7 +782,7 @@ struct ContentView: View {
             // beneath it. See `ComposingStick`.
             ComposingStick(word: model.composedWord, feedback: model.feedback,
                                feedbackSeq: model.feedbackSeq, glint: model.glint,
-                               onOpen: wellOpens)
+                               onOpen: wellOpens, onSuggest: wellSuggests)
                 .padding(.top, 12)
             TypeCase(model: model, commitOnTouchDown: true)
                 .padding(.top, 8)
@@ -838,7 +853,8 @@ struct ContentView: View {
                 header
                 ComposingStick(word: model.composedWord, feedback: model.feedback,
                                feedbackSeq: model.feedbackSeq, glint: model.glint,
-                               onOpen: wellOpens, slideCancelsTap: false)
+                               onOpen: wellOpens, onSuggest: wellSuggests,
+                               slideCancelsTap: false)
                 TypeCase(model: model, commitOnTouchDown: false)
                 foundList
             }
@@ -907,6 +923,31 @@ struct ContentView: View {
     /// line reports one. See `GameModel.revealWellFind`.
     private var wellOpens: (() -> Void)? {
         model.wellFind == nil ? nil : { model.revealWellFind() }
+    }
+
+    /// What the well's flag does: ask to suggest the refused word. Nil, and so
+    /// no flag, for any line but "Not in the word list.", for a word this
+    /// phone has already suggested, with 50 flags waiting, and with no board.
+    private var wellSuggests: (() -> Void)? {
+        guard let word = model.refusedWord, model.boardDay != nil else { return nil }
+        let store = WordFlags.store
+        guard !store.isFull,
+              !store.list.contains(where: { $0.word == word && $0.reason == .shouldCount })
+        else { return nil }
+        return { suggesting = word }
+    }
+
+    /// Only the popup's Suggest makes the flag. The confirmation comes once
+    /// the send has answered, so the line never says saved while it's on its
+    /// way, and only while that refusal is still the line (`suggested`).
+    private func suggest(_ word: String) {
+        guard let day = model.boardDay else { return }
+        Task {
+            let store = WordFlags.store
+            guard await store.flag(word: word, reason: .shouldCount, day: day) == .made else { return }
+            let flag = store.list.first { $0.word == word && $0.reason == .shouldCount }
+            model.suggested(word, sent: flag?.state == .sent)
+        }
     }
 
     /// Share for the two cards that open for the big finds: the found list's
@@ -1202,6 +1243,14 @@ private struct ComposingStick: View {
     /// rejection and the letters being picked are not buttons at all. See
     /// `GameModel.revealWellFind`.
     var onOpen: (() -> Void)? = nil
+    /// What the refused word's flag does: ask to suggest it. Nil, and so no
+    /// flag, for every other line. See `ContentView.wellSuggests`.
+    var onSuggest: (() -> Void)? = nil
+    #if DEBUG
+    /// `-exposeWellLine 1`: the line, its words' frame and the flag's, for
+    /// `RefusedWordFlag`. See `WellProbe`.
+    @State private var probe = WellProbe()
+    #endif
     /// Whether a slide cancels a tap on the line, which the fixed layout
     /// needs and the scrolling one must not have. See `LineTap`.
     var slideCancelsTap = true
@@ -1242,7 +1291,8 @@ private struct ComposingStick: View {
         case .none: Cute.inkFaint
         case .accepted(_, _, let rung): rung == .set ? Cute.accent : Cute.discovery
         case .sourceFound: Cute.accent
-        case .rejected: Cute.inkFaint
+        case .rejected, .refused: Cute.inkFaint
+        case .suggested: Cute.accent
         }
     }
 
@@ -1279,12 +1329,35 @@ private struct ComposingStick: View {
                 .lineLimit(2)
                 .minimumScaleFactor(0.6)
                 .layoutPriority(1)
+                #if DEBUG
+                .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("well")) } action: { probe.line = $0 }
+                #endif
         }
         // The well is full content width, so this keeps nearly all of
         // the width the row had: 330pt of 354 on a 390pt phone against
         // the row's 354, bought back several times over by the second
         // line.
         .padding(.horizontal, 12)
+    }
+
+    /// The refused word's flag: a 44-point target with the card flag's glyph,
+    /// in the refusal's colour, which grows with the text and stops at 44.
+    private func suggestFlag(_ action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            FlagIcon()
+                .foregroundStyle(tint)
+                #if DEBUG
+                .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("well")) } action: { probe.glyph = $0 }
+                #endif
+                .frame(width: 44, height: 44)
+                .contentShape(Rectangle())
+                #if DEBUG
+                .onGeometryChange(for: CGRect.self) { $0.frame(in: .named("well")) } action: { probe.target = $0 }
+                .onDisappear { probe.target = nil; probe.glyph = nil }
+                #endif
+        }
+        .buttonStyle(.plain)
+        .padding(.trailing, 4)
     }
 
     var body: some View {
@@ -1333,7 +1406,19 @@ private struct ComposingStick: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.5)
             }
+
+            // The refused word's flag, over the well's trailing edge: a layer
+            // of its own in the well, never a part of the line's layout, so
+            // the refusal is drawn exactly as it is with no flag, centred, at
+            // every size (Antoine, 21 November).
+            if let onSuggest {
+                suggestFlag(onSuggest)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
+            }
         }
+        // The well's own points, which `WellProbe` reports in: the shake
+        // below moves the whole well, so a frame in here holds still through it.
+        .coordinateSpace(.named("well"))
         .frame(height: height)
         // The rejection nudge, ported from the web, where Bea called it
         // delightful and asked for it here.
@@ -1364,7 +1449,7 @@ private struct ComposingStick: View {
         // See `feedbackSeq`.
         .modifier(ShakeEffect(travel: 5, cycles: 1, animatableData: shake))
         .onChange(of: feedbackSeq) {
-            guard case .rejected = feedback, !reduceMotion else { return }
+            guard feedback.isRefusal, !reduceMotion else { return }
             shake = 0
             withAnimation(.easeOut(duration: 0.32)) { shake = 1 }
         }
@@ -1398,12 +1483,47 @@ private struct ComposingStick: View {
             : "Picked so far: \(word.map(String.init).joined(separator: " "))"))
         .accessibilityHint(opensCard == nil ? "" : WordChip.hint)
         .accessibilityAction { if opensCard != nil { onOpen?() } }
+        // The refused word's flag is one of the children ignored, so to
+        // VoiceOver it's an action on the well, there only while the flag is.
+        .accessibilityActions {
+            if let onSuggest { Button(FlagCopy.suggestLabel, action: onSuggest) }
+        }
+        #if DEBUG
+        .accessibilityValue(WellProbe.exposed ? probe.text(shown: word.isEmpty ? feedback.line?.shown : nil) : "")
+        #endif
         .accessibilityAddTraits(opensCard == nil ? [] : .isButton)
         .accessibilityRemoveTraits(opensCard == nil ? .isButton : [])
         // So a test can find the well whatever it is showing.
         .accessibilityIdentifier("ComposingWell")
     }
 }
+
+#if DEBUG
+/// `-exposeWellLine 1`: what the well shows, where the words of its line are,
+/// and where the refused word's flag and its glyph are, in the well's own
+/// points, as the well's accessibility value. In the well's points, not the
+/// window's, because the refusal's shake moves the well, and a frame read
+/// mid-shake would say the words had moved. The well ignores its children
+/// for VoiceOver, so this is the only way a UI test can measure them.
+struct WellProbe {
+    static let exposed = UserDefaults.standard.bool(forKey: "exposeWellLine")
+    var line: CGRect?
+    var target: CGRect?
+    var glyph: CGRect?
+
+    func text(shown: String?) -> String {
+        func r(_ f: CGRect) -> String {
+            [f.minX, f.minY, f.width, f.height].map { String(format: "%.2f", $0) }.joined(separator: ",")
+        }
+        var parts: [String] = []
+        if let shown { parts.append("shown=\(shown)") }
+        if let line, shown != nil { parts.append("line=\(r(line))") }
+        if let target { parts.append("target=\(r(target))") }
+        if let glyph { parts.append("glyph=\(r(glyph))") }
+        return parts.joined(separator: "|")
+    }
+}
+#endif
 
 /// How far a pressed line dims: the found list's chips' own press, so the two
 /// read as one idea. `.plain` draws a chip at 0.75 while it is held, measured

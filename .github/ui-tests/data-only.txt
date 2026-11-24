@@ -45,6 +45,7 @@ OneBeatPerFind                today's source word inside its basket, for the com
 RackAtLargeText               the meter and the first group's header and chip at large sizes
 RackScrollTests               the meter and well's height above the rack, against a table of phones
 RackShape                     the eight tiles of today's source word
+RefusedWordFlag               24 October's rack, from which a made-up word is refused
 RevealButtonReach             the longest and shortest etymology entries
 RungSheetDefinitions          27 October's word, fragment, and its Mythic words' definitions
 ShareFromTheCards             today's source word, and its rank and counts on the crown card; withdraw's entry

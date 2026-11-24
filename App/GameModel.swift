@@ -34,6 +34,12 @@ final class GameModel {
         case accepted(word: String, points: Int, rung: Rung)
         case sourceFound
         case rejected(String)
+        /// "Not in the word list.", for the letters refused, so the well can
+        /// offer them as a suggestion. Shown and said as the refusal always was.
+        case refused(word: String)
+        /// The refusal's place once its word is suggested: sent, or saved to
+        /// send later.
+        case suggested(sent: Bool)
 
         /// What the well's line shows and says, in one place.
         ///
@@ -49,6 +55,25 @@ final class GameModel {
                 WellLine(find: word, points: points, rung: rung)
             case .sourceFound: WellLine(plain: Vocabulary.sourceFound)
             case .rejected(let text): WellLine(plain: text)
+            case .refused: WellLine(plain: Self.notInList)
+            case .suggested(let sent):
+                WellLine(shown: FlagCopy.suggestedLine(sent: sent),
+                         spoken: FlagCopy.suggestedSpoken(sent: sent))
+            }
+        }
+
+        /// The refusal of a word the list doesn't have. The web's words,
+        /// without its "Try another.", which the well has no room for. It's
+        /// narrower than "Not from these letters.", which this said until
+        /// November 2026: 127pt against 145 in the well's face at 15pt, so it
+        /// fits the reserved height wherever that did.
+        static let notInList = "Not in the word list."
+
+        /// A refusal of either kind, which the well nudges.
+        var isRefusal: Bool {
+            switch self {
+            case .rejected, .refused: true
+            case .none, .accepted, .sourceFound, .suggested: false
             }
         }
     }
@@ -208,7 +233,7 @@ final class GameModel {
         switch feedback {
         case .accepted(let word, _, _): word
         case .sourceFound: puzzle?.sourceWord
-        case .none, .rejected: nil
+        case .none, .rejected, .refused, .suggested: nil
         }
     }
 
@@ -1241,16 +1266,32 @@ final class GameModel {
 
     /// Submit whatever is on the stick.
     func submit() {
-        resolve(attempt(composedWord))
+        resolve(attempt(composedWord), word: composedWord)
         // The web version clears the stick on every outcome, valid or not, so a
         // rejected word does not have to be picked apart by hand.
         clear()
     }
 
+    /// The word the well's flag can suggest: the letters "Not in the word
+    /// list." refused, while that refusal is the line and nothing is picked.
+    var refusedWord: String? {
+        guard composing.isEmpty, case .refused(let word) = feedback else { return nil }
+        return word
+    }
+
+    /// The confirmation, once the suggestion has been answered: only while
+    /// that refusal is still the line, so an answer that comes after the
+    /// player has typed on leaves nothing behind. Announced like any line.
+    func suggested(_ word: String, sent: Bool) {
+        guard refusedWord == word else { return }
+        feedback = .suggested(sent: sent)
+        feedbackSeq += 1
+    }
+
     /// Submit the debug text field. Tapping is the primary path; this is kept
     /// only for headless testing of strings the rack cannot spell.
     func submitTyped() {
-        resolve(attempt(guess))
+        resolve(attempt(guess), word: guess)
         guess = ""
     }
 
@@ -1854,7 +1895,7 @@ final class GameModel {
         #endif
     }
 
-    private func resolve(_ result: GuessResult?) {
+    private func resolve(_ result: GuessResult?, word letters: String) {
         guard let result else { return }
         feedbackSeq += 1
 
@@ -1896,12 +1937,9 @@ final class GameModel {
             Feel.reject()
             sound(cue(for: result, completesBasket: false))
         case .notAWord:
-            // The web's words, without its "Try another.", which the well
-            // has no room for. It's narrower than "Not from these letters.",
-            // which this said until November 2026: 127pt against 145 in the
-            // well's face at 15pt, so it fits the reserved height wherever
-            // that did.
-            feedback = .rejected("Not in the word list.")
+            // With its letters, which the well's flag can suggest. Shown and
+            // said as before: see `Feedback.notInList`.
+            feedback = .refused(word: letters.lowercased())
             Feel.reject()
             sound(cue(for: result, completesBasket: false))
         case .alreadyFound:

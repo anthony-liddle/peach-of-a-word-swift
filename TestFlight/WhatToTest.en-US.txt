@@ -1,1 +1,1 @@
-Each word's card now has a flag at the bottom, for a word, a definition or a grade that looks wrong. Flags send right away, so flag anything you spot.
+When the game refuses a word, tap the flag beside it to suggest it for the dictionary. It asks first, and only Suggest sends it.

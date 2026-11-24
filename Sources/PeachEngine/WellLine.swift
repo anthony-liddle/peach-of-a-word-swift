@@ -35,6 +35,15 @@ public struct WellLine: Equatable, Sendable {
         spoken = text
     }
 
+    /// A line that shows one thing and says another, with no mark: a
+    /// suggestion's confirmation, which shows a tick and says its state in
+    /// words, as a flag's is said ("✓ Suggestion sent.", "Suggested. Sent.").
+    public init(shown: String, spoken: String) {
+        mark = nil
+        self.shown = shown
+        self.spoken = spoken
+    }
+
     /// A find's line, for any find but the source word.
     public init(find word: String, points: Int, rung: Rung) {
         let line = "\(word), \(counted(points, "point"))"

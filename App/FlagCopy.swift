@@ -108,4 +108,28 @@ enum FlagCopy {
     static let listNote = "Flags send right away, or once you're back online. "
         + "You can take one back for 60 days."
     static let full = "\(FlagStore.maxWaiting) flags are waiting to send. They'll go once you're online."
+
+    // MARK: The refused word
+
+    /// The flag over the well's trailing edge, on "Not in the word list." only.
+    static let suggestLabel = "Suggest this word"
+
+    /// The popup, the system's alert: it asks first, so only its Suggest
+    /// sends anything (Antoine, 21 November).
+    static func suggestQuestion(_ word: String) -> String { "Suggest “\(word)” for the dictionary?" }
+    static let suggestCancel = "Cancel"
+    static let suggestSend = "Suggest"
+
+    /// The line that takes the refusal's place once the word is suggested.
+    /// "Sent" only once the server has it; one line for every other case,
+    /// offline or not, since "when you're online" would be false with the
+    /// server busy or switched off (Antoine, 23 November).
+    static func suggestedLine(sent: Bool) -> String {
+        sent ? "✓ Suggestion sent." : "✓ Suggestion saved. It'll send later."
+    }
+
+    /// What VoiceOver hears: "Suggested.", then the state, as a card's flag says it.
+    static func suggestedSpoken(sent: Bool) -> String {
+        sent ? "Suggested. Sent." : "Suggested. Waiting to send."
+    }
 }
