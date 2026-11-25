@@ -158,7 +158,8 @@ struct PeachRushHeader: View {
         .accessibilityIdentifier("RunLeave")
     }
 
-    /// Back to the title before Start, as the board's chevron is drawn.
+    /// Back to the title before Start, as the board's chevron is drawn and
+    /// heard: "Back to the title screen", a button, first in its row.
     private var backChevron: some View {
         Button(action: onLeave) {
             Text(Image(systemName: "chevron.backward"))
@@ -174,6 +175,8 @@ struct PeachRushHeader: View {
         .accessibilityShowsLargeContentViewer {
             Label(Vocabulary.backToTitle, systemImage: "chevron.backward")
         }
+        // First in the header, as the board's is first in the meter.
+        .accessibilitySortPriority(1)
         .accessibilityIdentifier("RunBack")
     }
 
@@ -228,6 +231,9 @@ struct PeachRushHeader: View {
                 .accessibilityHidden(true)
         }
         .dynamicTypeSize(...DynamicTypeSize.accessibility1)
+        // Its own elements, so the way back can be sorted ahead of the clock,
+        // as the board's meter sorts its chevron ahead of the rank's name.
+        .accessibilityElement(children: .contain)
     }
 }
 

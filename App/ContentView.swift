@@ -138,6 +138,14 @@ struct ContentView: View {
 
     @State private var howToPlay: HowToPlayShown?
 
+    /// End's question, asked on the way into today's basket while today's run
+    /// waits, paused, and what End goes on to. See `intoTheBasket`.
+    @State private var askingForBasket = false
+    @State private var basketAfterEnd: (() -> Void)?
+    /// A way into the basket picked in Past days, taken once the sheet is down,
+    /// since the question can't be asked over it.
+    @State private var afterArchive: (() -> Void)?
+
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     #if DEBUG
@@ -441,7 +449,11 @@ struct ContentView: View {
         // A sheet rather than a pushed screen, because there is no navigation
         // stack to push onto: the play surface has no chrome and the layout
         // budget has no room to grow any. See `ArchiveSheet`.
-        .sheet(item: $archivePresentation) { presentation in
+        .sheet(item: $archivePresentation, onDismiss: {
+            let next = afterArchive
+            afterArchive = nil
+            next?()
+        }) { presentation in
             GeometryReader { sheet in
                 ArchiveSheet(
                     width: sheet.size.width,
@@ -452,8 +464,15 @@ struct ContentView: View {
                         archivePresentation = nil
                         // Past days lives on the title, so a day picked there
                         // opens on the board and the title steps aside.
-                        leaveTitle()
-                        Task { await model.openArchiveDay(storageDay: day) }
+                        let open = {
+                            leaveTitle()
+                            Task { await model.openArchiveDay(storageDay: day) }
+                        }
+                        if day == GameModel.todayStorageIndex {
+                            afterArchive = { intoTheBasket(open) }
+                        } else {
+                            open()
+                        }
                     },
                     onClose: { archivePresentation = nil }
                 )
@@ -487,6 +506,21 @@ struct ContentView: View {
                 .presentationDragIndicator(.visible)
         }
         // How to play: from Play on a first run, or from the title's link.
+        // End's question, before the basket opens on a run left waiting.
+        .alert(Vocabulary.runEndQuestion, isPresented: $askingForBasket) {
+            Button(Vocabulary.runEndConfirm, role: .destructive) {
+                let next = basketAfterEnd
+                basketAfterEnd = nil
+                model.endWaitingRunForBasket()
+                next?()
+            }
+            Button(Vocabulary.keepPlaying, role: .cancel) {
+                basketAfterEnd = nil
+                openRush()
+            }
+        } message: {
+            Text(Vocabulary.runEndQuestionMessage)
+        }
         .sheet(item: $howToPlay) { shown in
             HowToPlayCard(firstRun: shown != .fromLink) {
                 howToPlay = nil
@@ -639,6 +673,9 @@ struct ContentView: View {
             // argument as `-openArchive` and `-openExplainer`.
             if UserDefaults.standard.bool(forKey: "openSettings") { settingsShown = true }
             if UserDefaults.standard.bool(forKey: "openHowToPlay") { howToPlay = .fromLink }
+            // `-timedRunAskBasket 1`, with `-timedRun waiting`: Play's
+            // question over the waiting run, for a picture.
+            if UserDefaults.standard.bool(forKey: "timedRunAskBasket") { goToToday() }
             #endif
         }
     }
@@ -701,17 +738,32 @@ struct ContentView: View {
     /// The title shows today, so Play goes there, from a past board left open
     /// as well as from today's.
     private func goToToday() {
-        // The basket shows the run's letters, so a run left waiting ends with
-        // what it had when the basket opens.
-        model.endWaitingRunForBasket()
-        if model.isArchiveBoard {
-            Task {
-                await model.returnToToday()
+        intoTheBasket {
+            if model.isArchiveBoard {
+                Task {
+                    await model.returnToToday()
+                    leaveTitle()
+                }
+            } else {
                 leaveTitle()
             }
-        } else {
-            leaveTitle()
         }
+    }
+
+    /// Into today's basket, by any way in: Play, today in the week, today in
+    /// Past days, or a past board's way back to today.
+    ///
+    /// **The basket shows the run's letters, so a run waiting, paused, asks
+    /// first,** with End's question (Antoine, 24 November), so Play can't end
+    /// the day's run by accident. End ends it with what it had and goes on.
+    /// Keep playing opens the run, still paused, where Resume goes on with it.
+    private func intoTheBasket(_ go: @escaping () -> Void) {
+        guard case .paused = model.runOffer else {
+            go()
+            return
+        }
+        basketAfterEnd = go
+        askingForBasket = true
     }
 
     /// The title steps aside: a crossfade, and a cut under Reduce Motion.
@@ -956,7 +1008,7 @@ struct ContentView: View {
                     archiveDate: model.isArchiveBoard ? model.boardDate : nil,
                     onHome: { showTitle() },
                     onOpenArchive: { openArchive() },
-                    onReturnToToday: { Task { await model.returnToToday() } }
+                    onReturnToToday: { intoTheBasket { Task { await model.returnToToday() } } }
                 )
                 #if DEBUG
                 .modifier(TopRowProbe(standing: standing, streak: model.streak,
@@ -1601,12 +1653,29 @@ struct TypeCase: View {
         Array(repeating: GridItem(.flexible(), spacing: 9), count: columnCount)
     }
 
+    /// A run's hidden letters are no tiles at all to VoiceOver: blank faces,
+    /// with no button and no "Letter" element, and no rack around them. A
+    /// rack hidden from accessibility, or a tile, still left all eight blank
+    /// buttons reachable.
     var body: some View {
+        if hidden {
+            grid.accessibilityHidden(true)
+        } else {
+            // Full width, matching the compose well above: that is the
+            // column the eye reads down.
+            grid
+                .accessibilityElement(children: .contain)
+                .accessibilityLabel("Letter tiles")
+        }
+    }
+
+    private var grid: some View {
         LazyVGrid(columns: columns, spacing: 10) {
             ForEach(model.rackOrder, id: \.self) { id in
                 if let tile = model.tiles.first(where: { $0.id == id }) {
                     TileButton(
                         letter: hidden ? "" : tile.letter,
+                        hidden: hidden,
                         placed: model.isPlaced(id),
                         action: { if !hidden { model.addTile(id) } },
                         // A refusal is animated from a token, so two refusals
@@ -1624,20 +1693,14 @@ struct TypeCase: View {
                 }
             }
         }
-        // Full width, matching the compose well above: that is the column the
-        // eye reads down.
-        //
-        // A run's hidden letters are no tiles at all to VoiceOver: the
-        // children are dropped, then the rack. Hiding the rack alone, or each
-        // tile, still left all eight reachable.
-        .accessibilityElement(children: hidden ? .ignore : .contain)
-        .accessibilityLabel("Letter tiles")
-        .accessibilityHidden(hidden)
     }
 }
 
 private struct TileButton: View {
     let letter: String
+    /// A run's tile while its letters are hidden: drawn at rest, and no
+    /// button. See `blankTile`.
+    var hidden = false
     let placed: Bool
     let action: () -> Void
     var refusalToken: Int = 0
@@ -1788,7 +1851,21 @@ private struct TileButton: View {
             .accessibilityAction(.default, action)
     }
 
+    /// A hidden letter's tile: the face and its slab as they rest, with no
+    /// letter, no touch and nothing for VoiceOver. Drawn as `touchDownTile`
+    /// and `TilePressStyle` draw a tile at rest, so Start changes no pixel
+    /// but the letters.
+    private var blankTile: some View {
+        face
+            .background(shape.fill(Cute.surfaceShadow).offset(y: 5))
+            .accessibilityHidden(true)
+    }
+
     var body: some View {
+        if hidden { blankTile } else { liveTile }
+    }
+
+    private var liveTile: some View {
         Group {
             if commitOnTouchDown {
                 touchDownTile
