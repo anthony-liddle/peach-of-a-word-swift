@@ -1,7 +1,8 @@
 import XCTest
 
 /// Peach rush: one run a day against the clock on today's board, offered
-/// until the basket's first find (`reports/2026-11-24 Timed Mode.md`).
+/// until the basket's first find (`reports/2026-11-24 Timed Mode.md`). Its
+/// words carry into the basket when it ends (Antoine, 25 November).
 ///
 /// Every launch starts from a phone that has never played. Nothing here names
 /// a board's word: the run's finds are made by hooks that spell the day's
@@ -169,11 +170,13 @@ final class PeachRush: XCTestCase {
         XCTAssertFalse(app.buttons["RunStart"].exists, "a played run offered a second")
     }
 
-    // MARK: Apart from the basket
+    // MARK: Into the basket
 
-    /// A run that finds the peach of a word leaves the basket as it found it:
-    /// the title's Play, its week and its streak, and the board's points.
-    func testARunLeavesTheBasketAlone() {
+    /// A run's words carry into the basket as it ends, as if found on the
+    /// board (Antoine, 25 November, reversing "nothing carries"): the title's
+    /// Play becomes Continue, today in the week is marked, and the board has
+    /// the run's points.
+    func testARunsWordsCarryIntoTheBasket() {
         let fresh = launch([], title: true)
         let week = fresh.buttons["WeekToday"]
         XCTAssertTrue(week.waitForExistence(timeout: 60), "no week on a fresh title")
@@ -186,13 +189,88 @@ final class PeachRush: XCTestCase {
         XCTAssertTrue(label(played, "the run's button").contains("1 word · 15 points"),
                       "the run didn't keep the peach of a word as its one find")
         let play = app.buttons["TitlePlay"]
-        XCTAssertTrue(label(play, "Play").hasPrefix("Play"), "the run started the basket")
-        XCTAssertTrue(label(app.buttons["WeekToday"], "today in the week") == weekBefore, "the run changed today in the week")
-        XCTAssertFalse(app.otherElements["TitleStreak"].exists || app.staticTexts["TitleStreak"].exists,
-                       "the run gave a streak")
+        XCTAssertTrue(label(play, "Play").hasPrefix("Continue"), "the run's find didn't start the basket")
+        XCTAssertNotEqual(label(app.buttons["WeekToday"], "today in the week"), weekBefore,
+                          "the run's find didn't mark today in the week")
 
-        tap(play, "Play") { app.staticTexts["MeterPoints"].waitForExistence(timeout: 10) }
-        XCTAssertEqual(label(app.staticTexts["MeterPoints"], "the board's points"), "0 points", "the run's points reached the basket")
+        tap(play, "Continue") { app.staticTexts["MeterPoints"].waitForExistence(timeout: 10) }
+        XCTAssertEqual(label(app.staticTexts["MeterPoints"], "the board's points"), "15 points",
+                       "the run's points didn't reach the basket")
+    }
+
+    /// The peach of a word found in a run opens its card by itself when the
+    /// run ends, after Time's up or End, with Close and no Share, and only
+    /// then: the result opened again from the title waits for its row
+    /// (Antoine, 25 November).
+    func testThePeachOfAWordsCardOpensItselfOnceAtTheRunsEnd() {
+        let app = launch(["-timedRun", "running", "-runClock", "3", "-timedRunFindSource", "1"])
+        XCTAssertTrue(app.staticTexts["RunResultHeading"].waitForExistence(timeout: 30), "the clock never ran out")
+        XCTAssertTrue(app.staticTexts["RevealWord"].waitForExistence(timeout: 10),
+                      "the card didn't open by itself at Time's up")
+        XCTAssertFalse(app.buttons["CardShare"].exists, "the run's card has a Share")
+        tap(app.buttons["Close"].firstMatch, "Close") { !app.staticTexts["RevealWord"].exists }
+        XCTAssertTrue(app.staticTexts["RunResultHeading"].waitForExistence(timeout: 5),
+                      "Close didn't go back to the result")
+        app.terminate()
+
+        let again = launch([], title: true, reset: false)
+        tap(again.buttons["TitleRun"], "the played run") {
+            again.staticTexts["RunResultHeading"].waitForExistence(timeout: 5)
+        }
+        XCTAssertFalse(again.staticTexts["RevealWord"].waitForExistence(timeout: 4), "the card opened a second time")
+        again.terminate()
+
+        let ended = launch(["-timedRun", "overEarly", "-timedRunFindSource", "1"])
+        XCTAssertTrue(ended.staticTexts["RevealWord"].waitForExistence(timeout: 30),
+                      "the card didn't open by itself after End")
+    }
+
+    /// A run that fills the basket doesn't play the full basket's card over
+    /// its result: it plays when the basket next opens, after a relaunch too,
+    /// and once (Antoine, 25 November).
+    func testARunThatFillsTheBasketPlaysItsCardWhenTheBasketOpens() {
+        let app = launch(["-timedRun", "over", "-timedRunFillBasket", "1"])
+        XCTAssertTrue(app.staticTexts["RunResultHeading"].waitForExistence(timeout: 30), "no result")
+        if app.staticTexts["RevealWord"].waitForExistence(timeout: 10) {
+            tap(app.buttons["Close"].firstMatch, "Close") { !app.staticTexts["RevealWord"].exists }
+        }
+        XCTAssertFalse(app.staticTexts["CompletionHeadline"].waitForExistence(timeout: 3),
+                       "the full basket's card played over the run's result")
+        app.terminate()
+
+        let again = launch([], title: true, reset: false)
+        tap(again.buttons["TitlePlay"], "the basket") {
+            again.staticTexts["CompletionHeadline"].waitForExistence(timeout: 10)
+        }
+        XCTAssertTrue(again.staticTexts["CompletionHeadline"].exists,
+                      "the full basket's card didn't play when the basket opened")
+        again.terminate()
+
+        let third = launch([], title: true, reset: false)
+        tap(third.buttons["TitlePlay"], "the basket") { third.staticTexts["MeterPoints"].waitForExistence(timeout: 10) }
+        XCTAssertFalse(third.staticTexts["CompletionHeadline"].waitForExistence(timeout: 3),
+                       "the full basket's card played twice")
+    }
+
+    /// A run left waiting overnight ends at the next day's launch, as its own
+    /// day's, and its words go into that day's basket, not today's.
+    func testARunLeftWaitingOvernightCarriesIntoItsOwnDay() {
+        let yesterday = launch(["-dayOffset", "-1", "-timedRun", "waiting", "-timedRunFindSource", "1"], title: true)
+        XCTAssertTrue(yesterday.buttons["TitleRun"].waitForExistence(timeout: 60), "no run on the title")
+        yesterday.terminate()
+
+        let today = launch([], title: true, reset: false)
+        tap(today.buttons["TitlePlay"], "Play") { today.staticTexts["MeterPoints"].waitForExistence(timeout: 10) }
+        XCTAssertEqual(label(today.staticTexts["MeterPoints"], "today's points"), "0 points",
+                       "yesterday's run reached today's basket")
+        today.terminate()
+
+        let back = launch(["-dayOffset", "-1"], title: true, reset: false)
+        XCTAssertTrue(label(back.buttons["TitleRun"], "the run's button").contains("1 word · 15 points"),
+                      "yesterday's run wasn't kept with what it had")
+        tap(back.buttons["TitlePlay"], "the basket") { back.staticTexts["MeterPoints"].waitForExistence(timeout: 10) }
+        XCTAssertEqual(label(back.staticTexts["MeterPoints"], "yesterday's points"), "15 points",
+                       "yesterday's run didn't reach yesterday's basket")
     }
 
     // MARK: Pausing
@@ -219,9 +297,10 @@ final class PeachRush: XCTestCase {
 
     /// A run left waiting comes back paused, and Play asks before the basket
     /// ends it (Antoine, 24 November): Keep playing opens the run, still
-    /// paused, and End ends it with what it had and opens the basket.
+    /// paused, and End ends it with what it had, carries its words into the
+    /// basket, and opens it.
     func testARunLeftWaitingComesBackPausedAndPlayAsksFirst() {
-        let app = launch(["-timedRun", "waiting"], title: true)
+        let app = launch(["-timedRun", "waiting", "-timedRunFindSource", "1"], title: true)
         let waiting = app.buttons["TitleRun"]
         XCTAssertTrue(waiting.waitForExistence(timeout: 60), "no run on the title")
         XCTAssertTrue(label(waiting, "the run's button").contains("paused"), "a waiting run doesn't say it's paused")
@@ -255,19 +334,21 @@ final class PeachRush: XCTestCase {
             ending.staticTexts["MeterPoints"].waitForExistence(timeout: 10)
         }
         XCTAssertTrue(ending.staticTexts["MeterPoints"].exists, "End didn't go on to the basket")
+        XCTAssertEqual(label(ending.staticTexts["MeterPoints"], "the board's points"), "15 points",
+                       "the waiting run's words didn't reach the basket")
         ending.terminate()
 
         let after = launch([], title: true, reset: false)
         let ended = after.buttons["TitleRun"]
         XCTAssertTrue(ended.waitForExistence(timeout: 60), "the run left the title")
         XCTAssertFalse(label(ended, "the run's button").contains("paused"), "the basket left the run waiting")
-        XCTAssertTrue(label(ended, "the run's button").contains("0 words · 0 points"), "the run didn't end with what it had")
+        XCTAssertTrue(label(ended, "the run's button").contains("1 word · 15 points"), "the run didn't end with what it had")
     }
 
     /// Today picked in Past days asks too, once the sheet is down, and End
-    /// opens the basket.
+    /// opens the basket with the run's words in it.
     func testTodayFromPastDaysAsksFirstToo() {
-        let app = launch(["-timedRun", "waiting"], title: true)
+        let app = launch(["-timedRun", "waiting", "-timedRunFindSource", "1"], title: true)
         XCTAssertTrue(app.buttons["TitleRun"].waitForExistence(timeout: 60), "no run on the title")
         let today = app.buttons["ArchiveTodayCell"]
         tap(app.buttons["TitlePastDays"], "Past days") { today.waitForExistence(timeout: 20) }
@@ -281,6 +362,8 @@ final class PeachRush: XCTestCase {
             app.staticTexts["MeterPoints"].waitForExistence(timeout: 10)
         }
         XCTAssertTrue(app.staticTexts["MeterPoints"].exists, "End didn't go on to the basket")
+        XCTAssertEqual(label(app.staticTexts["MeterPoints"], "the board's points"), "15 points",
+                       "the waiting run's words didn't reach the basket")
     }
 
     // MARK: The clock
