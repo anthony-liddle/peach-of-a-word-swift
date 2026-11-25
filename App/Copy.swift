@@ -388,6 +388,11 @@ enum Vocabulary {
     /// it, which VoiceOver hears as its hint. See `LengthCountsSetting`.
     static let lengthCountsSwitch = "Word counts by length"
     static let lengthCountsNote = "Turn off to hide each length until you find a word that long."
+    /// Settings: a run of Peach rush lasts 3:00 instead of 1:30 (Antoine, 24
+    /// November 2026), for anyone who needs more time to see the letters or
+    /// reach the tiles. Read when a run starts.
+    static let longerClockSwitch = "Longer clock"
+    static let longerClockNote = "Runs against the clock last 3:00 instead of 1:30."
 
     /// The appearance's name in Settings, and its three choices, in the plain
     /// words iOS's own Settings uses for the same thing. See
@@ -528,6 +533,59 @@ enum Vocabulary {
     static let licenceFredoka = "The face of the tiles and the headings."
     static let licenceNunitoTitle = "Nunito"
     static let licenceNunito = "The face of everything else."
+
+    // MARK: - Peach rush
+
+    /// One run a day against the clock on today's board, offered until the
+    /// basket's first find (Antoine and Bea, 24 November 2026). The words are
+    /// Antoine's lines in `reports/2026-11-24 Timed Mode.md`, all kept.
+    static let runName = "Peach rush"
+
+    /// The title's button, beside its name or under it.
+    static func runOnTheClock(_ clock: String) -> String { "\(clock) on the clock" }
+    static func runTally(words: Int, points: Int) -> String {
+        "\(counted(words, "word")) · \(counted(points, "point"))"
+    }
+    static func runLeft(_ clock: String) -> String { "\(clock) left" }
+    static func runPausedLeft(_ clock: String) -> String { "Paused, \(clock) left" }
+    static func runPausedSpoken(_ time: String) -> String { "paused, \(time) left" }
+
+    /// The well, while the letters are hidden.
+    static let runReady = "Letters show when the clock starts."
+    static let runPaused = "Paused."
+
+    /// The run's buttons.
+    static let runStart = "Start"
+    static let runResume = "Resume"
+    static let runBack = "Back"
+    static let runEnd = "End"
+
+    /// End's question: one run a day, so End asks first.
+    static let runEndQuestion = "End the run?"
+    static let runEndQuestionMessage = "It's your one today."
+    static let runEndConfirm = "End"
+    static let runKeepPlaying = "Keep playing"
+
+    /// What VoiceOver hears of the clock.
+    static func runClockSpoken(_ time: String) -> String { "Time left, \(time)" }
+    static func runStartedSpoken(_ time: String) -> String { "Started. \(time) on the clock." }
+    static func runResumedSpoken(_ time: String) -> String { "Resumed. \(time) left." }
+    static func runMarkSpoken(_ time: String) -> String { "\(time) left." }
+    static func runTimesUpSpoken(words: Int, points: Int) -> String {
+        "Time's up. \(counted(words, "word")), \(counted(points, "point"))."
+    }
+
+    /// The end of a run.
+    static let runTimesUp = "Time's up"
+    static func runEndedEarly(_ clock: String) -> String { "Ended with \(clock) left" }
+    static let runPeachFound = "You found the peach of a word"
+    static let runPeachHidden = "The peach of a word stayed hidden."
+    static func runBestWord(_ word: String, points: Int) -> String {
+        "Best word: \(word), \(counted(points, "point"))"
+    }
+    static let runToBasket = "On to the basket"
+    static let runShare = "Share"
+    static let runDone = "Done"
 
     // MARK: - The ladder
 

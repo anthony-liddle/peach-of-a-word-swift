@@ -15,6 +15,8 @@ struct TitleActions {
     let howToPlay: () -> Void
     /// The settings sheet.
     let settings: () -> Void
+    /// Peach rush: a run to start, the run waiting, or today's result.
+    let run: () -> Void
 }
 
 /// The title screen: the peach and the name, then today and the last seven
@@ -87,6 +89,9 @@ struct TitleScreen: View {
 
     private var today: Date { GameModel.date(forStorageDay: GameModel.todayStorageIndex) }
 
+    /// Whether Peach rush's button is on the title today.
+    private var runShown: Bool { model.runOffer != .none }
+
     private var streak: Int { ready ? model.streak : model.storedStreak }
 
     var body: some View {
@@ -109,7 +114,20 @@ struct TitleScreen: View {
                 VStack(spacing: 6) {
                     TitlePlayButton(title: buttonTitle, stateLine: stateLine, started: started,
                                     ready: ready, action: actions.play)
-                    TitleStateLine(text: stateLine, crowned: complete)
+                    // Before the basket's first find, the run's button says
+                    // what "Still on the tree" says, and takes its place
+                    // (Antoine, 24 November): with both, the SE's title no
+                    // longer fitted at L.
+                    if started || !runShown {
+                        TitleStateLine(text: stateLine, crowned: complete)
+                    }
+                }
+            } run: {
+                // Peach rush, under Play: offered before the basket's first
+                // find, and once played, its result.
+                if runShown {
+                    TitleRunButton(offer: model.runOffer, ready: ready, action: actions.run)
+                        .id(TitleFitAnchor.run)
                 }
             } extras: {
                 VStack(spacing: 8) {
@@ -465,10 +483,20 @@ struct TitleStreak: View {
 /// the links are both inside the scroll view, so no sort priority can put Play
 /// between them: tried, it put Play first and cost the button its hit test at
 /// some sizes. The fixed layout reads top to bottom, Play after the week.
-struct TitleFit<Content: View, Lead: View, Foot: View, Extras: View>: View {
+/// What a Debug hook can scroll the title to.
+enum TitleFitAnchor: Hashable {
+    case run
+}
+
+struct TitleFit<Content: View, Lead: View, Foot: View, Run: View, Extras: View>: View {
     @ViewBuilder let content: Content
     @ViewBuilder let lead: Lead
     @ViewBuilder let foot: Foot
+    /// Peach rush's button. Under Play where the title fits; where it
+    /// scrolls, first of the choices above the pills, since pinned beside
+    /// Play it took 511 of an SE's 667pt at AX5 (`reports/2026-11-24 Timed
+    /// Mode.md`).
+    @ViewBuilder let run: Run
     @ViewBuilder let extras: Extras
 
     var body: some View {
@@ -476,21 +504,36 @@ struct TitleFit<Content: View, Lead: View, Foot: View, Extras: View>: View {
             TitleColumn {
                 content
                 lead
-                foot
+                VStack(spacing: 10) {
+                    foot
+                    run
+                }
                 extras.padding(.top, 14)
             }
             .padding(.horizontal, 24)
             .padding(.vertical, 16)
             .frame(maxWidth: 520)
 
-            ScrollView {
-                VStack(spacing: 0) {
-                    content
-                    lead.padding(.top, 20)
-                    extras.padding(.top, 20)
+            ScrollViewReader { reader in
+                ScrollView {
+                    VStack(spacing: 0) {
+                        content
+                        lead.padding(.top, 20)
+                        run.padding(.top, 20)
+                        extras.padding(.top, 20)
+                    }
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 16)
                 }
-                .padding(.horizontal, 24)
-                .padding(.vertical, 16)
+                #if DEBUG
+                // `-titleScrollToRun 1`: Peach rush's button in view, for
+                // pictures at the sizes where the title scrolls.
+                .onAppear {
+                    if UserDefaults.standard.bool(forKey: "titleScrollToRun") {
+                        reader.scrollTo(TitleFitAnchor.run, anchor: .center)
+                    }
+                }
+                #endif
             }
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 foot

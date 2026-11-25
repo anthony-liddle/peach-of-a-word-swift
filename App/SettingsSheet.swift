@@ -31,6 +31,9 @@ struct SettingsSheet: View {
     /// On by default; the found list reads the same key. See
     /// `LengthCountsSetting`.
     @AppStorage(LengthCountsSetting.key) private var lengthCountsOn = true
+    /// Peach rush's Longer clock: 3:00 instead of 1:30. See
+    /// `LongerClockSetting`.
+    @AppStorage(LongerClockSetting.key) private var longerClockOn = false
     @AppStorage(AppearanceSetting.key) private var appearance: AppearanceSetting = .system
     @State private var explaining = false
     /// Days from the web: the plan the question asks about, whether it's
@@ -76,6 +79,7 @@ struct SettingsSheet: View {
                             soundCard
                             vibrationCard
                             lengthCountsCard
+                            longerClockCard
                             reminderCard
                             appearanceCard
                             rows
@@ -189,6 +193,30 @@ struct SettingsSheet: View {
             .accessibilityHint(Vocabulary.lengthCountsNote)
             .accessibilityIdentifier("SettingsLengthCounts")
             Text(Vocabulary.lengthCountsNote)
+                .font(CuteFont.body(14, relativeTo: .subheadline))
+                .foregroundStyle(Cute.inkFaint)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityHidden(true)
+        }
+        .padding(18)
+        .background(card.fill(Cute.paperDeep))
+        .overlay(card.stroke(Cute.tileEdge, lineWidth: 1))
+    }
+
+    /// Longer clock: a run of Peach rush lasts 3:00 instead of 1:30, off by
+    /// default (Antoine, 24 November 2026). The card is the switch and its
+    /// line, as Word counts by length is.
+    private var longerClockCard: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Toggle(isOn: $longerClockOn) {
+                Text(Vocabulary.longerClockSwitch)
+                    .font(CuteFont.body(17, weight: "SemiBold", relativeTo: .body))
+                    .foregroundStyle(Cute.ink)
+            }
+            .tint(Cute.accent)
+            .accessibilityHint(Vocabulary.longerClockNote)
+            .accessibilityIdentifier("SettingsLongerClock")
+            Text(Vocabulary.longerClockNote)
                 .font(CuteFont.body(14, relativeTo: .subheadline))
                 .foregroundStyle(Cute.inkFaint)
                 .fixedSize(horizontal: false, vertical: true)

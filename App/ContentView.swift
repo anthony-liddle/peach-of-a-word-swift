@@ -1,3 +1,4 @@
+import AVFoundation
 import SwiftUI
 import PeachEngine
 
@@ -223,7 +224,16 @@ struct ContentView: View {
                 // Not drawn while the title covers it, so nothing beneath the
                 // title can be reached by touch or by VoiceOver. The model
                 // loads from the root's `.task`, not from this view.
-                if !titleShown { game }
+                // A run covers the board and the title while it's up.
+                if model.run != nil {
+                    PeachRushScreen(model: model, onBasket: {
+                        model.closeRun()
+                        leaveTitle()
+                    }, onTitle: {
+                        model.closeRun()
+                        showTitle()
+                    })
+                } else if !titleShown { game }
                 #if DEBUG
                 // `-exposeToday 1` prints the two day indices the app computed,
                 // so `TodayIsTheLocalDate` can hold them to the phone's own date.
@@ -328,7 +338,7 @@ struct ContentView: View {
 
             // The title screen, over everything but a failed start, which has
             // to be read rather than hidden behind a Play that never wakes.
-            if titleShown, !model.failedToStart {
+            if titleShown, model.run == nil, !model.failedToStart {
                 TitleScreen(model: model, actions: titleActions)
                     .transition(.modifier(active: TitleFade(shown: false),
                                           identity: TitleFade(shown: true)))
@@ -367,6 +377,17 @@ struct ContentView: View {
                 case .completion(let setTotal, let score):
                     CompletionCard(setTotal: setTotal, score: score, share: cardShare) { model.moment = nil }
                         .presentationDetents([.medium, .large])
+                case .runPeach(let word):
+                    // From a run's result, which it closes onto: Close, and
+                    // no Share (Antoine, 24 November).
+                    SourceRevealCard(
+                        word: word,
+                        entry: model.sourceEntries[word],
+                        provenance: model.glossProvenance,
+                        share: nil,
+                        closeLabel: Vocabulary.close
+                    ) { model.moment = nil }
+                        .presentationDetents([.large])
                 case .definition(let word, let category):
                     // `DefinitionSheet` rather than `DefinitionCard`, because a
                     // rung sheet now opens the same card and two constructions
@@ -490,6 +511,15 @@ struct ContentView: View {
         // number on the meter, which is the whole of what she is here for, and
         // one that does not land leaves the number alone. Anything more would
         // be building a feature out of a migration.
+        // The second way a run pauses: the game's audio interrupted, as a
+        // ringing call does, which may not take the app out of the
+        // foreground. Phone check 2 says which of the two a call fires.
+        .onReceive(NotificationCenter.default.publisher(
+            for: AVAudioSession.interruptionNotification)) { note in
+            guard let raw = note.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
+                  AVAudioSession.InterruptionType(rawValue: raw) == .began else { return }
+            model.pauseRun()
+        }
         .onOpenURL { url in
             guard let transfer = StreakTransfer(url: url) else { return }
             model.adoptTransferredStreak(transfer)
@@ -510,6 +540,9 @@ struct ContentView: View {
         .onChange(of: scenePhase) { _, phase in
             guard phase == .active else {
                 wentAway = true
+                // A run stops its clock and hides its letters while the app
+                // is away, so a phone call never eats one.
+                model.pauseRun()
                 return
             }
             #if DEBUG
@@ -636,13 +669,26 @@ struct ContentView: View {
                 HowToPlayFirstRun.markSeen()
                 howToPlay = .fromLink
             },
-            settings: { settingsShown = true }
+            settings: { settingsShown = true },
+            run: {
+                if model.isArchiveBoard {
+                    Task {
+                        await model.returnToToday()
+                        model.openRun()
+                    }
+                } else {
+                    model.openRun()
+                }
+            }
         )
     }
 
     /// The title shows today, so Play goes there, from a past board left open
     /// as well as from today's.
     private func goToToday() {
+        // The basket shows the run's letters, so a run left waiting ends with
+        // what it had when the basket opens.
+        model.endWaitingRunForBasket()
         if model.isArchiveBoard {
             Task {
                 await model.returnToToday()
@@ -1185,7 +1231,7 @@ private struct DebugScrollAnchor: ViewModifier {
 /// The announcement still comes from `ContentView.body`, not from here, for the
 /// same reason it never came from `MessageLine`: this view is instantiated
 /// twice, once per arm of the `ViewThatFits`, and the root exactly once.
-private struct ComposingStick: View {
+struct ComposingStick: View {
     let word: String
     var feedback: GameModel.Feedback = .none
     /// Bumped on every resolved guess, so a rejection can be told from the same
@@ -1485,11 +1531,14 @@ private struct LineTap: PrimitiveButtonStyle {
 ///
 /// Adaptive is still right for the found-word chips, where the count genuinely
 /// varies.
-private struct TypeCase: View {
+struct TypeCase: View {
     let model: GameModel
     /// Whether this rack sits in a fixed layout, and can therefore commit on
     /// touch down. See `effectiveCommitOnTouchDown`.
     let commitOnTouchDown: Bool
+    /// A run's letters, hidden until its clock runs and while it's paused, so
+    /// the board can't be studied for free.
+    var hidden = false
 
     /// **Four at every text size. This used to drop to three at the
     /// accessibility sizes, and the drop was the defect rather than a response
@@ -1542,9 +1591,9 @@ private struct TypeCase: View {
             ForEach(model.rackOrder, id: \.self) { id in
                 if let tile = model.tiles.first(where: { $0.id == id }) {
                     TileButton(
-                        letter: tile.letter,
+                        letter: hidden ? "" : tile.letter,
                         placed: model.isPlaced(id),
-                        action: { model.addTile(id) },
+                        action: { if !hidden { model.addTile(id) } },
                         // A refusal is animated from a token, so two refusals
                         // of the same tile are two shakes rather than one.
                         refusalToken: model.refusal?.tile == id
@@ -1844,7 +1893,7 @@ private struct TileTouches: UIViewRepresentable {
 /// the web gives Submit `flex: 2` against its neighbour's `flex: 1`, and
 /// capping the neighbour is the simple approximation of that ratio. Whatever
 /// shares a row with Pick word stays the smaller of the two.
-private struct Controls: View {
+struct Controls: View {
     let model: GameModel
 
     private var empty: Bool { model.composing.isEmpty }
