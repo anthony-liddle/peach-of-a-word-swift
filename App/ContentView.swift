@@ -243,7 +243,11 @@ struct ContentView: View {
                         model.closeRun()
                         showTitle()
                     })
-                } else if !titleShown { game }
+                } else if !titleShown {
+                    // The basket on screen, and again whenever its board
+                    // changes: a full basket's card a run's words owe plays.
+                    game.task(id: model.storageDayIndex) { model.basketOpened() }
+                }
                 #if DEBUG
                 // `-exposeToday 1` prints the two day indices the app computed,
                 // so `TodayIsTheLocalDate` can hold them to the phone's own date.
@@ -465,8 +469,18 @@ struct ContentView: View {
                         // Past days lives on the title, so a day picked there
                         // opens on the board and the title steps aside.
                         let open = {
-                            leaveTitle()
-                            Task { await model.openArchiveDay(storageDay: day) }
+                            if day == GameModel.todayStorageIndex {
+                                // Today's board opens before the title steps
+                                // aside, so a card the basket owes plays on it
+                                // and not on the board it replaces.
+                                Task {
+                                    await model.openArchiveDay(storageDay: day)
+                                    leaveTitle()
+                                }
+                            } else {
+                                leaveTitle()
+                                Task { await model.openArchiveDay(storageDay: day) }
+                            }
                         }
                         // Today, with today's run waiting: End's question,
                         // once the sheet is down. Otherwise straight on.
@@ -513,8 +527,11 @@ struct ContentView: View {
             Button(Vocabulary.runEndConfirm, role: .destructive) {
                 let next = basketAfterEnd
                 basketAfterEnd = nil
-                model.endWaitingRunForBasket()
-                next?()
+                // The run's words go into the basket before it opens.
+                Task {
+                    await model.endWaitingRunForBasket()
+                    next?()
+                }
             }
             Button(Vocabulary.keepPlaying, role: .cancel) {
                 basketAfterEnd = nil

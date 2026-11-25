@@ -47,6 +47,8 @@ struct CompletionCard: View {
                             .foregroundStyle(Cute.accent)
                             .multilineTextAlignment(.center)
                             .fixedSize(horizontal: false, vertical: true)
+                            // The card's own, since the meter names the crown too.
+                            .accessibilityIdentifier("CompletionHeadline")
 
                         // The cute skin, from themeCopy.ts:197. This shipped
                         // for a while carrying the letterpress line ("the rack

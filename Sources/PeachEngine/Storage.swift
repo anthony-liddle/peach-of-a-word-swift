@@ -967,10 +967,10 @@ extension GameStorage {
 extension GameStorage {
     /// Peach rush's runs, by day: the first run of each day, kept.
     ///
-    /// **Their own key, apart from everything the basket reads.** Nothing in a
-    /// run reaches the day's words, its outcome, its stage or the streak, and
-    /// keeping its record in a blob of its own is what makes that true of the
-    /// store as well as of the screen.
+    /// **Their own key.** A run's record is the run's: its words, its points
+    /// and how it ended, for its result and its share. Its words reach the
+    /// day's basket when it ends, as finds, through `carryRun` or the board's
+    /// find path, never through this key.
     static let runsKey = "peach-of-a-word/runs/v1"
 
     /// The run in flight, if one is: one run, today's, saved at each find and
@@ -1006,6 +1006,63 @@ extension GameStorage {
 
     public func saveRunInFlight(_ run: RunInFlight?) {
         store.set(run.flatMap { try? JSONEncoder().encode($0) }, forKey: Self.runInFlightKey)
+    }
+
+    /// A run's words, into its day's basket, as if found on its board
+    /// (Antoine, 25 November 2026, reversing "nothing carries"): the words its
+    /// board takes, after the basket's own, since a run is only offered before
+    /// the basket's first find; the outcome they reach, on the run's own day;
+    /// and the streak, when they reach its rank, by `recordDailyCleared`'s
+    /// rule, which takes today, and yesterday's run ended since midnight. A run
+    /// that fills the basket owes the full basket's card, which plays when the
+    /// basket next opens.
+    ///
+    /// **For a run whose board isn't the one in play:** one left waiting
+    /// overnight, ended at the next launch. A run that ends on its own board
+    /// goes in through the board's find path instead, so the screen and the
+    /// store can't disagree. The shape is `applyImport`'s.
+    ///
+    /// Returns whether any word was new to the basket.
+    @discardableResult
+    public func carryRun(_ record: RunRecord, puzzle: Puzzle, todayIndex: Int) -> Bool {
+        let mine = loadDayProgress(dayIndex: record.day, sourceWord: puzzle.sourceWord)
+        let known = Set(mine)
+        let new = record.words.filter { puzzle.validationWords.contains($0) && !known.contains($0) }
+        guard !new.isEmpty else { return false }
+        let merged = mine + new
+        saveDayProgress(dayIndex: record.day, sourceWord: puzzle.sourceWord, found: merged,
+                        fromArchive: record.day != todayIndex)
+
+        let before = computeTier(found: known, puzzle: puzzle)
+        let after = computeTier(found: Set(merged), puzzle: puzzle)
+        raiseOutcome(dayIndex: record.day, reached: rungReached(after), on: record.day)
+        if after.index >= streakTierIndex {
+            recordDailyCleared(dayIndex: record.day, todayIndex: todayIndex, fromArchive: false)
+        }
+        if isComplete(after), !isComplete(before) { oweCompletion(dayIndex: record.day) }
+        return true
+    }
+
+    /// The day's run filled its basket, and the full basket's card hasn't
+    /// played yet.
+    public func owesCompletion(dayIndex: Int) -> Bool {
+        runRecord(dayIndex: dayIndex)?.completionOwed ?? false
+    }
+
+    /// The day's run filled its basket: its card is owed until the basket
+    /// next opens. Kept on the run's record, so a relaunch keeps it owed.
+    public func oweCompletion(dayIndex: Int) { setCompletionOwed(true, dayIndex: dayIndex) }
+
+    /// The full basket's card has played.
+    public func settleCompletion(dayIndex: Int) { setCompletionOwed(false, dayIndex: dayIndex) }
+
+    private func setCompletionOwed(_ owed: Bool, dayIndex: Int) {
+        var runs = readRuns()
+        guard var record = runs[String(dayIndex)], record.completionOwed != owed else { return }
+        record.completionOwed = owed
+        runs[String(dayIndex)] = record
+        guard let data = try? JSONEncoder().encode(runs) else { return }
+        store.set(data, forKey: Self.runsKey)
     }
 
     /// A run left in flight on an earlier day ends with what it had, kept as

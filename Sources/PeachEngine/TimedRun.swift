@@ -1,8 +1,9 @@
 import Foundation
 
-// Peach rush: one run a day against the clock on today's board, kept apart
-// from the basket. The design is `reports/2026-11-24 Timed Mode.md` in the
-// vault, and its update with Antoine's answers is the plan.
+// Peach rush: one run a day against the clock on today's board, whose words
+// carry into the basket when it ends (Antoine, 25 November 2026). The design
+// is `reports/2026-11-24 Timed Mode.md` in the vault, and its update with
+// Antoine's answers is the plan.
 //
 // Everything here is pure, so `swift test` holds it without the app: the
 // record, the run in flight, which state the title's button is in, the clock
@@ -32,9 +33,13 @@ public struct RunRecord: Codable, Equatable, Sendable {
     public var secondsLeft: Int
     /// The run's length, so its result and its share say 1:30 or 3:00.
     public var length: Double
+    /// The run's words filled the basket, and the full basket's card hasn't
+    /// played yet: it plays when the basket next opens.
+    public var completionOwed: Bool
 
     public init(day: Int, words: [String], points: Int, peachFound: Bool,
-                endedEarly: Bool, secondsLeft: Int, length: Double) {
+                endedEarly: Bool, secondsLeft: Int, length: Double,
+                completionOwed: Bool = false) {
         self.day = day
         self.words = words
         self.points = points
@@ -42,6 +47,24 @@ public struct RunRecord: Codable, Equatable, Sendable {
         self.endedEarly = endedEarly
         self.secondsLeft = secondsLeft
         self.length = length
+        self.completionOwed = completionOwed
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case day, words, points, peachFound, endedEarly, secondsLeft, length, completionOwed
+    }
+
+    /// A record kept before `completionOwed` existed reads as owing nothing.
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        day = try c.decode(Int.self, forKey: .day)
+        words = try c.decode([String].self, forKey: .words)
+        points = try c.decode(Int.self, forKey: .points)
+        peachFound = try c.decode(Bool.self, forKey: .peachFound)
+        endedEarly = try c.decode(Bool.self, forKey: .endedEarly)
+        secondsLeft = try c.decode(Int.self, forKey: .secondsLeft)
+        length = try c.decode(Double.self, forKey: .length)
+        completionOwed = try c.decodeIfPresent(Bool.self, forKey: .completionOwed) ?? false
     }
 }
 
