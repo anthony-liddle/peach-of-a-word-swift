@@ -27,6 +27,8 @@ struct FeelTests {
         ("reject", Feel.reject),
         ("sourceWord", Feel.sourceWord),
         ("completion", Feel.completion),
+        ("runTen", Feel.runTen),
+        ("runEnd", Feel.runEnd),
     ]
 
     /// Lists what it's asked to play, and plays nothing.

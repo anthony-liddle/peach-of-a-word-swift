@@ -74,6 +74,9 @@ struct SourceRevealCard: View {
     /// control, so the moment can be shared without closing the card. Nil in
     /// the previews, which have no board.
     var share: ShareSummaryButton? = nil
+    /// The way out's words: the basket's, or "Close" from a run's result,
+    /// which it closes onto.
+    var closeLabel: String = Vocabulary.revealClose
     let onDismiss: () -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -95,7 +98,7 @@ struct SourceRevealCard: View {
                 }
                 .scrollBounceBehavior(.basedOnSize)
 
-                CardWayOut(label: Vocabulary.revealClose, share: share, onDismiss: onDismiss)
+                CardWayOut(label: closeLabel, share: share, onDismiss: onDismiss)
             }
         }
         .onAppear {

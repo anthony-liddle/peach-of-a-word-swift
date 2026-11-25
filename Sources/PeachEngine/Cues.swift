@@ -1,10 +1,11 @@
 /// A sound the game can ask for, named as the cue file names it.
 ///
 /// The cue file is `Data/peach.cues.json`, the web game's own, pinned by commit
-/// and hash in `tools/update-cues.sh`. Its 35 names are the web's
-/// (`SoundscapeAudioEngine.ts`), and this is the half of them the app can play:
-/// 29, every one but the six `found-<length>-mythic-letterpress`, since cute is
-/// the only theme this app has. `CueFileTests` holds the two to each other.
+/// and hash in `tools/update-cues.sh`. Its 37 names are the web's
+/// (`SoundscapeAudioEngine.ts`, and `departures.ts` for Peach rush's two), and
+/// this is the part of them the app can play: 31, every one but the six
+/// `found-<length>-mythic-letterpress`, since cute is the only theme this app
+/// has. `CueFileTests` holds the two to each other.
 ///
 /// The names live here, in the engine, so a test can reach every one without
 /// the app and without the player; only the app plays them.
@@ -23,6 +24,11 @@ public enum Cue: Hashable, Sendable {
     case edition
     /// A rejection, any of the three.
     case invalid
+    /// Peach rush, 10 seconds left: two soft A5 pings. Only the app plays it,
+    /// since the web game has no run (Antoine kept it on 25 November 2026).
+    case rushTen
+    /// Peach rush, time's up: G, E and C, falling to rest on the C.
+    case rushEnd
 
     /// The lengths the file has a found cue for. A find outside them plays the
     /// nearest, as the web holds it (`playFound`), though a rack of eight
@@ -42,6 +48,8 @@ public enum Cue: Hashable, Sendable {
         case .source: "source"
         case .edition: "edition"
         case .invalid: "invalid"
+        case .rushTen: "rush-ten"
+        case .rushEnd: "rush-end"
         case .found(let length, .mythic): "found-\(Self.held(length))-mythic-cute"
         case .found(let length, let rung): "found-\(Self.held(length))-\(rung.rawValue)"
         }

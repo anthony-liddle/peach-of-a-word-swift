@@ -1,3 +1,4 @@
+import AVFoundation
 import SwiftUI
 import PeachEngine
 
@@ -129,11 +130,21 @@ struct ContentView: View {
 
     /// How to play, if it is up, and why: a first run goes on to the board.
     private enum HowToPlayShown: Identifiable {
-        case firstRun, fromLink
+        /// A phone that has never played: from Play, then on to the board;
+        /// or from Peach rush's button, then on to the run.
+        case firstRun, firstRunThenRush, fromLink
         var id: Self { self }
     }
 
     @State private var howToPlay: HowToPlayShown?
+
+    /// End's question, asked on the way into today's basket while today's run
+    /// waits, paused, and what End goes on to. See `intoTheBasket`.
+    @State private var askingForBasket = false
+    @State private var basketAfterEnd: (() -> Void)?
+    /// A way into the basket picked in Past days, taken once the sheet is down,
+    /// since the question can't be asked over it.
+    @State private var afterArchive: (() -> Void)?
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -223,7 +234,16 @@ struct ContentView: View {
                 // Not drawn while the title covers it, so nothing beneath the
                 // title can be reached by touch or by VoiceOver. The model
                 // loads from the root's `.task`, not from this view.
-                if !titleShown { game }
+                // A run covers the board and the title while it's up.
+                if model.run != nil {
+                    PeachRushScreen(model: model, onBasket: {
+                        model.closeRun()
+                        leaveTitle()
+                    }, onTitle: {
+                        model.closeRun()
+                        showTitle()
+                    })
+                } else if !titleShown { game }
                 #if DEBUG
                 // `-exposeToday 1` prints the two day indices the app computed,
                 // so `TodayIsTheLocalDate` can hold them to the phone's own date.
@@ -328,7 +348,7 @@ struct ContentView: View {
 
             // The title screen, over everything but a failed start, which has
             // to be read rather than hidden behind a Play that never wakes.
-            if titleShown, !model.failedToStart {
+            if titleShown, model.run == nil, !model.failedToStart {
                 TitleScreen(model: model, actions: titleActions)
                     .transition(.modifier(active: TitleFade(shown: false),
                                           identity: TitleFade(shown: true)))
@@ -345,6 +365,12 @@ struct ContentView: View {
         // Each glint's sweep as it starts, for `-exposeGlint 1`.
         .environment(\.glintDrawn) { [model] in model.glintsDrawn.append($0) }
         #endif
+        // What a run left owed, a card it hasn't shown, opens on the first
+        // screen after it ended, and is asked again whenever the screen, the
+        // board, the load or a card changes. See `GameModel.screenShown`.
+        .task(id: "\(titleShown) \(model.run == nil) \(model.storageDayIndex ?? -1) \(model.isReady) \(model.moment == nil)") {
+            model.screenShown(basket: !titleShown && model.run == nil)
+        }
         .sheet(item: $model.moment) { moment in
             Group {
                 switch moment {
@@ -367,6 +393,17 @@ struct ContentView: View {
                 case .completion(let setTotal, let score):
                     CompletionCard(setTotal: setTotal, score: score, share: cardShare) { model.moment = nil }
                         .presentationDetents([.medium, .large])
+                case .runPeach(let word):
+                    // From a run's result, which it closes onto: Close, and
+                    // no Share (Antoine, 24 November).
+                    SourceRevealCard(
+                        word: word,
+                        entry: model.sourceEntries[word],
+                        provenance: model.glossProvenance,
+                        share: nil,
+                        closeLabel: Vocabulary.close
+                    ) { model.moment = nil }
+                        .presentationDetents([.large])
                 case .definition(let word, let category):
                     // `DefinitionSheet` rather than `DefinitionCard`, because a
                     // rung sheet now opens the same card and two constructions
@@ -418,7 +455,11 @@ struct ContentView: View {
         // A sheet rather than a pushed screen, because there is no navigation
         // stack to push onto: the play surface has no chrome and the layout
         // budget has no room to grow any. See `ArchiveSheet`.
-        .sheet(item: $archivePresentation) { presentation in
+        .sheet(item: $archivePresentation, onDismiss: {
+            let next = afterArchive
+            afterArchive = nil
+            next?()
+        }) { presentation in
             GeometryReader { sheet in
                 ArchiveSheet(
                     width: sheet.size.width,
@@ -429,8 +470,27 @@ struct ContentView: View {
                         archivePresentation = nil
                         // Past days lives on the title, so a day picked there
                         // opens on the board and the title steps aside.
-                        leaveTitle()
-                        Task { await model.openArchiveDay(storageDay: day) }
+                        let open = {
+                            if day == GameModel.todayStorageIndex {
+                                // Today's board opens before the title steps
+                                // aside, so a card the basket owes plays on it
+                                // and not on the board it replaces.
+                                Task {
+                                    await model.openArchiveDay(storageDay: day)
+                                    leaveTitle()
+                                }
+                            } else {
+                                leaveTitle()
+                                Task { await model.openArchiveDay(storageDay: day) }
+                            }
+                        }
+                        // Today, with today's run waiting: End's question,
+                        // once the sheet is down. Otherwise straight on.
+                        if day == GameModel.todayStorageIndex, case .paused = model.runOffer {
+                            afterArchive = { intoTheBasket(open) }
+                        } else {
+                            open()
+                        }
                     },
                     onClose: { archivePresentation = nil }
                 )
@@ -464,10 +524,29 @@ struct ContentView: View {
                 .presentationDragIndicator(.visible)
         }
         // How to play: from Play on a first run, or from the title's link.
+        // End's question, before the basket opens on a run left waiting.
+        .alert(Vocabulary.runEndQuestion, isPresented: $askingForBasket) {
+            Button(Vocabulary.runEndConfirm, role: .destructive) {
+                let next = basketAfterEnd
+                basketAfterEnd = nil
+                // The run's words go into the basket before it opens.
+                Task {
+                    await model.endWaitingRunForBasket()
+                    next?()
+                }
+            }
+            Button(Vocabulary.keepPlaying, role: .cancel) {
+                basketAfterEnd = nil
+                openRush()
+            }
+        } message: {
+            Text(Vocabulary.runEndQuestionMessage)
+        }
         .sheet(item: $howToPlay) { shown in
-            HowToPlayCard(firstRun: shown == .firstRun) {
+            HowToPlayCard(firstRun: shown != .fromLink) {
                 howToPlay = nil
                 if shown == .firstRun { goToToday() }
+                if shown == .firstRunThenRush { openRush() }
             }
             .presentationDetents([.large])
             .presentationDragIndicator(.visible)
@@ -490,6 +569,15 @@ struct ContentView: View {
         // number on the meter, which is the whole of what she is here for, and
         // one that does not land leaves the number alone. Anything more would
         // be building a feature out of a migration.
+        // The second way a run pauses: the game's audio interrupted, as a
+        // ringing call does, which may not take the app out of the
+        // foreground. Phone check 2 says which of the two a call fires.
+        .onReceive(NotificationCenter.default.publisher(
+            for: AVAudioSession.interruptionNotification)) { note in
+            guard let raw = note.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
+                  AVAudioSession.InterruptionType(rawValue: raw) == .began else { return }
+            model.pauseRun()
+        }
         .onOpenURL { url in
             guard let transfer = StreakTransfer(url: url) else { return }
             model.adoptTransferredStreak(transfer)
@@ -510,6 +598,9 @@ struct ContentView: View {
         .onChange(of: scenePhase) { _, phase in
             guard phase == .active else {
                 wentAway = true
+                // A run stops its clock and hides its letters while the app
+                // is away, so a phone call never eats one.
+                model.pauseRun()
                 return
             }
             #if DEBUG
@@ -603,6 +694,9 @@ struct ContentView: View {
             // argument as `-openArchive` and `-openExplainer`.
             if UserDefaults.standard.bool(forKey: "openSettings") { settingsShown = true }
             if UserDefaults.standard.bool(forKey: "openHowToPlay") { howToPlay = .fromLink }
+            // `-timedRunAskBasket 1`, with `-timedRun waiting`: Play's
+            // question over the waiting run, for a picture.
+            if UserDefaults.standard.bool(forKey: "timedRunAskBasket") { goToToday() }
             #endif
         }
     }
@@ -636,21 +730,61 @@ struct ContentView: View {
                 HowToPlayFirstRun.markSeen()
                 howToPlay = .fromLink
             },
-            settings: { settingsShown = true }
+            settings: { settingsShown = true },
+            run: {
+                // A phone that has never played sees How to play first, once,
+                // from this button as from Play, and goes on to the run.
+                if !HowToPlayFirstRun.seen, !model.hasAnyProgress {
+                    HowToPlayFirstRun.markSeen()
+                    howToPlay = .firstRunThenRush
+                } else {
+                    openRush()
+                }
+            }
         )
+    }
+
+    /// Peach rush, on today's board, from a past board left open as well.
+    private func openRush() {
+        if model.isArchiveBoard {
+            Task {
+                await model.returnToToday()
+                model.openRun()
+            }
+        } else {
+            model.openRun()
+        }
     }
 
     /// The title shows today, so Play goes there, from a past board left open
     /// as well as from today's.
     private func goToToday() {
-        if model.isArchiveBoard {
-            Task {
-                await model.returnToToday()
+        intoTheBasket {
+            if model.isArchiveBoard {
+                Task {
+                    await model.returnToToday()
+                    leaveTitle()
+                }
+            } else {
                 leaveTitle()
             }
-        } else {
-            leaveTitle()
         }
+    }
+
+    /// Into today's basket, by any way in: Play, today in the week, today in
+    /// Past days, or a past board's way back to today.
+    ///
+    /// **The basket shows the run's letters, so a run waiting, paused, asks
+    /// first,** with End's question (Antoine, 24 November), so Play can't end
+    /// the day's run by accident. End ends it with what it had and goes on.
+    /// Keep playing opens the run, still paused, where Resume goes on with it.
+    private func intoTheBasket(_ go: @escaping () -> Void) {
+        guard case .paused = model.runOffer else {
+            go()
+            return
+        }
+        basketAfterEnd = go
+        askingForBasket = true
     }
 
     /// The title steps aside: a crossfade, and a cut under Reduce Motion.
@@ -895,7 +1029,7 @@ struct ContentView: View {
                     archiveDate: model.isArchiveBoard ? model.boardDate : nil,
                     onHome: { showTitle() },
                     onOpenArchive: { openArchive() },
-                    onReturnToToday: { Task { await model.returnToToday() } }
+                    onReturnToToday: { intoTheBasket { Task { await model.returnToToday() } } }
                 )
                 #if DEBUG
                 .modifier(TopRowProbe(standing: standing, streak: model.streak,
@@ -1185,7 +1319,7 @@ private struct DebugScrollAnchor: ViewModifier {
 /// The announcement still comes from `ContentView.body`, not from here, for the
 /// same reason it never came from `MessageLine`: this view is instantiated
 /// twice, once per arm of the `ViewThatFits`, and the root exactly once.
-private struct ComposingStick: View {
+struct ComposingStick: View {
     let word: String
     var feedback: GameModel.Feedback = .none
     /// Bumped on every resolved guess, so a rejection can be told from the same
@@ -1485,11 +1619,14 @@ private struct LineTap: PrimitiveButtonStyle {
 ///
 /// Adaptive is still right for the found-word chips, where the count genuinely
 /// varies.
-private struct TypeCase: View {
+struct TypeCase: View {
     let model: GameModel
     /// Whether this rack sits in a fixed layout, and can therefore commit on
     /// touch down. See `effectiveCommitOnTouchDown`.
     let commitOnTouchDown: Bool
+    /// A run's letters, hidden until its clock runs and while it's paused, so
+    /// the board can't be studied for free.
+    var hidden = false
 
     /// **Four at every text size. This used to drop to three at the
     /// accessibility sizes, and the drop was the defect rather than a response
@@ -1537,14 +1674,31 @@ private struct TypeCase: View {
         Array(repeating: GridItem(.flexible(), spacing: 9), count: columnCount)
     }
 
+    /// A run's hidden letters are no tiles at all to VoiceOver: blank faces,
+    /// with no button and no "Letter" element, and no rack around them. A
+    /// rack hidden from accessibility, or a tile, still left all eight blank
+    /// buttons reachable.
     var body: some View {
+        if hidden {
+            grid.accessibilityHidden(true)
+        } else {
+            // Full width, matching the compose well above: that is the
+            // column the eye reads down.
+            grid
+                .accessibilityElement(children: .contain)
+                .accessibilityLabel("Letter tiles")
+        }
+    }
+
+    private var grid: some View {
         LazyVGrid(columns: columns, spacing: 10) {
             ForEach(model.rackOrder, id: \.self) { id in
                 if let tile = model.tiles.first(where: { $0.id == id }) {
                     TileButton(
-                        letter: tile.letter,
+                        letter: hidden ? "" : tile.letter,
+                        hidden: hidden,
                         placed: model.isPlaced(id),
-                        action: { model.addTile(id) },
+                        action: { if !hidden { model.addTile(id) } },
                         // A refusal is animated from a token, so two refusals
                         // of the same tile are two shakes rather than one.
                         refusalToken: model.refusal?.tile == id
@@ -1556,18 +1710,18 @@ private struct TypeCase: View {
                         commitOnTouchDown: effectiveCommitOnTouchDown,
                         tileID: id
                     )
+
                 }
             }
         }
-        // Full width, matching the compose well above: that is the column the
-        // eye reads down.
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel("Letter tiles")
     }
 }
 
 private struct TileButton: View {
     let letter: String
+    /// A run's tile while its letters are hidden: drawn at rest, and no
+    /// button. See `blankTile`.
+    var hidden = false
     let placed: Bool
     let action: () -> Void
     var refusalToken: Int = 0
@@ -1718,7 +1872,21 @@ private struct TileButton: View {
             .accessibilityAction(.default, action)
     }
 
+    /// A hidden letter's tile: the face and its slab as they rest, with no
+    /// letter, no touch and nothing for VoiceOver. Drawn as `touchDownTile`
+    /// and `TilePressStyle` draw a tile at rest, so Start changes no pixel
+    /// but the letters.
+    private var blankTile: some View {
+        face
+            .background(shape.fill(Cute.surfaceShadow).offset(y: 5))
+            .accessibilityHidden(true)
+    }
+
     var body: some View {
+        if hidden { blankTile } else { liveTile }
+    }
+
+    private var liveTile: some View {
         Group {
             if commitOnTouchDown {
                 touchDownTile
@@ -1844,7 +2012,7 @@ private struct TileTouches: UIViewRepresentable {
 /// the web gives Submit `flex: 2` against its neighbour's `flex: 1`, and
 /// capping the neighbour is the simple approximation of that ratio. Whatever
 /// shares a row with Pick word stays the smaller of the two.
-private struct Controls: View {
+struct Controls: View {
     let model: GameModel
 
     private var empty: Bool { model.composing.isEmpty }

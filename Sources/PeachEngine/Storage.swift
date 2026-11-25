@@ -965,6 +965,146 @@ extension GameStorage {
 }
 
 extension GameStorage {
+    /// Peach rush's runs, by day: the first run of each day, kept.
+    ///
+    /// **Their own key.** A run's record is the run's: its words, its points
+    /// and how it ended, for its result and its share. Its words reach the
+    /// day's basket when it ends, as finds, through `carryRun` or the board's
+    /// find path, never through this key.
+    static let runsKey = "peach-of-a-word/runs/v1"
+
+    /// The run in flight, if one is: one run, today's, saved at each find and
+    /// each pause.
+    static let runInFlightKey = "peach-of-a-word/run-in-flight/v1"
+
+    private func readRuns() -> [String: RunRecord] {
+        store.data(forKey: Self.runsKey)
+            .flatMap { try? JSONDecoder().decode([String: RunRecord].self, from: $0) } ?? [:]
+    }
+
+    /// A day's run, if it was played.
+    public func runRecord(dayIndex: Int) -> RunRecord? {
+        readRuns()[String(dayIndex)]
+    }
+
+    /// Keep a day's run. **Only the first:** a day that already has one keeps
+    /// it, and this returns false.
+    @discardableResult
+    public func recordRun(_ record: RunRecord) -> Bool {
+        var runs = readRuns()
+        guard runs[String(record.day)] == nil else { return false }
+        runs[String(record.day)] = record
+        guard let data = try? JSONEncoder().encode(runs) else { return false }
+        store.set(data, forKey: Self.runsKey)
+        return true
+    }
+
+    public func runInFlight() -> RunInFlight? {
+        store.data(forKey: Self.runInFlightKey)
+            .flatMap { try? JSONDecoder().decode(RunInFlight.self, from: $0) }
+    }
+
+    public func saveRunInFlight(_ run: RunInFlight?) {
+        store.set(run.flatMap { try? JSONEncoder().encode($0) }, forKey: Self.runInFlightKey)
+    }
+
+    /// A run's words, into its day's basket, as if found on its board
+    /// (Antoine, 25 November 2026, reversing "nothing carries"): the words its
+    /// board takes, after the basket's own, since a run is only offered before
+    /// the basket's first find; the outcome they reach, on the run's own day;
+    /// and the streak, when they reach its rank, by `recordDailyCleared`'s
+    /// rule, which takes today, and yesterday's run ended since midnight. A run
+    /// that fills the basket owes the full basket's card, which plays when the
+    /// basket next opens.
+    ///
+    /// **For a run whose board isn't the one in play:** one left waiting
+    /// overnight, ended at the next launch. A run that ends on its own board
+    /// goes in through the board's find path instead, so the screen and the
+    /// store can't disagree. The shape is `applyImport`'s.
+    ///
+    /// Returns whether any word was new to the basket.
+    @discardableResult
+    public func carryRun(_ record: RunRecord, puzzle: Puzzle, todayIndex: Int) -> Bool {
+        let mine = loadDayProgress(dayIndex: record.day, sourceWord: puzzle.sourceWord)
+        let known = Set(mine)
+        let new = record.words.filter { puzzle.validationWords.contains($0) && !known.contains($0) }
+        guard !new.isEmpty else { return false }
+        let merged = mine + new
+        saveDayProgress(dayIndex: record.day, sourceWord: puzzle.sourceWord, found: merged,
+                        fromArchive: record.day != todayIndex)
+
+        let before = computeTier(found: known, puzzle: puzzle)
+        let after = computeTier(found: Set(merged), puzzle: puzzle)
+        raiseOutcome(dayIndex: record.day, reached: rungReached(after), on: record.day)
+        if after.index >= streakTierIndex {
+            recordDailyCleared(dayIndex: record.day, todayIndex: todayIndex, fromArchive: false)
+        }
+        if isComplete(after), !isComplete(before) { oweCompletion(dayIndex: record.day) }
+        return true
+    }
+
+    /// The day's run filled its basket, and the full basket's card hasn't
+    /// played yet.
+    public func owesCompletion(dayIndex: Int) -> Bool {
+        runRecord(dayIndex: dayIndex)?.completionOwed ?? false
+    }
+
+    /// The day's run filled its basket: its card is owed until the basket
+    /// next opens. Kept on the run's record, so a relaunch keeps it owed.
+    public func oweCompletion(dayIndex: Int) { setCompletionOwed(true, dayIndex: dayIndex) }
+
+    /// The full basket's card has played.
+    public func settleCompletion(dayIndex: Int) { setCompletionOwed(false, dayIndex: dayIndex) }
+
+    /// The day's run found the peach of a word, and its card hasn't been
+    /// seen: it opens once, on the first screen after the run ends (Antoine,
+    /// 25 November 2026). Kept on the run's record, with the word, so a run
+    /// ended at the next launch, or a relaunch, keeps it owed.
+    public func owePeachCard(_ word: String, dayIndex: Int) {
+        updateRun(dayIndex: dayIndex) { $0.owedPeachCard = word }
+    }
+
+    /// The latest day whose run's peach of a word is owed, and the word.
+    public func owedPeachCard() -> (day: Int, word: String)? {
+        readRuns().values
+            .compactMap { record in record.owedPeachCard.map { (day: record.day, word: $0) } }
+            .max { $0.day < $1.day }
+    }
+
+    /// The run's peach of a word's card has been seen.
+    public func settlePeachCard(dayIndex: Int) {
+        updateRun(dayIndex: dayIndex) { $0.owedPeachCard = nil }
+    }
+
+    private func setCompletionOwed(_ owed: Bool, dayIndex: Int) {
+        updateRun(dayIndex: dayIndex) { $0.completionOwed = owed }
+    }
+
+    /// Change a day's kept run, if it has one, and write the runs back only
+    /// when something changed.
+    private func updateRun(dayIndex: Int, _ change: (inout RunRecord) -> Void) {
+        var runs = readRuns()
+        guard let record = runs[String(dayIndex)] else { return }
+        var changed = record
+        change(&changed)
+        guard changed != record else { return }
+        runs[String(dayIndex)] = changed
+        guard let data = try? JSONEncoder().encode(runs) else { return }
+        store.set(data, forKey: Self.runsKey)
+    }
+
+    /// A run left in flight on an earlier day ends with what it had, kept as
+    /// that day's. Asked at launch and at a new day. Returns the day it ended.
+    @discardableResult
+    public func endRunLeftBefore(todayIndex: Int) -> Int? {
+        guard let waiting = runInFlight(), waiting.day < todayIndex else { return nil }
+        recordRun(waiting.ended(early: false))
+        saveRunInFlight(nil)
+        return waiting.day
+    }
+}
+
+extension GameStorage {
     /// Expand a transferred streak run into one outcome per day it covers. Once.
     ///
     /// **Why this exists at all.** A streak is a run-length encoding of cleared
@@ -1154,14 +1294,14 @@ extension GameStorage {
         public func eraseAll() { storage.eraseAllForSeeding() }
     }
 
-    /// See `Seeding.eraseAll`. Removes the five blobs outright rather than
+    /// See `Seeding.eraseAll`. Removes the seven blobs outright rather than
     /// writing empty ones, which is what a fresh install reads as. The
     /// remembered stage goes too, or a reset launch would draw the last test's,
     /// and so does the board in play, or it would open on the last test's past
     /// day.
     func eraseAllForSeeding() {
         for key in [Self.storageKey, Self.archiveKey, Self.outcomesKey, Self.stageKey,
-                    Self.boardKey] {
+                    Self.boardKey, Self.runsKey, Self.runInFlightKey] {
             store.set(nil, forKey: key)
         }
     }

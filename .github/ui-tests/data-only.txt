@@ -51,3 +51,4 @@ TapTheWell                    24 October's words: tel, aret, lay and lyt
 TitleAndTopRowAtEverySize     today's rank name and count, chosen as the tightest top row
 WinterCostumesOnTheDay        the winter costume days' boards replayed from the calendar, and industry's reveal card
 WholeWordsAtEverySize         today's best word, whose length decides whether its chip fits beside its label
+PeachRush                     today's source word, found inside a run, and the basket left as it was

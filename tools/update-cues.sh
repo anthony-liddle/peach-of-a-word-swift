@@ -9,11 +9,12 @@
 #                                        no writes
 #
 # The cue file is the web game's `src/audio/peach.cues.json`, written there by
-# `scripts/build-sound-cues.ts`: 35 cues, one for each sound the game makes.
+# `scripts/build-sound-cues.ts`: 37 cues, one for each sound the game makes.
 # Since #185 the web keeps it by hand: its tick and its Shuffle were chosen by
 # ear, and `src/audio/departures.ts` there lists them. Since #188 every cue
 # plays in Bea's mix, a gain for each instrument, which `src/audio/mix.ts`
-# there records.
+# there records. Since #213 it has Peach rush's two, at 10 seconds left and at
+# time's up, which only this app plays, since the web game has no run.
 # The web is its source of truth, so both games play the same sounds from one
 # document, and this app holds a copy, the way it holds orchard's word lists.
 #
@@ -44,15 +45,15 @@
 set -euo pipefail
 
 # The commit of `anthony-liddle/peach-of-a-word` the copy was taken from: the
-# commit that last changed the file, #188 on 2026-11-09, "the everyday sounds
-# closer to the two big ones, in Bea's mix". It is on `main`.
-WEB_COMMIT="fff10b065379eaa83807385ffa8710e33a49ef77"
-CUES_SHA256="1b713f29ec85f26175e5e1aca08d2a37c7df73d325f741153f1782d610d242c8"
+# commit that last changed the file, #213 on 2026-11-25, "the two cues Peach
+# rush plays, at 10 seconds left and at time's up". It is on `main`.
+WEB_COMMIT="7de684996e37c0078b421584abac938ff752fee7"
+CUES_SHA256="3ba120720904d3709b758e29505792b75f736cf70a30052fdd20430f0fd88fdd"
 
 # The Soundscape version whose conformance copy CUES_SHA256 equals. --check
 # reads Package.resolved and fails if the app has moved to another version
 # without anyone checking the cue file against that version's copy.
-SOUNDSCAPE_VERSION="0.3.0"
+SOUNDSCAPE_VERSION="0.3.1"
 
 WEB_REPO="anthony-liddle/peach-of-a-word"
 WEB_PATH="src/audio/peach.cues.json"
