@@ -264,6 +264,25 @@ final class PeachRush: XCTestCase {
         XCTAssertTrue(label(ended, "the run's button").contains("0 words · 0 points"), "the run didn't end with what it had")
     }
 
+    /// Today picked in Past days asks too, once the sheet is down, and End
+    /// opens the basket.
+    func testTodayFromPastDaysAsksFirstToo() {
+        let app = launch(["-timedRun", "waiting"], title: true)
+        XCTAssertTrue(app.buttons["TitleRun"].waitForExistence(timeout: 60), "no run on the title")
+        let today = app.buttons["ArchiveTodayCell"]
+        tap(app.buttons["TitlePastDays"], "Past days") { today.waitForExistence(timeout: 20) }
+        tap(today, "today in Past days") { app.alerts.firstMatch.waitForExistence(timeout: 10) }
+        guard app.alerts.firstMatch.exists else {
+            XCTFail("today in Past days went into the basket without asking")
+            return
+        }
+        XCTAssertEqual(label(app.alerts.firstMatch, "End's question"), "End the run?", "Past days didn't ask End's question")
+        tap(app.alerts.firstMatch.buttons["End"], "End, in the question") {
+            app.staticTexts["MeterPoints"].waitForExistence(timeout: 10)
+        }
+        XCTAssertTrue(app.staticTexts["MeterPoints"].exists, "End didn't go on to the basket")
+    }
+
     // MARK: The clock
 
     /// A 12 second clock, run out: "10 seconds left." once, then Time's up
