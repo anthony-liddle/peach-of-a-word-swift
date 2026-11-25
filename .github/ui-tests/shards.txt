@@ -40,7 +40,7 @@
 # **And `WholeWordsAtEverySize`,** on 24 November: its 90 is one local run on
 # an iPhone SE simulator, added to the lightest shard. Replace it the same way.
 #
-# **And `PeachRush` and `PeachRushAtEverySize`,** on 24 November: their 100 and
+# **And `PeachRush` and `PeachRushAtEverySize`,** on 24 November: their 185 and
 # 50 are one local run each on an iPhone SE simulator, added to shards 4 and 2,
 # the two lightest once `WholeWordsAtEverySize` was in. Replace them the same
 # way.
@@ -113,4 +113,4 @@
 4        AStartThatFails                    6
 4        AppearanceChoice                   45
 4        DaysFromTheWeb                     93
-4        PeachRush                          100
+4        PeachRush                          185
