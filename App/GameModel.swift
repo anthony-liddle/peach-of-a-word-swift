@@ -174,12 +174,17 @@ final class GameModel {
         /// knows. Re-deriving it would be a second classification pass, which
         /// is the exact shape `classifyFound` exists to prevent.
         case definition(word: String, category: WordCategory)
+        /// The peach of a word's card, opened from a run's result: it closes
+        /// onto the result, so its way out says Close, and it has no Share,
+        /// since the basket's share isn't the run's (Antoine, 24 November).
+        case runPeach(word: String)
 
         var id: String {
             switch self {
             case .sourceWord(let word): "source-\(word)"
             case .completion: "completion"
             case .definition(let word, _): "definition-\(word)"
+            case .runPeach(let word): "run-peach-\(word)"
             }
         }
     }
@@ -231,6 +236,23 @@ final class GameModel {
     /// Seeded at load from the restored board: reopening an already-complete
     /// day must not replay the peak.
     private var completionSeen = false
+
+    // MARK: Peach rush
+
+    /// The run on screen, or nil for the board and the title. See `RunState`.
+    ///
+    /// **Kept apart from the basket by construction.** A run's finds go into
+    /// `run.found`, never `found`, and never reach `foundDidChange`, where
+    /// every save, outcome, stage and streak write is. Its record and the run
+    /// in flight have keys of their own (`GameStorage.runsKey`). The rack
+    /// (`tiles`, `rackOrder`, `composing`) is shared: it's the same board.
+    var run: RunState?
+
+    /// What the title's button offers today. See `runOffer(today:...)`.
+    private(set) var runOffer: RunOffer = .none
+
+    /// Ticks the clock while a run is running.
+    @ObservationIgnored private var runTicker: Task<Void, Never>?
 
     #if DEBUG
     /// Every find beat played since launch, oldest first, so `-exposeFeel 1`
@@ -415,6 +437,9 @@ final class GameModel {
     ) {
         self.storage = storage
         self.access = access
+        // The title draws from the store before the board loads, so Peach
+        // rush's button is known from the first frame and never arrives late.
+        refreshRunOffer()
     }
 
     /// "Now", shiftable in debug builds by `-dayOffset N`.
@@ -639,6 +664,8 @@ final class GameModel {
             // a session that ended yesterday is already where it belongs when
             // the back-fill goes looking for it.
             storage.retirePastDays(todayIndex: Self.todayStorageIndex)
+            // A run left waiting on an earlier day ends with what it had.
+            storage.endRunLeftBefore(todayIndex: Self.todayStorageIndex)
             // Read before today's board is adopted, which remembers itself as
             // the board in play. A seed or `-resetProgress` erased it with the
             // rest of the store, so a test never opens on the last test's day.
@@ -736,6 +763,7 @@ final class GameModel {
         // A day started before the stage was remembered has none until its
         // board is read, which is now.
         rememberTodaysStage()
+        refreshRunOffer()
     }
 
     /// The date a storage day index falls on.
@@ -805,6 +833,11 @@ final class GameModel {
         // The board she was playing is about to leave the screen. Its words go
         // with it, into the key that keeps them.
         storage.retirePastDays(todayIndex: today)
+        // A run open across midnight, paused when the app went away, ends
+        // with what it had, as its own day's, before today's letters replace
+        // its board. One left waiting off screen ends the same way.
+        if let open = run, open.day < today { endRunForNewDay() }
+        storage.endRunLeftBefore(todayIndex: today)
         adopt(p, storageDay: today, isArchive: false)
         // The new day has not recorded a streak yet, and this flag is what
         // stops one session recording twice. Left set, the first clear of the
@@ -1004,6 +1037,9 @@ final class GameModel {
                 }
             }
         }
+        // `-timedRun` lands a run in a chosen state, last, after any seed.
+        // See `runTimedRunHook`.
+        runTimedRunHook()
         #endif
     }
 
@@ -1253,6 +1289,10 @@ final class GameModel {
 
     private func attempt(_ word: String) -> GuessResult? {
         guard let puzzle else { return nil }
+        // A running run checks "already found" against its own finds only.
+        if let run, run.phase == .running {
+            return validateGuess(word, puzzle: puzzle, found: Set(run.found))
+        }
         return validateGuess(word, puzzle: puzzle, found: Set(found))
     }
 
@@ -1293,6 +1333,9 @@ final class GameModel {
         // The archive's whole substance: what this board reached, kept.
         recordOutcome(standing: standing, day: day, today: today)
         rememberTodaysStage()
+
+        // The basket's first find closes today's run offer.
+        refreshRunOffer()
 
         if standing.index >= streakTierIndex && !streakRecordedThisSession {
             streakRecordedThisSession = true
@@ -1861,6 +1904,11 @@ final class GameModel {
         // values rather than an object with a `kind` string.
         switch result {
         case .valid(let word, let score, let rung, let isSourceWord):
+            // A run's find stays in the run. See `resolveRunFind`.
+            if let run, run.phase == .running {
+                resolveRunFind(word: word, score: score, rung: rung, isSourceWord: isSourceWord)
+                return
+            }
             found.insert(word, at: 0)
             if rung == .mythic { startGlint(word) }
             // One beat per find, chosen once it is known whether this find
@@ -2164,4 +2212,318 @@ extension GameModel {
         }
         return resources.appendingPathComponent("Data")
     }
+}
+
+// MARK: - Peach rush
+
+/// Where the run on screen is.
+enum RunPhase: Equatable {
+    /// The clock full and the letters hidden, waiting for Start.
+    case ready
+    case running
+    /// Away from the app, or VoiceOver's scrub: the clock stopped and the
+    /// letters hidden again.
+    case paused
+    /// The result on show. `endedEarly` when the player chose End.
+    case over(endedEarly: Bool)
+}
+
+/// The run on screen: today's, or its result.
+struct RunState: Equatable {
+    var day: Int
+    var phase: RunPhase
+    var clock: RunClock
+    var length: Double
+    /// Newest first.
+    var found: [String] = []
+    var points = 0
+    var peachFound = false
+    /// The time left as last read: the clock's, refreshed by each tick.
+    var remaining: Double
+    /// Debug only: the clock held where a picture asked for it.
+    var frozen = false
+
+    var inFlight: RunInFlight {
+        RunInFlight(day: day, words: found, points: points, peachFound: peachFound,
+                    remaining: remaining, length: length)
+    }
+
+    init(day: Int, length: Double) {
+        self.day = day
+        self.length = length
+        phase = .ready
+        clock = RunClock(remaining: length)
+        remaining = length
+    }
+
+    /// A run in flight, back on screen, paused.
+    init(resuming waiting: RunInFlight) {
+        day = waiting.day
+        length = waiting.length
+        phase = .paused
+        clock = RunClock(remaining: waiting.remaining)
+        remaining = waiting.remaining
+        found = waiting.words
+        points = waiting.points
+        peachFound = waiting.peachFound
+    }
+
+    /// A played run's result, shown again.
+    init(result: RunRecord) {
+        day = result.day
+        length = result.length
+        phase = .over(endedEarly: result.endedEarly)
+        clock = RunClock(remaining: Double(result.secondsLeft))
+        remaining = Double(result.secondsLeft)
+        found = result.words
+        points = result.points
+        peachFound = result.peachFound
+    }
+}
+
+/// Longer clock, in Settings: a run lasts 3:00 instead of 1:30. Off by
+/// default, kept as Sound is, and read when a run starts, so a run in
+/// progress keeps the length it began with.
+enum LongerClockSetting {
+    static let key = "longerClockOn"
+
+    static var isOn: Bool { UserDefaults.standard.bool(forKey: key) }
+}
+
+extension GameModel {
+    /// The monotonic time the run's clock reads: the system's uptime, which a
+    /// change to the phone's clock doesn't move.
+    nonisolated static var uptime: Double { ProcessInfo.processInfo.systemUptime }
+
+    /// A run's length: Longer clock's, or in Debug, `-runClock <seconds>`, so
+    /// a test can reach Time's up in seconds.
+    static var runLength: Double { runLength(longerClock: LongerClockSetting.isOn) }
+
+    /// The same, for a view that observes the switch itself.
+    static func runLength(longerClock: Bool) -> Double {
+        #if DEBUG
+        let asked = UserDefaults.standard.double(forKey: "runClock")
+        if asked > 0 { return asked }
+        #endif
+        return RunLength.seconds(longerClock: longerClock)
+    }
+
+    /// Ask the store what the title's button offers today.
+    func refreshRunOffer() {
+        let today = Self.todayStorageIndex
+        runOffer = PeachEngine.runOffer(
+            today: today, record: storage.runRecord(dayIndex: today),
+            inFlight: storage.runInFlight(), basketFinds: todayStarted ? 1 : 0)
+    }
+
+    /// From the title's button: a run to start, the run waiting, paused, or
+    /// today's result again. Today's board must be the board in play.
+    func openRun() {
+        guard puzzle != nil, !isArchiveBoard else { return }
+        refreshRunOffer()
+        clear()
+        feedback = .none
+        switch runOffer {
+        case .none: return
+        case .fresh: run = RunState(day: Self.todayStorageIndex, length: Self.runLength)
+        case .paused:
+            guard let waiting = storage.runInFlight() else { return }
+            run = RunState(resuming: waiting)
+        case .played(let record): run = RunState(result: record)
+        }
+    }
+
+    /// Start, or Resume: the letters show and the clock runs.
+    func startRun() {
+        guard var current = run, current.phase == .ready || current.phase == .paused else { return }
+        let resuming = current.phase == .paused
+        current.clock.start(at: Self.uptime)
+        current.phase = .running
+        run = current
+        feedback = .none
+        storage.saveRunInFlight(current.inFlight)
+        refreshRunOffer()
+        let time = runSpokenTime(current.remaining)
+        announceRun(resuming ? Vocabulary.runResumedSpoken(time) : Vocabulary.runStartedSpoken(time))
+        tickRun()
+    }
+
+    /// Stop the clock and hide the letters: the app going away, a call, or
+    /// VoiceOver's scrub, which alone says so (`spoken`).
+    func pauseRun(spoken: Bool = false) {
+        guard var current = run, current.phase == .running, !current.frozen else { return }
+        runTicker?.cancel()
+        current.clock.stop(at: Self.uptime)
+        current.remaining = current.clock.remaining(at: Self.uptime)
+        current.phase = .paused
+        run = current
+        clear()
+        storage.saveRunInFlight(current.inFlight)
+        if spoken { announceRun(Vocabulary.runPaused) }
+    }
+
+    /// The clock ran out, or End was confirmed.
+    func endRun(early: Bool) {
+        guard var current = run else { return }
+        switch current.phase {
+        case .running, .paused: break
+        case .ready, .over: return
+        }
+        runTicker?.cancel()
+        current.clock.stop(at: Self.uptime)
+        current.remaining = early ? current.clock.remaining(at: Self.uptime) : 0
+        current.phase = .over(endedEarly: early)
+        run = current
+        clear()
+        feedback = .none
+        storage.recordRun(current.inFlight.ended(early: early))
+        storage.saveRunInFlight(nil)
+        refreshRunOffer()
+        guard !early else { return }
+        // Time's up: its beat and its cue, and what VoiceOver hears.
+        Feel.runEnd()
+        announceRun(Vocabulary.runTimesUpSpoken(words: current.found.count, points: current.points))
+    }
+
+    /// The run screen goes: to the board or the title. A run not started
+    /// stays offered; a run paused stays waiting, saved.
+    func closeRun() {
+        runTicker?.cancel()
+        run = nil
+        clear()
+        feedback = .none
+        refreshRunOffer()
+    }
+
+    /// The basket opened from the title while a run waits, paused: the run
+    /// ends with what it had, since the basket shows the same letters.
+    func endWaitingRunForBasket() {
+        guard run == nil, let waiting = storage.runInFlight(),
+              waiting.day == Self.todayStorageIndex else { return }
+        storage.recordRun(waiting.ended(early: true))
+        storage.saveRunInFlight(nil)
+        refreshRunOffer()
+    }
+
+    /// A new day under a run on screen: it ends as its own day's.
+    fileprivate func endRunForNewDay() {
+        guard let current = run else { return }
+        runTicker?.cancel()
+        if case .over = current.phase {} else {
+            storage.recordRun(current.inFlight.ended(early: false))
+            storage.saveRunInFlight(nil)
+        }
+        run = nil
+        clear()
+    }
+
+    /// The clock, every fifth of a second, read from the uptime rather than
+    /// counted, so a late tick never stretches the run. Each tick asks whether
+    /// a time mark fell due.
+    private func tickRun() {
+        runTicker?.cancel()
+        runTicker = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .milliseconds(200))
+                guard let self, var current = self.run, current.phase == .running,
+                      !current.frozen else { return }
+                let before = current.remaining
+                current.remaining = current.clock.remaining(at: Self.uptime)
+                self.run = current
+                if let mark = runMarkDue(before: before, after: current.remaining) {
+                    if mark == 10 { Feel.runTen() }
+                    self.announceRun(Vocabulary.runMarkSpoken(runSpokenTime(Double(mark))), priority: true)
+                }
+                if current.remaining <= 0 {
+                    self.endRun(early: false)
+                    return
+                }
+            }
+        }
+    }
+
+    /// Tell VoiceOver. The time marks go at high priority, so a find's line
+    /// spoken at the same moment doesn't swallow them.
+    private func announceRun(_ text: String, priority: Bool = false) {
+        var spoken = AttributedString(text)
+        if priority { spoken.accessibilitySpeechAnnouncementPriority = .high }
+        AccessibilityNotification.Announcement(spoken).post()
+        #if DEBUG
+        announced.append(text)
+        #endif
+    }
+
+    /// A find in a run: its line, its sound and its feel, as in the basket,
+    /// and nothing of the basket's written. The peach of a word plays its
+    /// sound and line; its card waits for the end. The run in flight is saved.
+    fileprivate func resolveRunFind(word: String, score: Int, rung: Rung, isSourceWord: Bool) {
+        guard var current = run else { return }
+        current.found.insert(word, at: 0)
+        current.points += score
+        if isSourceWord { current.peachFound = true }
+        current.remaining = current.clock.remaining(at: Self.uptime)
+        run = current
+        storage.saveRunInFlight(current.inFlight)
+        if rung == .mythic { startGlint(word) }
+        if isSourceWord {
+            feedback = .sourceFound
+            Feel.sourceWord()
+            sound(.source)
+        } else {
+            feedback = .accepted(word: word, points: score, rung: rung)
+            Feel.find()
+            sound(.found(length: word.count, rung: rung))
+        }
+    }
+
+    #if DEBUG
+    /// `-timedRun ready|running|paused|over|overEarly|played|waiting`, with
+    /// `-timedRunWords a,b,c` found through the tile path, and
+    /// `-timedRunFreeze 52` holding the clock at 0:52 for a picture.
+    /// `played` ends the run and closes it, so the title shows its result;
+    /// `waiting` pauses it and closes it, so the title shows it paused.
+    func runTimedRunHook() {
+        let defaults = UserDefaults.standard
+        guard let spec = defaults.string(forKey: "timedRun") else { return }
+        openRun()
+        guard spec != "ready", run != nil else { return }
+        startRun()
+        for word in (defaults.string(forKey: "timedRunWords") ?? "").split(separator: ",") {
+            clear()
+            for letter in word { addLetter(String(letter)) }
+            submit()
+        }
+        // `-timedRunFindSource 1` finds the peach of a word inside the run,
+        // so a test can hold the basket apart from it without knowing the
+        // day's word.
+        if defaults.bool(forKey: "timedRunFindSource"), let source = puzzle?.sourceWord {
+            clear()
+            for letter in source { addLetter(String(letter)) }
+            submit()
+        }
+        guard var current = run else { return }
+        let held = defaults.double(forKey: "timedRunFreeze")
+        if held > 0 {
+            runTicker?.cancel()
+            current.clock = RunClock(remaining: held)
+            current.clock.start(at: Self.uptime)
+            current.remaining = held
+            current.frozen = true
+            run = current
+        }
+        switch spec {
+        case "paused", "waiting":
+            current.frozen = false
+            run = current
+            pauseRun()
+            if spec == "waiting" { closeRun() }
+        case "over": endRun(early: false)
+        case "overEarly": endRun(early: true)
+        case "played":
+            endRun(early: false)
+            closeRun()
+        default: break
+        }
+    }
+    #endif
 }

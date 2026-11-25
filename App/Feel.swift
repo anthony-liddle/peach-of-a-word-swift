@@ -130,6 +130,20 @@ enum Feel {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.30) { playing.notify(.success) }
     }
 
+    /// Peach rush, 10 seconds left: one light tap, once, so a run's end never
+    /// comes as a surprise. Lighter than a find, which it may land beside.
+    @MainActor
+    static func runTen() {
+        playing?.impact(.light, intensity: 0.8)
+    }
+
+    /// Peach rush, time's up: one firm beat. Not completion's three, since
+    /// a run ending isn't the game's peak.
+    @MainActor
+    static func runEnd() {
+        playing?.impact(.heavy, intensity: 0.9)
+    }
+
     /// The cute theme's signature easing.
     ///
     /// The web says `cubic-bezier(0.34, 1.56, 0.64, 1)`, an overshoot curve.

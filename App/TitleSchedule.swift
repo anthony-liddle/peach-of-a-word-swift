@@ -87,7 +87,8 @@ enum TitleSchedule {
     static func resetForFreshInstall(defaults: UserDefaults = .standard) {
         guard defaults.bool(forKey: "resetProgress") else { return }
         for key in [lastShownKey, leftUpKey, SoundSetting.key, VibrationSetting.key,
-                    LengthCountsSetting.key, HowToPlayFirstRun.key, AppearanceSetting.key]
+                    LengthCountsSetting.key, HowToPlayFirstRun.key, AppearanceSetting.key,
+                    LongerClockSetting.key]
             + Reminder.freshInstallKeys {
             defaults.removeObject(forKey: key)
         }
