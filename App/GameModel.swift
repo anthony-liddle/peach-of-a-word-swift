@@ -2416,8 +2416,9 @@ extension GameModel {
             openRunPeachCard(after: nil)
             return
         }
-        // Time's up: its beat and its cue, and what VoiceOver hears.
+        // Time's up: its beat and its cue, `rush-end`, and what VoiceOver hears.
         Feel.runEnd()
+        sound(.rushEnd)
         let timesUp = Vocabulary.runTimesUpSpoken(words: current.found.count, points: current.points)
         announceRun(timesUp)
         openRunPeachCard(after: timesUp)
@@ -2607,7 +2608,11 @@ extension GameModel {
                 current.remaining = current.clock.remaining(at: Self.uptime)
                 self.run = current
                 if let mark = runMarkDue(before: before, after: current.remaining) {
-                    if mark == 10 { Feel.runTen() }
+                    // 10 seconds left: its beat and its sound, `rush-ten`.
+                    if mark == 10 {
+                        Feel.runTen()
+                        self.sound(.rushTen)
+                    }
                     self.announceRun(Vocabulary.runMarkSpoken(runSpokenTime(Double(mark))), priority: true)
                 }
                 if current.remaining <= 0 {
