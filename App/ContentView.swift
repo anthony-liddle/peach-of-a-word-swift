@@ -468,7 +468,9 @@ struct ContentView: View {
                             leaveTitle()
                             Task { await model.openArchiveDay(storageDay: day) }
                         }
-                        if day == GameModel.todayStorageIndex {
+                        // Today, with today's run waiting: End's question,
+                        // once the sheet is down. Otherwise straight on.
+                        if day == GameModel.todayStorageIndex, case .paused = model.runOffer {
                             afterArchive = { intoTheBasket(open) }
                         } else {
                             open()
