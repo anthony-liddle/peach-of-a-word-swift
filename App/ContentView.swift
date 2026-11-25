@@ -130,7 +130,9 @@ struct ContentView: View {
 
     /// How to play, if it is up, and why: a first run goes on to the board.
     private enum HowToPlayShown: Identifiable {
-        case firstRun, fromLink
+        /// A phone that has never played: from Play, then on to the board;
+        /// or from Peach rush's button, then on to the run.
+        case firstRun, firstRunThenRush, fromLink
         var id: Self { self }
     }
 
@@ -486,9 +488,10 @@ struct ContentView: View {
         }
         // How to play: from Play on a first run, or from the title's link.
         .sheet(item: $howToPlay) { shown in
-            HowToPlayCard(firstRun: shown == .firstRun) {
+            HowToPlayCard(firstRun: shown != .fromLink) {
                 howToPlay = nil
                 if shown == .firstRun { goToToday() }
+                if shown == .firstRunThenRush { openRush() }
             }
             .presentationDetents([.large])
             .presentationDragIndicator(.visible)
@@ -671,16 +674,28 @@ struct ContentView: View {
             },
             settings: { settingsShown = true },
             run: {
-                if model.isArchiveBoard {
-                    Task {
-                        await model.returnToToday()
-                        model.openRun()
-                    }
+                // A phone that has never played sees How to play first, once,
+                // from this button as from Play, and goes on to the run.
+                if !HowToPlayFirstRun.seen, !model.hasAnyProgress {
+                    HowToPlayFirstRun.markSeen()
+                    howToPlay = .firstRunThenRush
                 } else {
-                    model.openRun()
+                    openRush()
                 }
             }
         )
+    }
+
+    /// Peach rush, on today's board, from a past board left open as well.
+    private func openRush() {
+        if model.isArchiveBoard {
+            Task {
+                await model.returnToToday()
+                model.openRun()
+            }
+        } else {
+            model.openRun()
+        }
     }
 
     /// The title shows today, so Play goes there, from a past board left open
@@ -1605,13 +1620,19 @@ struct TypeCase: View {
                         commitOnTouchDown: effectiveCommitOnTouchDown,
                         tileID: id
                     )
+
                 }
             }
         }
         // Full width, matching the compose well above: that is the column the
         // eye reads down.
-        .accessibilityElement(children: .contain)
+        //
+        // A run's hidden letters are no tiles at all to VoiceOver: the
+        // children are dropped, then the rack. Hiding the rack alone, or each
+        // tile, still left all eight reachable.
+        .accessibilityElement(children: hidden ? .ignore : .contain)
         .accessibilityLabel("Letter tiles")
+        .accessibilityHidden(hidden)
     }
 }
 
