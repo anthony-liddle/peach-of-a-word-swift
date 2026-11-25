@@ -43,7 +43,9 @@
 # **And `PeachRush` and `PeachRushAtEverySize`,** on 24 November: their 185 and
 # 50 are one local run each on an iPhone SE simulator, added to shards 4 and 2,
 # the two lightest once `WholeWordsAtEverySize` was in. Replace them the same
-# way.
+# way. `PeachRush` is 255 since 25 November, from one SE run of its 13 tests
+# once a run's words carried into the basket. Shard 4 stays its home: moved to
+# the lightest, shard 1, it would make that one the longest.
 #
 # To rebalance, or to change the number of shards, update the seconds and
 # print a new map:
@@ -113,4 +115,4 @@
 4        AStartThatFails                    6
 4        AppearanceChoice                   45
 4        DaysFromTheWeb                     93
-4        PeachRush                          185
+4        PeachRush                          255
