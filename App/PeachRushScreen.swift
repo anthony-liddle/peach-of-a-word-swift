@@ -39,6 +39,12 @@ struct PeachRushScreen: View {
                 } message: {
                     Text(Vocabulary.runEndQuestionMessage)
                 }
+                #if DEBUG
+                // `-timedRunAskEnd 1`: End's question, open, for a picture.
+                .onAppear {
+                    if UserDefaults.standard.bool(forKey: "timedRunAskEnd") { askingToEnd = true }
+                }
+                #endif
             }
         }
     }

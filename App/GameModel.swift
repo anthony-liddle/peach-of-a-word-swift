@@ -993,6 +993,10 @@ final class GameModel {
                 Feel.completion()
             }
         }
+        // `-timedRun` lands a run in a chosen state. Before `-seedBoard`, so a
+        // run can be played and then the basket seeded after it, the order
+        // the rule allows. See `runTimedRunHook`.
+        runTimedRunHook()
         // `-seedBoard almost`, `-seedBoard full` or `-seedBoard 24`.
         if let spec = UserDefaults.standard.string(forKey: "seedBoard") {
             seedBoard(spec)
@@ -1037,9 +1041,6 @@ final class GameModel {
                 }
             }
         }
-        // `-timedRun` lands a run in a chosen state, last, after any seed.
-        // See `runTimedRunHook`.
-        runTimedRunHook()
         #endif
     }
 
@@ -2517,7 +2518,13 @@ extension GameModel {
             run = current
             pauseRun()
             if spec == "waiting" { closeRun() }
-        case "over": endRun(early: false)
+        case "over":
+            endRun(early: false)
+            // `-timedRunOpenPeach 1`: the peach of a word's card, from the result.
+            if defaults.bool(forKey: "timedRunOpenPeach"), let current = run, current.peachFound,
+               let word = puzzle?.sourceWord {
+                moment = .runPeach(word: word)
+            }
         case "overEarly": endRun(early: true)
         case "played":
             endRun(early: false)
