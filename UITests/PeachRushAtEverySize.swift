@@ -34,12 +34,18 @@ final class PeachRushAtEverySize: XCTestCase {
             let tiles = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Letter'"))
                 .allElementsBoundByIndex
             XCTAssertEqual(tiles.count, 8, "\(at): not every letter is there")
-            let controls = [app.buttons["Clear"], app.buttons["Delete last letter"]]
+            // Read only what's there: a read of a missing element makes
+            // XCUITest print the whole tree, the rack's letters among it.
+            let controls = [app.buttons["Shuffle"], app.buttons["Clear"], app.buttons["Delete last letter"]]
+            guard controls.allSatisfy({ $0.exists }), tiles.allSatisfy({ $0.exists }) else {
+                XCTFail("\(at): a control or a tile isn't there")
+                continue
+            }
             for control in controls {
-                XCTAssertTrue(window.contains(control.frame), "\(at): \(control.label) isn't on screen")
+                XCTAssertTrue(window.contains(control.frame), "\(at): a control isn't on screen")
             }
             let rackFoot = tiles.map { $0.frame.maxY }.max() ?? 0
-            let controlsTop = ([app.buttons["Shuffle"]] + controls).map { $0.frame.minY }.min() ?? 0
+            let controlsTop = controls.map { $0.frame.minY }.min() ?? 0
             XCTAssertLessThanOrEqual(rackFoot, controlsTop + 0.5,
                                      "\(at): the rack's last row runs under the controls by \(rackFoot - controlsTop)pt")
         }
@@ -52,6 +58,10 @@ final class PeachRushAtEverySize: XCTestCase {
         defer { app.terminate() }
         let run = app.buttons["TitleRun"]
         XCTAssertTrue(run.waitForExistence(timeout: 60), "no run on the title")
+        guard app.buttons["TitlePlay"].exists, app.buttons["TitlePastDays"].exists else {
+            XCTFail("Play or Past days isn't on the title")
+            return
+        }
         let play = app.buttons["TitlePlay"].frame
         let pastDays = app.buttons["TitlePastDays"].frame
         XCTAssertGreaterThanOrEqual(run.frame.minY, play.maxY, "the run's button isn't under Play")

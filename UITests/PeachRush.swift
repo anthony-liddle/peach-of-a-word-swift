@@ -27,16 +27,35 @@ final class PeachRush: XCTestCase {
     private func lettered(_ app: XCUIApplication) -> Int {
         app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Letter'"))
             .allElementsBoundByIndex
-            .filter { $0.label.trimmingCharacters(in: .whitespaces) != "Letter" }
+            .filter { $0.exists && $0.label.trimmingCharacters(in: .whitespaces) != "Letter" }
             .count
     }
 
-    private func tap(_ element: XCUIElement, _ what: String, until done: () -> Bool) {
+    /// Tap, once the element is there, and once more if nothing answered.
+    ///
+    /// **Never on an element that isn't there.** A tap or a read of a missing
+    /// element makes XCUITest print the whole tree into the log, the rack's
+    /// letters among it, and the repo is public: a run a day ahead would print
+    /// a day nobody has played. So each waits, and fails in its own words.
+    private func tap(_ element: XCUIElement, _ what: String, until done: () -> Bool = { true }) {
+        guard element.waitForExistence(timeout: 10) else {
+            XCTFail("\(what) isn't there to tap")
+            return
+        }
         element.tap()
         if !done() {
             SecondTap.record(what)
-            element.tap()
+            if element.exists { element.tap() }
         }
+    }
+
+    /// An element's label, read only once it's there. See `tap`.
+    private func label(_ element: XCUIElement, _ what: String) -> String {
+        guard element.waitForExistence(timeout: 10) else {
+            XCTFail("\(what) isn't there to read")
+            return ""
+        }
+        return element.label
     }
 
     // MARK: Start, Back, End
@@ -71,7 +90,7 @@ final class PeachRush: XCTestCase {
         tap(offer, "the run's button, again") { app.buttons["RunStart"].waitForExistence(timeout: 5) }
         tap(app.buttons["RunStart"], "Start") { lettered(app) == 8 }
         XCTAssertEqual(lettered(app), 8, "Start didn't show all eight letters")
-        XCTAssertTrue(app.staticTexts["RunClock"].label.hasPrefix("Time left, "),
+        XCTAssertTrue(label(app.staticTexts["RunClock"], "the clock").hasPrefix("Time left, "),
                       "the clock doesn't say the time left")
     }
 
@@ -82,22 +101,22 @@ final class PeachRush: XCTestCase {
 
         tap(leave, "End") { app.alerts.firstMatch.waitForExistence(timeout: 5) }
         let question = app.alerts.firstMatch
-        XCTAssertEqual(question.label, "End the run?", "End didn't ask first")
-        question.buttons["Keep playing"].tap()
+        XCTAssertEqual(label(question, "End's question"), "End the run?", "End didn't ask first")
+        tap(question.buttons["Keep playing"], "Keep playing")
         let clock = app.staticTexts["RunClock"]
-        let before = clock.label
+        let before = label(clock, "the clock")
         sleep(2)
-        XCTAssertNotEqual(clock.label, before, "Keep playing stopped the clock")
+        XCTAssertNotEqual(label(clock, "the clock"), before, "Keep playing stopped the clock")
 
         tap(leave, "End, again") { app.alerts.firstMatch.waitForExistence(timeout: 5) }
-        app.alerts.firstMatch.buttons["End"].tap()
+        tap(app.alerts.firstMatch.buttons["End"], "End, in the question")
         let heading = app.staticTexts["RunResultHeading"]
         XCTAssertTrue(heading.waitForExistence(timeout: 5), "End didn't end the run")
-        XCTAssertTrue(heading.label.hasPrefix("Ended with "), "an early end didn't say so")
+        XCTAssertTrue(label(heading, "the result's heading").hasPrefix("Ended with "), "an early end didn't say so")
 
         tap(app.buttons["RunDone"], "Done") { app.buttons["TitleRun"].waitForExistence(timeout: 5) }
         let played = app.buttons["TitleRun"]
-        XCTAssertTrue(played.label.contains("0 words · 0 points"), "the title doesn't show the run played")
+        XCTAssertTrue(label(played, "the run's button").contains("0 words · 0 points"), "the title doesn't show the run played")
         tap(played, "the played run") { heading.waitForExistence(timeout: 5) }
         XCTAssertTrue(heading.exists, "the title's button didn't reopen the result")
         XCTAssertFalse(app.buttons["RunStart"].exists, "a played run offered a second")
@@ -111,22 +130,22 @@ final class PeachRush: XCTestCase {
         let fresh = launch([], title: true)
         let week = fresh.buttons["WeekToday"]
         XCTAssertTrue(week.waitForExistence(timeout: 60), "no week on a fresh title")
-        let weekBefore = week.label
+        let weekBefore = label(week, "today in the week")
         fresh.terminate()
 
         let app = launch(["-timedRun", "played", "-timedRunFindSource", "1"], title: true)
         let played = app.buttons["TitleRun"]
         XCTAssertTrue(played.waitForExistence(timeout: 60), "no run on the title")
-        XCTAssertTrue(played.label.contains("1 word · 15 points"),
+        XCTAssertTrue(label(played, "the run's button").contains("1 word · 15 points"),
                       "the run didn't keep the peach of a word as its one find")
         let play = app.buttons["TitlePlay"]
-        XCTAssertTrue(play.label.hasPrefix("Play"), "the run started the basket")
-        XCTAssertTrue(app.buttons["WeekToday"].label == weekBefore, "the run changed today in the week")
+        XCTAssertTrue(label(play, "Play").hasPrefix("Play"), "the run started the basket")
+        XCTAssertTrue(label(app.buttons["WeekToday"], "today in the week") == weekBefore, "the run changed today in the week")
         XCTAssertFalse(app.otherElements["TitleStreak"].exists || app.staticTexts["TitleStreak"].exists,
                        "the run gave a streak")
 
         tap(play, "Play") { app.staticTexts["MeterPoints"].waitForExistence(timeout: 10) }
-        XCTAssertEqual(app.staticTexts["MeterPoints"].label, "0 points", "the run's points reached the basket")
+        XCTAssertEqual(label(app.staticTexts["MeterPoints"], "the board's points"), "0 points", "the run's points reached the basket")
     }
 
     // MARK: Pausing
@@ -143,9 +162,9 @@ final class PeachRush: XCTestCase {
         XCTAssertTrue(app.buttons["RunResume"].waitForExistence(timeout: 10), "leaving didn't pause the run")
         XCTAssertEqual(lettered(app), 0, "a paused run showed its letters")
         let clock = app.staticTexts["RunClock"]
-        let held = clock.label
+        let held = label(clock, "the clock")
         sleep(2)
-        XCTAssertEqual(clock.label, held, "a paused run's clock kept going")
+        XCTAssertEqual(label(clock, "the clock"), held, "a paused run's clock kept going")
 
         tap(app.buttons["RunResume"], "Resume") { lettered(app) == 8 }
         XCTAssertEqual(lettered(app), 8, "Resume didn't bring the letters back")
@@ -155,7 +174,7 @@ final class PeachRush: XCTestCase {
         let app = launch(["-timedRun", "waiting"], title: true)
         let waiting = app.buttons["TitleRun"]
         XCTAssertTrue(waiting.waitForExistence(timeout: 60), "no run on the title")
-        XCTAssertTrue(waiting.label.contains("paused"), "a waiting run doesn't say it's paused")
+        XCTAssertTrue(label(waiting, "the run's button").contains("paused"), "a waiting run doesn't say it's paused")
 
         tap(waiting, "the waiting run") { app.buttons["RunResume"].waitForExistence(timeout: 5) }
         XCTAssertTrue(app.buttons["RunResume"].exists, "a waiting run didn't open paused")
@@ -171,8 +190,8 @@ final class PeachRush: XCTestCase {
         let after = launch([], title: true, reset: false)
         let ended = after.buttons["TitleRun"]
         XCTAssertTrue(ended.waitForExistence(timeout: 60), "the run left the title")
-        XCTAssertFalse(ended.label.contains("paused"), "the basket left the run waiting")
-        XCTAssertTrue(ended.label.contains("0 words · 0 points"), "the run didn't end with what it had")
+        XCTAssertFalse(label(ended, "the run's button").contains("paused"), "the basket left the run waiting")
+        XCTAssertTrue(label(ended, "the run's button").contains("0 words · 0 points"), "the run didn't end with what it had")
     }
 
     // MARK: The clock
@@ -183,8 +202,8 @@ final class PeachRush: XCTestCase {
         let app = launch(["-timedRun", "running", "-runClock", "12", "-exposeAnnounced", "1"])
         XCTAssertTrue(app.staticTexts["RunResultHeading"].waitForExistence(timeout: 30),
                       "the clock never ran out")
-        XCTAssertEqual(app.staticTexts["RunResultHeading"].label, "Time's up")
-        let said = app.staticTexts["DebugAnnounced"].label.components(separatedBy: " | ")
+        XCTAssertEqual(label(app.staticTexts["RunResultHeading"], "the result's heading"), "Time's up")
+        let said = label(app.staticTexts["DebugAnnounced"], "the announcements").components(separatedBy: " | ")
         XCTAssertEqual(said.filter { $0 == "10 seconds left." }.count, 1, "10 seconds left wasn't said once")
         XCTAssertEqual(said.filter { $0.hasPrefix("Time's up.") }.count, 1, "Time's up wasn't said once")
         XCTAssertFalse(said.contains("1 minute left.") || said.contains("30 seconds left."),
