@@ -400,6 +400,22 @@ final class PeachRush: XCTestCase {
 
     // MARK: The clock
 
+    /// Peach rush's two sounds, kept by Antoine on 25 November: `rush-ten` at
+    /// 10 seconds left and `rush-end` at time's up, once each, and with Sound
+    /// off neither.
+    func testTheRunsTwoSoundsPlayAtTenSecondsLeftAndAtTimesUp() {
+        let app = launch(["-timedRun", "running", "-runClock", "12", "-exposeSound", "1"])
+        XCTAssertTrue(app.staticTexts["RunResultHeading"].waitForExistence(timeout: 30), "the clock never ran out")
+        XCTAssertEqual(label(app.staticTexts["DebugSound"], "the cues asked for"), "rush-ten,rush-end",
+                       "the run didn't ask for its two sounds, once each, in order")
+        app.terminate()
+
+        let quiet = launch(["-timedRun", "running", "-runClock", "12", "-exposeSound", "1", "-soundOn", "0"])
+        XCTAssertTrue(quiet.staticTexts["RunResultHeading"].waitForExistence(timeout: 30), "the clock never ran out")
+        XCTAssertEqual(label(quiet.staticTexts["DebugSound"], "the cues asked for"), "none",
+                       "with Sound off, the run's sounds still reached the player")
+    }
+
     /// A 12 second clock, run out: "10 seconds left." once, then Time's up
     /// once, and neither of the marks it never reached.
     func testTheTimeIsSpokenAtItsMarksOnly() {
