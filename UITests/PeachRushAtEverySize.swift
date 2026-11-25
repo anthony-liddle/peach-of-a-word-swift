@@ -38,8 +38,8 @@ final class PeachRushAtEverySize: XCTestCase {
             for control in controls {
                 XCTAssertTrue(window.contains(control.frame), "\(at): \(control.label) isn't on screen")
             }
-            let rackFoot = tiles.map(\.frame.maxY).max() ?? 0
-            let controlsTop = ([app.buttons["Shuffle"]] + controls).map(\.frame.minY).min() ?? 0
+            let rackFoot = tiles.map { $0.frame.maxY }.max() ?? 0
+            let controlsTop = ([app.buttons["Shuffle"]] + controls).map { $0.frame.minY }.min() ?? 0
             XCTAssertLessThanOrEqual(rackFoot, controlsTop + 0.5,
                                      "\(at): the rack's last row runs under the controls by \(rackFoot - controlsTop)pt")
         }

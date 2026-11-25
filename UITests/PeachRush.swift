@@ -10,15 +10,25 @@ import XCTest
 final class PeachRush: XCTestCase {
     private func launch(_ extra: [String], title: Bool = false, reset: Bool = true) -> XCUIApplication {
         let app = XCUIApplication()
-        app.launchArguments = (reset ? ["-resetProgress", "1"] : [])
+        // How to play has been seen, so Play and the run's button go
+        // straight on. `testHowToPlayComesFirstForANewPlayer` holds the rest.
+        app.launchArguments = (reset ? ["-resetProgress", "1"] : []) + ["-howToPlaySeen", "1"]
             + (title ? ["-showTitle", "1", "-titleLastShownDay", "never"] : []) + extra
         app.launch()
         return app
     }
 
-    /// The rack's tiles that VoiceOver and XCUITest can reach.
-    private func tiles(_ app: XCUIApplication) -> XCUIElementQuery {
+    /// The rack's tiles that carry a letter, for the eye or for VoiceOver.
+    ///
+    /// A hidden tile is still listed by XCUITest, which keeps elements
+    /// VoiceOver is told to skip, so the count is of tiles with a letter in
+    /// their label, not of tiles. Whether VoiceOver is silent on the hidden
+    /// rack is phone check 1.
+    private func lettered(_ app: XCUIApplication) -> Int {
         app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Letter'"))
+            .allElementsBoundByIndex
+            .filter { $0.label.trimmingCharacters(in: .whitespaces) != "Letter" }
+            .count
     }
 
     private func tap(_ element: XCUIElement, _ what: String, until done: () -> Bool) {
@@ -31,20 +41,36 @@ final class PeachRush: XCTestCase {
 
     // MARK: Start, Back, End
 
+    /// A phone that has never played sees How to play first, from the run's
+    /// button as from Play, and goes on to the run.
+    func testHowToPlayComesFirstForANewPlayer() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-resetProgress", "1", "-showTitle", "1", "-titleLastShownDay", "never"]
+        app.launch()
+        let offer = app.buttons["TitleRun"]
+        XCTAssertTrue(offer.waitForExistence(timeout: 60), "a fresh day offers no run")
+        tap(offer, "the run's button") { app.buttons["HowToPlayDone"].waitForExistence(timeout: 5) }
+        XCTAssertTrue(app.buttons["HowToPlayDone"].exists, "a new player went to the run without How to play")
+        tap(app.buttons["HowToPlayDone"], "How to play's button") {
+            app.buttons["RunStart"].waitForExistence(timeout: 5)
+        }
+        XCTAssertTrue(app.buttons["RunStart"].exists, "How to play didn't go on to the run")
+    }
+
     func testOfferedAndHiddenUntilStartAndBackKeepsIt() {
         let app = launch([], title: true)
         let offer = app.buttons["TitleRun"]
         XCTAssertTrue(offer.waitForExistence(timeout: 60), "a fresh day offers no run")
         tap(offer, "the run's button") { app.buttons["RunStart"].waitForExistence(timeout: 5) }
         XCTAssertTrue(app.buttons["RunStart"].exists, "the run opened with no Start")
-        XCTAssertEqual(tiles(app).count, 0, "the letters showed before the clock started")
+        XCTAssertEqual(lettered(app), 0, "the letters showed before the clock started")
 
         tap(app.buttons["RunLeave"], "Back") { offer.waitForExistence(timeout: 5) }
         XCTAssertTrue(offer.exists, "Back before Start lost the day's run")
 
         tap(offer, "the run's button, again") { app.buttons["RunStart"].waitForExistence(timeout: 5) }
-        tap(app.buttons["RunStart"], "Start") { tiles(app).count == 8 }
-        XCTAssertEqual(tiles(app).count, 8, "Start didn't show all eight letters")
+        tap(app.buttons["RunStart"], "Start") { lettered(app) == 8 }
+        XCTAssertEqual(lettered(app), 8, "Start didn't show all eight letters")
         XCTAssertTrue(app.staticTexts["RunClock"].label.hasPrefix("Time left, "),
                       "the clock doesn't say the time left")
     }
@@ -108,21 +134,21 @@ final class PeachRush: XCTestCase {
     func testLeavingPausesAndHidesTheLetters() {
         let app = launch(["-timedRun", "running"])
         XCTAssertTrue(app.buttons["RunLeave"].waitForExistence(timeout: 60), "no run running")
-        XCTAssertEqual(tiles(app).count, 8, "a running run hid its letters")
+        XCTAssertEqual(lettered(app), 8, "a running run hid its letters")
 
         XCUIDevice.shared.press(.home)
         sleep(2)
         app.activate()
 
         XCTAssertTrue(app.buttons["RunResume"].waitForExistence(timeout: 10), "leaving didn't pause the run")
-        XCTAssertEqual(tiles(app).count, 0, "a paused run showed its letters")
+        XCTAssertEqual(lettered(app), 0, "a paused run showed its letters")
         let clock = app.staticTexts["RunClock"]
         let held = clock.label
         sleep(2)
         XCTAssertEqual(clock.label, held, "a paused run's clock kept going")
 
-        tap(app.buttons["RunResume"], "Resume") { tiles(app).count == 8 }
-        XCTAssertEqual(tiles(app).count, 8, "Resume didn't bring the letters back")
+        tap(app.buttons["RunResume"], "Resume") { lettered(app) == 8 }
+        XCTAssertEqual(lettered(app), 8, "Resume didn't bring the letters back")
     }
 
     func testARunLeftWaitingComesBackPausedAndTheBasketEndsIt() {
@@ -133,7 +159,7 @@ final class PeachRush: XCTestCase {
 
         tap(waiting, "the waiting run") { app.buttons["RunResume"].waitForExistence(timeout: 5) }
         XCTAssertTrue(app.buttons["RunResume"].exists, "a waiting run didn't open paused")
-        XCTAssertEqual(tiles(app).count, 0, "a waiting run showed its letters")
+        XCTAssertEqual(lettered(app), 0, "a waiting run showed its letters")
         app.terminate()
 
         // Back to the title, then the basket: the run ends with what it had.
