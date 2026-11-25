@@ -439,7 +439,18 @@ final class GameModel {
         self.access = access
         // The title draws from the store before the board loads, so Peach
         // rush's button is known from the first frame and never arrives late.
-        refreshRunOffer()
+        //
+        // **From the store alone, reading none of the model's own state.**
+        // This runs inside the root's `body`, where `ContentView`'s init makes
+        // the model, so a read of `puzzle` or `found` here made the root
+        // depend on them: the board's arrival rebuilt `ContentView`, whose
+        // init then cleared the title's place again under `-resetProgress`,
+        // and a relaunch opened on the board (`SoundSwitch`, `VibrationSwitch`).
+        let today = Self.todayStorageIndex
+        runOffer = PeachEngine.runOffer(
+            today: today, record: storage.runRecord(dayIndex: today),
+            inFlight: storage.runInFlight(),
+            basketFinds: storage.outcome(dayIndex: today) != nil ? 1 : 0)
     }
 
     /// "Now", shiftable in debug builds by `-dayOffset N`.
