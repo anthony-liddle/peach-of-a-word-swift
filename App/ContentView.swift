@@ -243,11 +243,7 @@ struct ContentView: View {
                         model.closeRun()
                         showTitle()
                     })
-                } else if !titleShown {
-                    // The basket on screen, and again whenever its board
-                    // changes: a full basket's card a run's words owe plays.
-                    game.task(id: model.storageDayIndex) { model.basketOpened() }
-                }
+                } else if !titleShown { game }
                 #if DEBUG
                 // `-exposeToday 1` prints the two day indices the app computed,
                 // so `TodayIsTheLocalDate` can hold them to the phone's own date.
@@ -369,6 +365,12 @@ struct ContentView: View {
         // Each glint's sweep as it starts, for `-exposeGlint 1`.
         .environment(\.glintDrawn) { [model] in model.glintsDrawn.append($0) }
         #endif
+        // What a run left owed, a card it hasn't shown, opens on the first
+        // screen after it ended, and is asked again whenever the screen, the
+        // board, the load or a card changes. See `GameModel.screenShown`.
+        .task(id: "\(titleShown) \(model.run == nil) \(model.storageDayIndex ?? -1) \(model.isReady) \(model.moment == nil)") {
+            model.screenShown(basket: !titleShown && model.run == nil)
+        }
         .sheet(item: $model.moment) { moment in
             Group {
                 switch moment {

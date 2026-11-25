@@ -36,6 +36,9 @@ public struct RunRecord: Codable, Equatable, Sendable {
     /// The run's words filled the basket, and the full basket's card hasn't
     /// played yet: it plays when the basket next opens.
     public var completionOwed: Bool
+    /// The peach of a word the run found, while its card hasn't been seen:
+    /// it opens once, on the first screen after the run ends.
+    public var owedPeachCard: String?
 
     public init(day: Int, words: [String], points: Int, peachFound: Bool,
                 endedEarly: Bool, secondsLeft: Int, length: Double,
@@ -51,10 +54,11 @@ public struct RunRecord: Codable, Equatable, Sendable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case day, words, points, peachFound, endedEarly, secondsLeft, length, completionOwed
+        case day, words, points, peachFound, endedEarly, secondsLeft, length, completionOwed, owedPeachCard
     }
 
-    /// A record kept before `completionOwed` existed reads as owing nothing.
+    /// A record kept before `completionOwed` and `owedPeachCard` existed reads
+    /// as owing nothing.
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         day = try c.decode(Int.self, forKey: .day)
@@ -65,6 +69,7 @@ public struct RunRecord: Codable, Equatable, Sendable {
         secondsLeft = try c.decode(Int.self, forKey: .secondsLeft)
         length = try c.decode(Double.self, forKey: .length)
         completionOwed = try c.decodeIfPresent(Bool.self, forKey: .completionOwed) ?? false
+        owedPeachCard = try c.decodeIfPresent(String.self, forKey: .owedPeachCard)
     }
 }
 

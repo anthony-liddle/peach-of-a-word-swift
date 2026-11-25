@@ -28,6 +28,11 @@ final class GameModel {
         case failed(String)
     }
 
+    /// The board has loaded and the app said so: `phase` is `.ready`.
+    var isReady: Bool {
+        if case .ready = phase { true } else { false }
+    }
+
     /// What just happened to a submitted guess. Drives the one-line feedback.
     enum Feedback: Equatable {
         case none
@@ -174,9 +179,11 @@ final class GameModel {
         /// knows. Re-deriving it would be a second classification pass, which
         /// is the exact shape `classifyFound` exists to prevent.
         case definition(word: String, category: WordCategory)
-        /// The peach of a word's card, opened from a run's result: it closes
-        /// onto the result, so its way out says Close, and it has no Share,
-        /// since the basket's share isn't the run's (Antoine, 24 November).
+        /// The peach of a word's card from a run: at its result, which it
+        /// closes onto, or on the first screen after a run that ended with no
+        /// result to show it. Its way out says Close, and it has no Share,
+        /// since the basket's share isn't the run's (Antoine, 24 and 25
+        /// November).
         case runPeach(word: String)
 
         var id: String {
@@ -2481,6 +2488,7 @@ extension GameModel {
         guard let lexicon, let board = await Self.buildPuzzle(
             dailyIndex: record.day - Self.firstPlayableStorageIndex, lexicon: lexicon
         ) else { return }
+        if record.peachFound { storage.owePeachCard(board.sourceWord, dayIndex: record.day) }
         storage.carryRun(record, puzzle: board, todayIndex: Self.todayStorageIndex)
         streak = storage.currentStreak(todayIndex: Self.todayStorageIndex)
     }
@@ -2489,6 +2497,10 @@ extension GameModel {
     /// `foundDidChange`, which saves them and records what they reach, as a
     /// find does. False when the run's board isn't the one in play.
     ///
+    /// **A run that found the peach of a word owes its card** in both paths,
+    /// until it's seen: at the result, or on the first screen after
+    /// (`screenShown`).
+    ///
     /// **The full basket's card is held, never played here,** over the run's
     /// result or the title. Run words that fill the basket owe it, on the
     /// run's record, and it plays when the basket next opens
@@ -2496,6 +2508,7 @@ extension GameModel {
     @discardableResult
     fileprivate func carryOnBoard(_ record: RunRecord) -> Bool {
         guard let puzzle, storageDayIndex == record.day, !isArchiveBoard else { return false }
+        if record.peachFound { storage.owePeachCard(puzzle.sourceWord, dayIndex: record.day) }
         let known = Set(found)
         let new = record.words.filter { puzzle.validationWords.contains($0) && !known.contains($0) }
         guard !new.isEmpty else { return true }
@@ -2506,10 +2519,30 @@ extension GameModel {
         return true
     }
 
+    /// A screen up after a run has ended: the title or the basket, at launch,
+    /// at a new day, and whenever one shows or a card closes. What a run left
+    /// owed opens here, once each, and never over another card or the run:
+    ///
+    /// - **The peach of a word's card first** (Antoine, 25 November: "the
+    ///   first time I see anything after the run ends"). On the basket that
+    ///   now holds it, it's the basket's own card, with Share and its way back
+    ///   to the basket; anywhere else, the run's, with Close and no Share.
+    /// - **Then, on the basket, the full basket's card** (`basketOpened`).
+    func screenShown(basket: Bool) {
+        guard case .ready = phase, run == nil, moment == nil else { return }
+        if let owed = storage.owedPeachCard() {
+            storage.settlePeachCard(dayIndex: owed.day)
+            let onItsBasket = basket && owed.day == storageDayIndex && !isArchiveBoard
+            moment = onItsBasket ? .sourceWord(word: owed.word) : .runPeach(word: owed.word)
+            return
+        }
+        if basket { basketOpened() }
+    }
+
     /// The basket on screen: the full basket's card a run's words left owed
     /// plays now, with its beat and its sound, as a find that fills the basket
     /// plays them (Antoine, 25 November). Once, and never over another card.
-    func basketOpened() {
+    private func basketOpened() {
         guard run == nil, moment == nil, let puzzle, let day = storageDayIndex else { return }
         let standing = computeTier(found: Set(found), puzzle: puzzle)
         guard reachesPeak(standing) else { return }
@@ -2523,7 +2556,8 @@ extension GameModel {
     /// The peach of a word's card, opened by itself as a run that found it
     /// ends (Antoine, 25 November): once "Time's up" has been heard whole, or
     /// a moment after End, with Close and no Share. Only from the run's end:
-    /// the result opened again from the title waits for its row.
+    /// the result opened again from the title waits for its row. Left before
+    /// it opens, the card stays owed, for the next screen (`screenShown`).
     private func openRunPeachCard(after spoken: String?) {
         guard let current = run, current.peachFound, let word = puzzle?.sourceWord else { return }
         let day = current.day
@@ -2537,6 +2571,7 @@ extension GameModel {
             guard let self, !Task.isCancelled, let shown = self.run, shown.day == day,
                   case .over = shown.phase, self.moment == nil else { return }
             self.moment = .runPeach(word: word)
+            self.storage.settlePeachCard(dayIndex: day)
         }
     }
 
@@ -2682,6 +2717,8 @@ extension GameModel {
         case "played":
             endRun(early: false)
             closeRun()
+            // Played and its result seen, its card among it.
+            storage.settlePeachCard(dayIndex: current.day)
         default: break
         }
     }

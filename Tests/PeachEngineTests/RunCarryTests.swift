@@ -143,3 +143,51 @@ struct RunCarryTests {
         #expect(!record.completionOwed)
     }
 }
+
+/// The peach of a word's card a run found, owed until it's seen (Antoine, 25
+/// November 2026): a run whose end shows no result, or whose result was left
+/// before the card opened, opens it once, on the first screen after.
+@Suite("a run's peach of a word, owed until seen")
+struct OwedPeachCardTests {
+    let storage = GameStorage(store: InMemoryStore())
+
+    private func record(_ day: Int) {
+        storage.recordRun(RunRecord(day: day, words: ["serenade"], points: 15, peachFound: true,
+                                    endedEarly: false, secondsLeft: 0, length: 90))
+    }
+
+    @Test("a run's card, owed, is found with its day and word until it's settled")
+    func owedUntilSettled() {
+        record(330)
+        #expect(storage.owedPeachCard() == nil)
+        storage.owePeachCard("serenade", dayIndex: 330)
+        #expect(storage.owedPeachCard()?.day == 330)
+        #expect(storage.owedPeachCard()?.word == "serenade")
+        storage.settlePeachCard(dayIndex: 330)
+        #expect(storage.owedPeachCard() == nil, "the card was seen and is still owed")
+    }
+
+    @Test("a day with no run owes no card")
+    func noRunNoCard() {
+        storage.owePeachCard("serenade", dayIndex: 330)
+        #expect(storage.owedPeachCard() == nil)
+    }
+
+    @Test("of two days owed, the latest is found first")
+    func latestFirst() {
+        record(329)
+        record(330)
+        storage.owePeachCard("serenade", dayIndex: 329)
+        storage.owePeachCard("serenade", dayIndex: 330)
+        #expect(storage.owedPeachCard()?.day == 330)
+        storage.settlePeachCard(dayIndex: 330)
+        #expect(storage.owedPeachCard()?.day == 329)
+    }
+
+    @Test("a record kept before the marker existed owes no card")
+    func oldRecordsOweNothing() throws {
+        let old = #"{"day":330,"words":["serenade"],"points":15,"peachFound":true,"endedEarly":false,"secondsLeft":0,"length":90}"#
+        let decoded = try JSONDecoder().decode(RunRecord.self, from: Data(old.utf8))
+        #expect(decoded.owedPeachCard == nil)
+    }
+}

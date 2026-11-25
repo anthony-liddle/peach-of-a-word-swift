@@ -1056,11 +1056,39 @@ extension GameStorage {
     /// The full basket's card has played.
     public func settleCompletion(dayIndex: Int) { setCompletionOwed(false, dayIndex: dayIndex) }
 
+    /// The day's run found the peach of a word, and its card hasn't been
+    /// seen: it opens once, on the first screen after the run ends (Antoine,
+    /// 25 November 2026). Kept on the run's record, with the word, so a run
+    /// ended at the next launch, or a relaunch, keeps it owed.
+    public func owePeachCard(_ word: String, dayIndex: Int) {
+        updateRun(dayIndex: dayIndex) { $0.owedPeachCard = word }
+    }
+
+    /// The latest day whose run's peach of a word is owed, and the word.
+    public func owedPeachCard() -> (day: Int, word: String)? {
+        readRuns().values
+            .compactMap { record in record.owedPeachCard.map { (day: record.day, word: $0) } }
+            .max { $0.day < $1.day }
+    }
+
+    /// The run's peach of a word's card has been seen.
+    public func settlePeachCard(dayIndex: Int) {
+        updateRun(dayIndex: dayIndex) { $0.owedPeachCard = nil }
+    }
+
     private func setCompletionOwed(_ owed: Bool, dayIndex: Int) {
+        updateRun(dayIndex: dayIndex) { $0.completionOwed = owed }
+    }
+
+    /// Change a day's kept run, if it has one, and write the runs back only
+    /// when something changed.
+    private func updateRun(dayIndex: Int, _ change: (inout RunRecord) -> Void) {
         var runs = readRuns()
-        guard var record = runs[String(dayIndex)], record.completionOwed != owed else { return }
-        record.completionOwed = owed
-        runs[String(dayIndex)] = record
+        guard let record = runs[String(dayIndex)] else { return }
+        var changed = record
+        change(&changed)
+        guard changed != record else { return }
+        runs[String(dayIndex)] = changed
         guard let data = try? JSONEncoder().encode(runs) else { return }
         store.set(data, forKey: Self.runsKey)
     }
