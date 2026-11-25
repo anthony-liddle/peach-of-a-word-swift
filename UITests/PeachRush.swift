@@ -62,6 +62,17 @@ final class PeachRush: XCTestCase {
         }
     }
 
+    /// Whether the run's button comes to say the run waits, paused. The
+    /// `-timedRun` hook runs once the board has loaded, after the title is
+    /// first drawn from the store, so the button is there a moment before,
+    /// offering a fresh run. A test that ended the app on seeing the button
+    /// could end it before the hook had run: on CI it did.
+    private func waitsPaused(_ app: XCUIApplication) -> Bool {
+        let paused = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "label CONTAINS 'paused'"), object: app.buttons["TitleRun"])
+        return XCTWaiter.wait(for: [paused], timeout: 60) == .completed
+    }
+
     /// An element's label, read only once it's there. See `tap`.
     private func label(_ element: XCUIElement, _ what: String) -> String {
         guard element.waitForExistence(timeout: 10) else {
@@ -253,13 +264,20 @@ final class PeachRush: XCTestCase {
     }
 
     /// A run left waiting overnight ends at the next day's launch, as its own
-    /// day's, and its words go into that day's basket, not today's.
+    /// day's, and its words go into that day's basket, not today's. Its peach
+    /// of a word's card opens once, on the first screen after: the title,
+    /// with Close and no Share, since today's basket isn't its (Antoine, 25
+    /// November).
     func testARunLeftWaitingOvernightCarriesIntoItsOwnDay() {
         let yesterday = launch(["-dayOffset", "-1", "-timedRun", "waiting", "-timedRunFindSource", "1"], title: true)
-        XCTAssertTrue(yesterday.buttons["TitleRun"].waitForExistence(timeout: 60), "no run on the title")
+        XCTAssertTrue(waitsPaused(yesterday), "yesterday's run never waited, paused")
         yesterday.terminate()
 
         let today = launch([], title: true, reset: false)
+        XCTAssertTrue(today.staticTexts["RevealWord"].waitForExistence(timeout: 60),
+                      "yesterday's peach of a word didn't open on the first screen after")
+        XCTAssertFalse(today.buttons["CardShare"].exists, "yesterday's card shares today's basket")
+        tap(today.buttons["Close"].firstMatch, "Close") { !today.staticTexts["RevealWord"].exists }
         tap(today.buttons["TitlePlay"], "Play") { today.staticTexts["MeterPoints"].waitForExistence(timeout: 10) }
         XCTAssertEqual(label(today.staticTexts["MeterPoints"], "today's points"), "0 points",
                        "yesterday's run reached today's basket")
@@ -268,6 +286,7 @@ final class PeachRush: XCTestCase {
         let back = launch(["-dayOffset", "-1"], title: true, reset: false)
         XCTAssertTrue(label(back.buttons["TitleRun"], "the run's button").contains("1 word · 15 points"),
                       "yesterday's run wasn't kept with what it had")
+        XCTAssertFalse(back.staticTexts["RevealWord"].waitForExistence(timeout: 5), "the card opened a second time")
         tap(back.buttons["TitlePlay"], "the basket") { back.staticTexts["MeterPoints"].waitForExistence(timeout: 10) }
         XCTAssertEqual(label(back.staticTexts["MeterPoints"], "yesterday's points"), "15 points",
                        "yesterday's run didn't reach yesterday's basket")
@@ -302,8 +321,7 @@ final class PeachRush: XCTestCase {
     func testARunLeftWaitingComesBackPausedAndPlayAsksFirst() {
         let app = launch(["-timedRun", "waiting", "-timedRunFindSource", "1"], title: true)
         let waiting = app.buttons["TitleRun"]
-        XCTAssertTrue(waiting.waitForExistence(timeout: 60), "no run on the title")
-        XCTAssertTrue(label(waiting, "the run's button").contains("paused"), "a waiting run doesn't say it's paused")
+        XCTAssertTrue(waitsPaused(app), "a waiting run doesn't say it's paused")
 
         tap(waiting, "the waiting run") { app.buttons["RunResume"].waitForExistence(timeout: 5) }
         XCTAssertTrue(app.buttons["RunResume"].exists, "a waiting run didn't open paused")
@@ -331,6 +349,14 @@ final class PeachRush: XCTestCase {
         XCTAssertTrue(ending.buttons["TitlePlay"].waitForExistence(timeout: 60), "no title")
         tap(ending.buttons["TitlePlay"], "Play") { ending.alerts.firstMatch.waitForExistence(timeout: 5) }
         tap(ending.alerts.firstMatch.buttons["End"], "End, in the question") {
+            ending.staticTexts["RevealWord"].waitForExistence(timeout: 10)
+        }
+        // The run's peach of a word, on the first screen after its end: the
+        // basket, which holds it now, so it's the basket's own card, with
+        // Share (Antoine, 25 November).
+        XCTAssertTrue(ending.staticTexts["RevealWord"].exists, "the run's peach of a word didn't open on the basket")
+        XCTAssertTrue(ending.buttons["CardShare"].exists, "the card on the basket isn't the basket's own")
+        tap(ending.buttons["Back to the basket"].firstMatch, "Back to the basket") {
             ending.staticTexts["MeterPoints"].waitForExistence(timeout: 10)
         }
         XCTAssertTrue(ending.staticTexts["MeterPoints"].exists, "End didn't go on to the basket")
@@ -343,13 +369,15 @@ final class PeachRush: XCTestCase {
         XCTAssertTrue(ended.waitForExistence(timeout: 60), "the run left the title")
         XCTAssertFalse(label(ended, "the run's button").contains("paused"), "the basket left the run waiting")
         XCTAssertTrue(label(ended, "the run's button").contains("1 word · 15 points"), "the run didn't end with what it had")
+        XCTAssertFalse(after.staticTexts["RevealWord"].waitForExistence(timeout: 5), "the card opened a second time")
     }
 
     /// Today picked in Past days asks too, once the sheet is down, and End
-    /// opens the basket with the run's words in it.
+    /// opens the basket with the run's words in it, and its peach of a word's
+    /// card on it.
     func testTodayFromPastDaysAsksFirstToo() {
         let app = launch(["-timedRun", "waiting", "-timedRunFindSource", "1"], title: true)
-        XCTAssertTrue(app.buttons["TitleRun"].waitForExistence(timeout: 60), "no run on the title")
+        XCTAssertTrue(waitsPaused(app), "no run waiting on the title")
         let today = app.buttons["ArchiveTodayCell"]
         tap(app.buttons["TitlePastDays"], "Past days") { today.waitForExistence(timeout: 20) }
         tap(today, "today in Past days") { app.alerts.firstMatch.waitForExistence(timeout: 10) }
@@ -359,6 +387,10 @@ final class PeachRush: XCTestCase {
         }
         XCTAssertEqual(label(app.alerts.firstMatch, "End's question"), "End the run?", "Past days didn't ask End's question")
         tap(app.alerts.firstMatch.buttons["End"], "End, in the question") {
+            app.staticTexts["RevealWord"].waitForExistence(timeout: 10)
+        }
+        XCTAssertTrue(app.buttons["CardShare"].exists, "the run's peach of a word didn't open on the basket as its own")
+        tap(app.buttons["Back to the basket"].firstMatch, "Back to the basket") {
             app.staticTexts["MeterPoints"].waitForExistence(timeout: 10)
         }
         XCTAssertTrue(app.staticTexts["MeterPoints"].exists, "End didn't go on to the basket")
