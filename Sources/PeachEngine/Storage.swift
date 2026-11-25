@@ -965,6 +965,61 @@ extension GameStorage {
 }
 
 extension GameStorage {
+    /// Peach rush's runs, by day: the first run of each day, kept.
+    ///
+    /// **Their own key, apart from everything the basket reads.** Nothing in a
+    /// run reaches the day's words, its outcome, its stage or the streak, and
+    /// keeping its record in a blob of its own is what makes that true of the
+    /// store as well as of the screen.
+    static let runsKey = "peach-of-a-word/runs/v1"
+
+    /// The run in flight, if one is: one run, today's, saved at each find and
+    /// each pause.
+    static let runInFlightKey = "peach-of-a-word/run-in-flight/v1"
+
+    private func readRuns() -> [String: RunRecord] {
+        store.data(forKey: Self.runsKey)
+            .flatMap { try? JSONDecoder().decode([String: RunRecord].self, from: $0) } ?? [:]
+    }
+
+    /// A day's run, if it was played.
+    public func runRecord(dayIndex: Int) -> RunRecord? {
+        readRuns()[String(dayIndex)]
+    }
+
+    /// Keep a day's run. **Only the first:** a day that already has one keeps
+    /// it, and this returns false.
+    @discardableResult
+    public func recordRun(_ record: RunRecord) -> Bool {
+        var runs = readRuns()
+        guard runs[String(record.day)] == nil else { return false }
+        runs[String(record.day)] = record
+        guard let data = try? JSONEncoder().encode(runs) else { return false }
+        store.set(data, forKey: Self.runsKey)
+        return true
+    }
+
+    public func runInFlight() -> RunInFlight? {
+        store.data(forKey: Self.runInFlightKey)
+            .flatMap { try? JSONDecoder().decode(RunInFlight.self, from: $0) }
+    }
+
+    public func saveRunInFlight(_ run: RunInFlight?) {
+        store.set(run.flatMap { try? JSONEncoder().encode($0) }, forKey: Self.runInFlightKey)
+    }
+
+    /// A run left in flight on an earlier day ends with what it had, kept as
+    /// that day's. Asked at launch and at a new day. Returns the day it ended.
+    @discardableResult
+    public func endRunLeftBefore(todayIndex: Int) -> Int? {
+        guard let waiting = runInFlight(), waiting.day < todayIndex else { return nil }
+        recordRun(waiting.ended(early: false))
+        saveRunInFlight(nil)
+        return waiting.day
+    }
+}
+
+extension GameStorage {
     /// Expand a transferred streak run into one outcome per day it covers. Once.
     ///
     /// **Why this exists at all.** A streak is a run-length encoding of cleared
@@ -1154,14 +1209,14 @@ extension GameStorage {
         public func eraseAll() { storage.eraseAllForSeeding() }
     }
 
-    /// See `Seeding.eraseAll`. Removes the five blobs outright rather than
+    /// See `Seeding.eraseAll`. Removes the seven blobs outright rather than
     /// writing empty ones, which is what a fresh install reads as. The
     /// remembered stage goes too, or a reset launch would draw the last test's,
     /// and so does the board in play, or it would open on the last test's past
     /// day.
     func eraseAllForSeeding() {
         for key in [Self.storageKey, Self.archiveKey, Self.outcomesKey, Self.stageKey,
-                    Self.boardKey] {
+                    Self.boardKey, Self.runsKey, Self.runInFlightKey] {
             store.set(nil, forKey: key)
         }
     }

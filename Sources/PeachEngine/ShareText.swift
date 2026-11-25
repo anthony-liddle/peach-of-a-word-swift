@@ -69,7 +69,7 @@ private let months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
                       "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 
 /// Short calendar date, "Aug 9", from the date's local components.
-private func shortDate(_ date: Date, timeZone: TimeZone) -> String {
+func shortDate(_ date: Date, timeZone: TimeZone) -> String {
     var cal = Foundation.Calendar(identifier: .gregorian)
     cal.timeZone = timeZone
     let c = cal.dateComponents([.month, .day], from: date)
