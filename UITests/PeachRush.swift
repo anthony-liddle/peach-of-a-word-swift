@@ -31,6 +31,18 @@ final class PeachRush: XCTestCase {
             .count
     }
 
+    /// Everything that stands for a tile or carries a letter, to the eye or to
+    /// VoiceOver: a tile, "Letter" and its letter or blank, the rack, "Letter
+    /// tiles", and any label that is one letter alone. Not the ready screen's
+    /// own line, "Letters show when the clock starts." Counted, never read
+    /// out, so a failure prints no letter.
+    private func exposed(_ app: XCUIApplication) -> Int {
+        app.descendants(matching: .any)
+            .matching(NSPredicate(format:
+                "label == 'Letter' OR label BEGINSWITH 'Letter ' OR label MATCHES '^[A-Za-z]$'"))
+            .count
+    }
+
     /// Tap, once the element is there, and once more if nothing answered.
     ///
     /// **Never on an element that isn't there.** A tap or a read of a missing
@@ -92,6 +104,41 @@ final class PeachRush: XCTestCase {
         XCTAssertEqual(lettered(app), 8, "Start didn't show all eight letters")
         XCTAssertTrue(label(app.staticTexts["RunClock"], "the clock").hasPrefix("Time left, "),
                       "the clock doesn't say the time left")
+    }
+
+    /// Before Start and while paused there's no tile at all for VoiceOver,
+    /// blank or not, and no letter anywhere. Phone check 1 hears it.
+    func testNoLetterIsExposedBeforeStartOrWhilePaused() {
+        let app = launch([], title: true)
+        let offer = app.buttons["TitleRun"]
+        XCTAssertTrue(offer.waitForExistence(timeout: 60), "a fresh day offers no run")
+        tap(offer, "the run's button") { app.buttons["RunStart"].waitForExistence(timeout: 5) }
+        XCTAssertEqual(exposed(app), 0, "the ready screen exposes the rack")
+
+        tap(app.buttons["RunStart"], "Start") { lettered(app) == 8 }
+        XCUIDevice.shared.press(.home)
+        sleep(2)
+        app.activate()
+        XCTAssertTrue(app.buttons["RunResume"].waitForExistence(timeout: 10), "leaving didn't pause the run")
+        XCTAssertEqual(exposed(app), 0, "a paused run exposes the rack")
+    }
+
+    /// The way back before Start is heard as the board's is: the same words,
+    /// and a button. Each is sorted first in its row, which XCUITest can't
+    /// see: it lists a row in the order it's drawn, the chevron after the
+    /// text it sits beside, on the board as here. Phone check 1 hears it.
+    func testTheWayBackIsHeardAsTheBoardsIs() {
+        let app = launch([], title: true)
+        let play = app.buttons["TitlePlay"]
+        XCTAssertTrue(play.waitForExistence(timeout: 60), "no title")
+        let home = app.buttons["BoardHome"]
+        tap(play, "Play") { home.waitForExistence(timeout: 10) }
+        let board = label(home, "the board's way back")
+
+        tap(home, "the board's way back") { app.buttons["TitleRun"].waitForExistence(timeout: 5) }
+        tap(app.buttons["TitleRun"], "the run's button") { app.buttons["RunBack"].waitForExistence(timeout: 5) }
+        XCTAssertEqual(label(app.buttons["RunBack"], "the run's way back"), board,
+                       "the run's way back isn't heard as the board's")
     }
 
     func testEndAsksFirstAndAResultNeverStartsAnother() {
@@ -170,7 +217,10 @@ final class PeachRush: XCTestCase {
         XCTAssertEqual(lettered(app), 8, "Resume didn't bring the letters back")
     }
 
-    func testARunLeftWaitingComesBackPausedAndTheBasketEndsIt() {
+    /// A run left waiting comes back paused, and Play asks before the basket
+    /// ends it (Antoine, 24 November): Keep playing opens the run, still
+    /// paused, and End ends it with what it had and opens the basket.
+    func testARunLeftWaitingComesBackPausedAndPlayAsksFirst() {
         let app = launch(["-timedRun", "waiting"], title: true)
         let waiting = app.buttons["TitleRun"]
         XCTAssertTrue(waiting.waitForExistence(timeout: 60), "no run on the title")
@@ -181,11 +231,31 @@ final class PeachRush: XCTestCase {
         XCTAssertEqual(lettered(app), 0, "a waiting run showed its letters")
         app.terminate()
 
-        // Back to the title, then the basket: the run ends with what it had.
+        // Play asks, and Keep playing goes to the run.
         let again = launch([], title: true, reset: false)
         XCTAssertTrue(again.buttons["TitlePlay"].waitForExistence(timeout: 60), "no title")
-        tap(again.buttons["TitlePlay"], "Play") { again.staticTexts["MeterPoints"].waitForExistence(timeout: 10) }
+        tap(again.buttons["TitlePlay"], "Play") { again.alerts.firstMatch.waitForExistence(timeout: 5) }
+        guard again.alerts.firstMatch.exists else {
+            XCTFail("Play went into the basket without asking")
+            return
+        }
+        XCTAssertEqual(label(again.alerts.firstMatch, "End's question"), "End the run?", "Play didn't ask End's question")
+        tap(again.alerts.firstMatch.buttons["Keep playing"], "Keep playing") {
+            again.buttons["RunResume"].waitForExistence(timeout: 5)
+        }
+        XCTAssertTrue(again.buttons["RunResume"].exists, "Keep playing didn't open the run, paused")
+        XCTAssertEqual(lettered(again), 0, "Keep playing showed the letters")
         again.terminate()
+
+        // Play asks again, and End ends the run and opens the basket.
+        let ending = launch([], title: true, reset: false)
+        XCTAssertTrue(ending.buttons["TitlePlay"].waitForExistence(timeout: 60), "no title")
+        tap(ending.buttons["TitlePlay"], "Play") { ending.alerts.firstMatch.waitForExistence(timeout: 5) }
+        tap(ending.alerts.firstMatch.buttons["End"], "End, in the question") {
+            ending.staticTexts["MeterPoints"].waitForExistence(timeout: 10)
+        }
+        XCTAssertTrue(ending.staticTexts["MeterPoints"].exists, "End didn't go on to the basket")
+        ending.terminate()
 
         let after = launch([], title: true, reset: false)
         let ended = after.buttons["TitleRun"]
