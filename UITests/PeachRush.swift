@@ -65,7 +65,7 @@ final class PeachRush: XCTestCase {
         XCTAssertTrue(app.buttons["RunStart"].exists, "the run opened with no Start")
         XCTAssertEqual(lettered(app), 0, "the letters showed before the clock started")
 
-        tap(app.buttons["RunLeave"], "Back") { offer.waitForExistence(timeout: 5) }
+        tap(app.buttons["RunBack"], "the way back") { offer.waitForExistence(timeout: 5) }
         XCTAssertTrue(offer.exists, "Back before Start lost the day's run")
 
         tap(offer, "the run's button, again") { app.buttons["RunStart"].waitForExistence(timeout: 5) }

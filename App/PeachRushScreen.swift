@@ -35,7 +35,7 @@ struct PeachRushScreen: View {
                 // End asks first: a day has one run.
                 .alert(Vocabulary.runEndQuestion, isPresented: $askingToEnd) {
                     Button(Vocabulary.runEndConfirm, role: .destructive) { model.endRun(early: true) }
-                    Button(Vocabulary.runKeepPlaying, role: .cancel) {}
+                    Button(Vocabulary.keepPlaying, role: .cancel) {}
                 } message: {
                     Text(Vocabulary.runEndQuestionMessage)
                 }
@@ -141,6 +141,42 @@ struct PeachRushHeader: View {
 
     private var lastSeconds: Bool { run.phase == .running && run.remaining <= 10 }
 
+    /// End, once the clock has started: it asks first.
+    private var endButton: some View {
+        Button(action: onLeave) {
+            Text(Vocabulary.runEnd)
+                .font(CuteFont.body(14, weight: "SemiBold", relativeTo: .subheadline))
+                .tracking(1.4)
+                .textCase(.uppercase)
+                .foregroundStyle(Cute.inkSoft)
+                .padding(.horizontal, 14)
+                .frame(minHeight: Cute.minTapTarget)
+                .background(Capsule().fill(Cute.paperDeep))
+                .overlay(Capsule().stroke(Cute.rule, lineWidth: 1))
+        }
+        .buttonStyle(PillPressStyle())
+        .accessibilityIdentifier("RunLeave")
+    }
+
+    /// Back to the title before Start, as the board's chevron is drawn.
+    private var backChevron: some View {
+        Button(action: onLeave) {
+            Text(Image(systemName: "chevron.backward"))
+                .font(.system(.headline).weight(.semibold))
+                .foregroundStyle(Cute.accentDeep)
+                .dynamicTypeSize(...DynamicTypeSize.large)
+                .frame(width: 11, alignment: .leading)
+                .frame(width: Cute.minTapTarget, height: Cute.minTapTarget, alignment: .leading)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(Vocabulary.backToTitle)
+        .accessibilityShowsLargeContentViewer {
+            Label(Vocabulary.backToTitle, systemImage: "chevron.backward")
+        }
+        .accessibilityIdentifier("RunBack")
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .center, spacing: 12) {
@@ -151,6 +187,13 @@ struct PeachRushHeader: View {
                     .accessibilityLabel(Vocabulary.runClockSpoken(runSpokenTime(run.remaining)))
                     .accessibilityAddTraits(.updatesFrequently)
                     .accessibilityIdentifier("RunClock")
+                    // Before Start, the way back is the board's own chevron in
+                    // the margin, "Back to the title screen" to VoiceOver: a
+                    // bare "Back" is system language the game keeps out of
+                    // its words (`OneDefinitionCardTests`).
+                    .overlay(alignment: .leading) {
+                        if run.phase == .ready { backChevron.offset(x: -15) }
+                    }
                 Spacer(minLength: 4)
                 VStack(alignment: .trailing, spacing: 0) {
                     Text(counted(run.points, "point"))
@@ -163,19 +206,12 @@ struct PeachRushHeader: View {
                 .monospacedDigit()
                 .accessibilityElement(children: .combine)
                 .accessibilityIdentifier("RunTally")
-                Button(action: onLeave) {
-                    Text(run.phase == .ready ? Vocabulary.runBack : Vocabulary.runEnd)
-                        .font(CuteFont.body(14, weight: "SemiBold", relativeTo: .subheadline))
-                        .tracking(1.4)
-                        .textCase(.uppercase)
-                        .foregroundStyle(Cute.inkSoft)
-                        .padding(.horizontal, 14)
-                        .frame(minHeight: Cute.minTapTarget)
-                        .background(Capsule().fill(Cute.paperDeep))
-                        .overlay(Capsule().stroke(Cute.rule, lineWidth: 1))
-                }
-                .buttonStyle(PillPressStyle())
-                .accessibilityIdentifier("RunLeave")
+                // Held in its place before Start, unseen, so the tally doesn't
+                // move when End arrives.
+                endButton
+                    .opacity(run.phase == .ready ? 0 : 1)
+                    .disabled(run.phase == .ready)
+                    .accessibilityHidden(run.phase == .ready)
             }
             // The time left as a bar that empties. Never animated: it steps
             // with the clock, so Reduce Motion has nothing to stop.

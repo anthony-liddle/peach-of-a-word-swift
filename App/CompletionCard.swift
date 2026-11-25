@@ -78,7 +78,7 @@ struct CompletionCard: View {
                         // of the rack: the off-page ladder is still open and
                         // the board is still live behind this sheet.
                         Button(action: onDismiss) {
-                            Text("Keep playing")
+                            Text(Vocabulary.keepPlaying)
                                 .font(CuteFont.body(15, weight: "SemiBold", relativeTo: .subheadline))
                                 .tracking(2.1)
                                 .textCase(.uppercase)

@@ -534,6 +534,10 @@ enum Vocabulary {
     static let licenceNunitoTitle = "Nunito"
     static let licenceNunito = "The face of everything else."
 
+    /// Going on: the crown card's way back to the board, and Peach rush's
+    /// way back from End's question.
+    static let keepPlaying = "Keep playing"
+
     // MARK: - Peach rush
 
     /// One run a day against the clock on today's board, offered until the
@@ -557,14 +561,13 @@ enum Vocabulary {
     /// The run's buttons.
     static let runStart = "Start"
     static let runResume = "Resume"
-    static let runBack = "Back"
     static let runEnd = "End"
 
-    /// End's question: one run a day, so End asks first.
+    /// End's question: one run a day, so End asks first. Its way back is
+    /// `keepPlaying`, the crown card's own words for going on.
     static let runEndQuestion = "End the run?"
     static let runEndQuestionMessage = "It's your one today."
     static let runEndConfirm = "End"
-    static let runKeepPlaying = "Keep playing"
 
     /// What VoiceOver hears of the clock.
     static func runClockSpoken(_ time: String) -> String { "Time left, \(time)" }
@@ -583,7 +586,7 @@ enum Vocabulary {
     static func runBestWord(_ word: String, points: Int) -> String {
         "Best word: \(word), \(counted(points, "point"))"
     }
-    static let runToBasket = "On to the basket"
+    static let runToBasket = "On to the \(container)"
     static let runShare = "Share"
     static let runDone = "Done"
 
