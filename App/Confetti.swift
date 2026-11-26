@@ -57,6 +57,10 @@ struct Confetti: View {
             }
         }
         .allowsHitTesting(false)
+        // Pictures falling, so VoiceOver skips them: its hearts, stars and
+        // sparkles are text, and were elements for as long as they fell
+        // (vault, `reports/2026-11-25 Accessibility Labels.md`, finding 3).
+        .accessibilityHidden(true)
         .onAppear {
             // Reduce Motion suppresses this entirely. It is pure motion, which
             // is exactly the case the setting exists for, and the card carries
