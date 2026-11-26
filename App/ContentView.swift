@@ -304,6 +304,17 @@ struct ContentView: View {
                         .accessibilityIdentifier("DebugAnnounced")
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
                 }
+                // `-exposeSpeech 1` lists each line handed to VoiceOver with
+                // its priority, and each it reported finished, so `TapTheWell`
+                // and `PeachRush` can hold a find's line to one that Pick
+                // word dimming can't cut off. See `SpeechLog`.
+                if UserDefaults.standard.bool(forKey: "exposeSpeech") {
+                    let lines = SpeechLog.shared.lines
+                    Text(lines.isEmpty ? "none" : lines.joined(separator: " | "))
+                        .font(.caption2)
+                        .accessibilityIdentifier("DebugSpeech")
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                }
                 // `-exposeSpokenMarks 1` counts the confetti's marks VoiceOver
                 // could land on, so `HiddenFromVoiceOver` can hold it to none.
                 if UserDefaults.standard.bool(forKey: "exposeSpokenMarks") {
@@ -450,12 +461,14 @@ struct ContentView: View {
         // rejected twice produces an equal value, which is not a change, and a
         // player who cannot see the line is exactly the player who has no way
         // to notice they submitted it again. See `GameModel.feedbackSeq`.
+        //
+        // Said through `model.say`, at high priority, because Pick word clears
+        // the well, and the button VoiceOver is on turns dimmed in the same
+        // update. At default priority VoiceOver said "dimmed" over the line
+        // and the line was lost, on the board and in a run, until 1.4.
         .onChange(of: model.feedbackSeq) {
             guard let line = model.feedback.line else { return }
-            AccessibilityNotification.Announcement(line.spoken).post()
-            #if DEBUG
-            model.announced.append(line.spoken)
-            #endif
+            model.say(line.spoken)
         }
         // The calendar of past days.
         //

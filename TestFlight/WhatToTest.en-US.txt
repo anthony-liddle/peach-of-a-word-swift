@@ -1,1 +1,1 @@
-In Peach rush's result, tap a word to open its card. With VoiceOver on, the run says why its letters are hidden, and skips the confetti and the meter's bar.
+With VoiceOver on, double-tap Pick word: you should hear the word and its points, "Not in the word list." or "Already found.", on the board and in Peach rush. A word found just as a run calls its time is still heard, before or after the call.

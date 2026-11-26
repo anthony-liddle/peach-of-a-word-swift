@@ -277,10 +277,12 @@ targets:
   # time. That works under the simulator, which shares the build machine's
   # filesystem, and would not on a device. These never run on a device.
   #
-  # **One app file is compiled in, and it touches UIKit:** `App/Feel.swift`, for
-  # `Tests/AppTests`. With no host the bundle can't reach the app's code, so the
-  # file is built a second time here, and its tests stand in for the haptics
-  # hardware a simulator doesn't have.
+  # **Three app files are compiled in, and they touch UIKit:** `App/Feel.swift`,
+  # `App/Announcer.swift` and `App/SpeechLog.swift`, for `Tests/AppTests`. With
+  # no host the bundle can't reach the app's code, so each file is built a
+  # second time here. Feel's tests stand in for the haptics hardware a
+  # simulator doesn't have, and the announcer's for VoiceOver, which a
+  # simulator doesn't have either.
   PeachOfAWordTests:
     type: bundle.unit-test
     platform: iOS
@@ -293,6 +295,8 @@ targets:
       # macOS, with no UIKit. Each app file they test is listed after them.
       - path: Tests/AppTests
       - path: App/Feel.swift
+      - path: App/Announcer.swift
+      - path: App/SpeechLog.swift
       # The three things the suite reads off disk, carried in the bundle.
       #
       # `swift test` runs from the source tree and finds them there. Xcode
