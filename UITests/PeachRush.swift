@@ -476,14 +476,18 @@ final class PeachRush: XCTestCase {
     /// after the other.** Two high-priority lines at once have no documented
     /// outcome, so the game never hands VoiceOver a line while it's still
     /// saying another. `-fakeSpeech 5` stands in for VoiceOver, each line
-    /// taking 5 seconds to say: on a 14 second clock, the start is still
-    /// being said when "10 seconds left." falls due, and TEL's line lands
-    /// while one or the other is. Five seconds is under the game's own net
-    /// (`Announcer.longest`, at least 6), so each line here waits on the
-    /// finish report, as it would on a phone.
+    /// taking 5 seconds to say. On an 18 second clock, "10 seconds left."
+    /// falls due 8 seconds in, so TEL picked anywhere from about 3 to 13
+    /// seconds in (here, 5 to 7) is said while the call waits, or waits while
+    /// the call is said. The clock leaves a slower machine until 18 seconds
+    /// to pick TEL at all: on 14, a pick at 7 seconds was half of it. Five
+    /// seconds is under the game's own net (`Announcer.longest`, at least
+    /// 6), so each line here waits on the finish report, as it would on a
+    /// phone. Which goes first, a time call or a find waiting, is
+    /// `AnnouncerTests`'.
     func testAFindAndATimeCallTogetherAreEachSaidWholeOneAtATime() {
         let app = launch(["-dayOffset", MarkInTheWell.octoberTwentyFourth, "-timedRun", "running",
-                          "-runClock", "14", "-fakeSpeech", "5", "-exposeSpeech", "1"])
+                          "-runClock", "18", "-fakeSpeech", "5", "-exposeSpeech", "1"])
         MarkInTheWell.pick("tel", in: app)
         let said = Self.speech(app, through: "done: Time's up.")
         var saying: [String] = []
