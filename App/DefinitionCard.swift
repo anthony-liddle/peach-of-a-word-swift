@@ -70,11 +70,15 @@ enum DefinitionOrigin: Equatable {
     case foundList
     /// One rung's sheet, named as the player sees it.
     case rung(named: String)
+    /// A run's result, which the card closes onto: Close, as the run's peach
+    /// card says (Antoine, 24 and 25 November).
+    case runResult
 
     var closeLabel: String {
         switch self {
         case .foundList: Vocabulary.revealClose
         case .rung(let name): Vocabulary.closeToRung(name)
+        case .runResult: Vocabulary.close
         }
     }
 }

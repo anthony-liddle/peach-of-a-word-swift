@@ -367,6 +367,10 @@ struct TierMeterView: View {
         // session: a GeometryReader consumes all offered space rather than
         // reporting an intrinsic size.
         .frame(height: 12)
+        // The percentage beside it says what it draws, so VoiceOver skips
+        // it: it was an element with no name on every board (vault,
+        // `reports/2026-11-25 Accessibility Labels.md`, finding 4).
+        .accessibilityHidden(true)
         .accessibilityIdentifier("MeterTrack")
         .motion(Feel.settle, value: standing.score)
         .background(Cute.paperDeep)

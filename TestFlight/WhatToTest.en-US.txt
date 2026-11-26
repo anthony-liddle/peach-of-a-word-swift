@@ -1,1 +1,1 @@
-New: Peach rush, under Play, gives you 1:30 on today's board before you start the basket. Every word you find carries into your basket, and Longer clock in Settings makes it 3:00.
+In Peach rush's result, tap a word to open its card. With VoiceOver on, the run says why its letters are hidden, and skips the confetti and the meter's bar.

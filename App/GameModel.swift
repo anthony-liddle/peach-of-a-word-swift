@@ -178,7 +178,9 @@ final class GameModel {
         /// the card tints its rule by it and the chip that was tapped already
         /// knows. Re-deriving it would be a second classification pass, which
         /// is the exact shape `classifyFound` exists to prevent.
-        case definition(word: String, category: WordCategory)
+        /// Where it was opened from names its way out: the basket's, or a
+        /// run's result's.
+        case definition(word: String, category: WordCategory, origin: DefinitionOrigin = .foundList)
         /// The peach of a word's card from a run: at its result, which it
         /// closes onto, or on the first screen after a run that ended with no
         /// result to show it. Its way out says Close, and it has no Share,
@@ -190,7 +192,7 @@ final class GameModel {
             switch self {
             case .sourceWord(let word): "source-\(word)"
             case .completion: "completion"
-            case .definition(let word, _): "definition-\(word)"
+            case .definition(let word, _, _): "definition-\(word)"
             case .runPeach(let word): "run-peach-\(word)"
             }
         }
@@ -211,6 +213,15 @@ final class GameModel {
         moment = found.category == .source
             ? .sourceWord(word: found.word)
             : .definition(word: found.word, category: found.category)
+    }
+
+    /// Open the card for a word in a run's result, closed onto the result:
+    /// the peach of a word's run card, as the result's peach opens, and any
+    /// other word's definition, whose way out says Close.
+    func revealRunFind(_ found: FoundWord) {
+        moment = found.category == .source
+            ? .runPeach(word: found.word)
+            : .definition(word: found.word, category: found.category, origin: .runResult)
     }
 
     /// The find the well's line reports, whose card a tap on the line opens:

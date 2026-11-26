@@ -82,9 +82,12 @@ struct WordChip: View {
     /// The glint's count when this chip is a new Mythic find's, so its gem
     /// glints once; nil for every other chip. See `GameModel.glint`.
     var glint: Int? = nil
-    /// What tapping this chip does. Defaulted to nothing so a preview or a
-    /// future read-only surface can render a chip without inventing an action.
-    var onSelect: () -> Void = {}
+    /// What tapping this chip does. Nil draws the same chip as a word, not a
+    /// button: a read-only surface, such as a run while its clock runs, has
+    /// nothing to open, and a button that opens nothing promises VoiceOver an
+    /// action that never comes (vault, `reports/2026-11-25 Accessibility
+    /// Labels.md`, finding 2).
+    var onSelect: (() -> Void)? = nil
     /// The chip's LAYOUT height, matching the web's `min-height: 24px`.
     ///
     /// This is not the tap target. The touch region is expanded separately
@@ -145,61 +148,72 @@ struct WordChip: View {
     /// subview for `sizeThatFits(.unspecified)`, and the negative padding
     /// returns that answer to what it was.
     var body: some View {
-        Button {
-            onSelect()
-        } label: {
-            HStack(spacing: 5) {
-                RarityMark(category: found.category)
-                    // Over the mark and behind it, never in the row, so the
-                    // chip's layout is the same while it glints.
-                    .glinting(glint, in: "list")
-                // The web sets the source word in a semibold oblique and every
-                // off-page rung in the discovery ink; the app painted all of
-                // them `ink`, so the ladder's colour stopped at the mark. See
-                // `WordCategory.textTint`.
-                Text(found.word)
-                    .font(found.category == .source
-                          ? CuteFont.bodyOblique(17, weight: "SemiBold", relativeTo: .body)
-                          : CuteFont.body(17, relativeTo: .body))
-                    .foregroundStyle(found.category.textTint)
-                if found.category.isOffPage {
-                    // Off-page finds show what they were worth. Set words do not:
-                    // the group's "X of Y" already accounts for them, and a
-                    // number on every chip would bury the ones that earned extra.
-                    //
-                    // **A deliberate difference from the web, decided rather
-                    // than overlooked.** The web prints points on every find,
-                    // set words included, in a muted ink. Reviewed on
-                    // 2026-08-29 alongside the three found-list mismatches Bea
-                    // did raise, and kept: she did not raise this one, the
-                    // reason above still holds, and matching the web here would
-                    // make the list noisier for no stated benefit. Recorded so
-                    // the next person to diff the two surfaces finds a decision
-                    // instead of what looks like an omission.
-                    Text("+\(found.score)")
-                        .font(CuteFont.body(13, weight: "SemiBold", relativeTo: .caption))
-                        .foregroundStyle(Cute.discovery)
-                        .monospacedDigit()
-                }
-            }
-            .frame(minHeight: chipHeight)
-            .padding(.horizontal, horizontalTouchInset)
-            .padding(.vertical, verticalTouchInset)
-            .contentShape(Rectangle())
-            .padding(.horizontal, -horizontalTouchInset)
-            .padding(.vertical, -verticalTouchInset)
+        if let onSelect {
+            Button(action: onSelect) { content }
+                // Plain, so the chip keeps its own colours. The default style
+                // would tint the word and the mark accent blue, which would
+                // make the rarity marks mean nothing.
+                .buttonStyle(.plain)
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel(spoken)
+                .accessibilityHint(Self.hint)
+        } else {
+            // The same chip, measured the same, with nothing to open.
+            content
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel(spoken)
         }
-        // Plain, so the chip keeps its own colours. The default style would
-        // tint the word and the mark accent blue, which would make the rarity
-        // marks mean nothing.
-        .buttonStyle(.plain)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(
-            "\(found.word), \(found.category.spokenName), "
+    }
+
+    /// The chip itself: its mark, the word, and what an off-page find earned.
+    private var content: some View {
+        HStack(spacing: 5) {
+            RarityMark(category: found.category)
+                // Over the mark and behind it, never in the row, so the
+                // chip's layout is the same while it glints.
+                .glinting(glint, in: "list")
+            // The web sets the source word in a semibold oblique and every
+            // off-page rung in the discovery ink; the app painted all of
+            // them `ink`, so the ladder's colour stopped at the mark. See
+            // `WordCategory.textTint`.
+            Text(found.word)
+                .font(found.category == .source
+                      ? CuteFont.bodyOblique(17, weight: "SemiBold", relativeTo: .body)
+                      : CuteFont.body(17, relativeTo: .body))
+                .foregroundStyle(found.category.textTint)
+            if found.category.isOffPage {
+                // Off-page finds show what they were worth. Set words do not:
+                // the group's "X of Y" already accounts for them, and a
+                // number on every chip would bury the ones that earned extra.
+                //
+                // **A deliberate difference from the web, decided rather
+                // than overlooked.** The web prints points on every find,
+                // set words included, in a muted ink. Reviewed on
+                // 2026-08-29 alongside the three found-list mismatches Bea
+                // did raise, and kept: she did not raise this one, the
+                // reason above still holds, and matching the web here would
+                // make the list noisier for no stated benefit. Recorded so
+                // the next person to diff the two surfaces finds a decision
+                // instead of what looks like an omission.
+                Text("+\(found.score)")
+                    .font(CuteFont.body(13, weight: "SemiBold", relativeTo: .caption))
+                    .foregroundStyle(Cute.discovery)
+                    .monospacedDigit()
+            }
+        }
+        .frame(minHeight: chipHeight)
+        .padding(.horizontal, horizontalTouchInset)
+        .padding(.vertical, verticalTouchInset)
+        .contentShape(Rectangle())
+        .padding(.horizontal, -horizontalTouchInset)
+        .padding(.vertical, -verticalTouchInset)
+    }
+
+    /// What VoiceOver hears for the chip, button or not.
+    private var spoken: String {
+        "\(found.word), \(found.category.spokenName), "
             + (found.category == .source ? costume.map { "\($0.spoken), " } ?? "" : "")
             + counted(found.score, "point")
-        )
-        .accessibilityHint(Self.hint)
     }
 
     /// What a chip does, as VoiceOver hints it. The well's line says the same,

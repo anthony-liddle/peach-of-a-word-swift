@@ -255,4 +255,17 @@ final class TapTheWell: XCTestCase {
         found("aret", "Rare", in: app)
         XCTAssertEqual(announced(app), ["Mythic find: tel, 5 points.", "Rare find: aret, 5 points."])
     }
+
+    /// A rejection is heard as it shows when VoiceOver comes back to the well.
+    /// It said "No letters picked yet" over "Not in the word list." (vault,
+    /// `reports/2026-11-25 Accessibility Labels.md`, finding 1).
+    func testARejectionIsHeardAsItShows() {
+        let app = launch()
+        XCTAssertTrue(well(app).waitForExistence(timeout: 10), "no well")
+        MarkInTheWell.pick("lyt", in: app)         // not a word
+        let heard = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "label == %@", "Not in the word list."), object: well(app))
+        XCTAssertEqual(XCTWaiter.wait(for: [heard], timeout: 5), .completed,
+                       "the well doesn't say the rejection it shows, it says: \(well(app).label)")
+    }
 }

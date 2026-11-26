@@ -22,6 +22,10 @@ struct PeachRushScreen: View {
             if case .over(let early) = run.phase {
                 PeachRushResult(model: model, run: run, endedEarly: early,
                                 onBasket: onBasket, onTitle: onTitle)
+                    // VoiceOver's scrub does what Done does: the result has
+                    // no clock to pause (vault, `reports/2026-11-25
+                    // Accessibility Labels.md`, finding 5).
+                    .accessibilityAction(.escape) { onTitle() }
             } else {
                 ViewThatFits(in: .vertical) {
                     fixed(run)
@@ -268,16 +272,20 @@ struct PeachRushButton: View {
 struct PeachRushFinds: View {
     let model: GameModel
     let words: [String]
+    /// What a word opens. Nil while the clock runs, so the words are words,
+    /// not buttons; the result opens each one's card (Antoine, 25 November).
+    var onSelect: ((FoundWord) -> Void)? = nil
 
     var body: some View {
         FlowLayout {
             ForEach(words, id: \.self) { word in
                 if let puzzle = model.puzzle {
                     let rung = classifyWord(word, in: puzzle)
-                    WordChip(found: FoundWord(
+                    let found = FoundWord(
                         word: word,
                         category: word == puzzle.sourceWord ? .source : WordCategory(rung),
-                        score: findScore(word, rung: rung)))
+                        score: findScore(word, rung: rung))
+                    WordChip(found: found, onSelect: onSelect.map { select in { select(found) } })
                 }
             }
         }
@@ -337,7 +345,7 @@ struct PeachRushResult: View {
                         .multilineTextAlignment(.center)
                         .fixedSize(horizontal: false, vertical: true)
                 }
-                PeachRushFinds(model: model, words: run.found)
+                PeachRushFinds(model: model, words: run.found) { model.revealRunFind($0) }
                     .padding(14)
                     .background(RoundedRectangle(cornerRadius: Cute.cardRadius).fill(Cute.paperDeep))
                     .overlay(RoundedRectangle(cornerRadius: Cute.cardRadius).stroke(Cute.rule, lineWidth: 1))

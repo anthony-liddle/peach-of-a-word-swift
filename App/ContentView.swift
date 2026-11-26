@@ -304,6 +304,12 @@ struct ContentView: View {
                         .accessibilityIdentifier("DebugAnnounced")
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
                 }
+                // `-exposeSpokenMarks 1` counts the confetti's marks VoiceOver
+                // could land on, so `HiddenFromVoiceOver` can hold it to none.
+                if UserDefaults.standard.bool(forKey: "exposeSpokenMarks") {
+                    SpokenProbe()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+                }
                 // `-exposeReminder 1` prints the switch, whether iOS said no,
                 // and every date last handed to iOS, so `DailyReminder` can
                 // hold the schedule to the days played and to the time.
@@ -404,7 +410,7 @@ struct ContentView: View {
                         closeLabel: Vocabulary.close
                     ) { model.moment = nil }
                         .presentationDetents([.large])
-                case .definition(let word, let category):
+                case .definition(let word, let category, let origin):
                     // `DefinitionSheet` rather than `DefinitionCard`, because a
                     // rung sheet now opens the same card and two constructions
                     // would be free to drift. See `DefinitionSheet`.
@@ -412,7 +418,8 @@ struct ContentView: View {
                         word: word,
                         category: category,
                         definition: model.definitions[word],
-                        provenance: model.glossProvenance
+                        provenance: model.glossProvenance,
+                        origin: origin
                     ) { model.moment = nil }
                 }
             }
@@ -1530,8 +1537,12 @@ struct ComposingStick: View {
         // switching it on with a Mythic find rebuilt the well, and TEL's
         // mark glinted twice (`MythicGlint`).
         .accessibilityElement(children: .ignore)
+        // With nothing picked it says the line it shows, a rejection or why
+        // a run's letters are hidden, and only the bare placeholder is "No
+        // letters picked yet" (vault, `reports/2026-11-25 Accessibility
+        // Labels.md`, finding 1).
         .accessibilityLabel(opensCard.map(\.name) ?? (word.isEmpty
-            ? "No letters picked yet"
+            ? feedback.line?.spoken ?? "No letters picked yet"
             : "Picked so far: \(word.map(String.init).joined(separator: " "))"))
         .accessibilityHint(opensCard == nil ? "" : WordChip.hint)
         .accessibilityAction { if opensCard != nil { onOpen?() } }
