@@ -304,6 +304,17 @@ struct ContentView: View {
                         .accessibilityIdentifier("DebugAnnounced")
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
                 }
+                // `-exposeSpeech 1` lists each line handed to VoiceOver with
+                // its priority, and each it reported finished, so `TapTheWell`
+                // and `PeachRush` can hold a find's line to one that Pick
+                // word dimming can't cut off. See `SpeechLog`.
+                if UserDefaults.standard.bool(forKey: "exposeSpeech") {
+                    let lines = SpeechLog.shared.lines
+                    Text(lines.isEmpty ? "none" : lines.joined(separator: " | "))
+                        .font(.caption2)
+                        .accessibilityIdentifier("DebugSpeech")
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                }
                 // `-exposeSpokenMarks 1` counts the confetti's marks VoiceOver
                 // could land on, so `HiddenFromVoiceOver` can hold it to none.
                 if UserDefaults.standard.bool(forKey: "exposeSpokenMarks") {
@@ -452,9 +463,11 @@ struct ContentView: View {
         // to notice they submitted it again. See `GameModel.feedbackSeq`.
         .onChange(of: model.feedbackSeq) {
             guard let line = model.feedback.line else { return }
-            AccessibilityNotification.Announcement(line.spoken).post()
+            let spoken = AttributedString(line.spoken)
+            AccessibilityNotification.Announcement(spoken).post()
             #if DEBUG
             model.announced.append(line.spoken)
+            SpeechLog.shared.posted(spoken)
             #endif
         }
         // The calendar of past days.

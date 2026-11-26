@@ -432,6 +432,76 @@ final class PeachRush: XCTestCase {
                        "the time was said other than at its marks")
     }
 
+    // MARK: Each line heard whole
+
+    /// What `-exposeSpeech 1` lists once it holds `last`: each line handed to
+    /// VoiceOver as "high: ..." or "default: ...", and each it reported
+    /// finished as "done: ...", oldest first. Kept with the result, one line
+    /// to a row, as "Speech".
+    static func speech(_ app: XCUIApplication, through last: String) -> [String] {
+        let probe = app.staticTexts["DebugSpeech"]
+        let holds = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "label CONTAINS %@", last), object: probe)
+        guard XCTWaiter.wait(for: [holds], timeout: 40) == .completed else {
+            XCTFail("never handed VoiceOver \(last): \(probe.exists ? probe.label : "no probe")")
+            return []
+        }
+        let said = probe.label.components(separatedBy: " | ")
+        XCTContext.runActivity(named: "Speech") { activity in
+            let readout = XCTAttachment(string: said.joined(separator: "\n"))
+            readout.name = "Speech"
+            readout.lifetime = .keepAlways
+            activity.add(readout)
+        }
+        return said
+    }
+
+    /// In a run as on the board: a find, a refusal and a word found twice,
+    /// each at high priority, so Pick word dimming can't cut it off
+    /// (`TapTheWell`). The run's own lines go the same way.
+    func testEachOutcomesLineInARunGoesSoPickWordDimmingCantCutItOff() {
+        let app = launch(["-dayOffset", MarkInTheWell.octoberTwentyFourth, "-timedRun", "running",
+                          "-timedRunFreeze", "40", "-exposeSpeech", "1"])
+        MarkInTheWell.pick("tel", in: app)
+        MarkInTheWell.pick("lyt", in: app)         // not a word
+        MarkInTheWell.pick("tel", in: app)         // found already
+        let said = Self.speech(app, through: "Already found.")
+        XCTAssertEqual(Array(said.suffix(3)), ["high: Mythic find: tel, 5 points.",
+                                               "high: Not in the word list.",
+                                               "high: Already found."])
+        XCTAssertEqual(said.filter { !$0.hasPrefix("high: ") }, [], "a line went at a priority it can be cut off at")
+    }
+
+    /// **A find and a time call landing together are each said whole, one
+    /// after the other.** Two high-priority lines at once have no documented
+    /// outcome, so the game never hands VoiceOver a line while it's still
+    /// saying another. `-fakeSpeech 5` stands in for VoiceOver, each line
+    /// taking 5 seconds to say: on a 14 second clock, the start is still
+    /// being said when "10 seconds left." falls due, and TEL's line lands
+    /// while one or the other is. Five seconds is under the game's own net
+    /// (`Announcer.longest`, at least 6), so each line here waits on the
+    /// finish report, as it would on a phone.
+    func testAFindAndATimeCallTogetherAreEachSaidWholeOneAtATime() {
+        let app = launch(["-dayOffset", MarkInTheWell.octoberTwentyFourth, "-timedRun", "running",
+                          "-runClock", "14", "-fakeSpeech", "5", "-exposeSpeech", "1"])
+        MarkInTheWell.pick("tel", in: app)
+        let said = Self.speech(app, through: "done: Time's up.")
+        var saying: [String] = []
+        for entry in said {
+            if entry.hasPrefix("done: ") {
+                saying.removeAll { $0 == String(entry.dropFirst(6)) }
+                continue
+            }
+            let line = entry.drop { $0 != ":" }.dropFirst(2)
+            XCTAssertEqual(saying, [], "\(entry) was handed over while VoiceOver was still saying \(saying)")
+            saying.append(String(line))
+        }
+        XCTAssertEqual(said.filter { !$0.hasPrefix("high: ") && !$0.hasPrefix("done: ") }, [],
+                       "a line went at a priority it can be cut off at")
+        XCTAssertEqual(said.filter { $0 == "high: Mythic find: tel, 5 points." }.count, 1, "TEL's line wasn't said once")
+        XCTAssertEqual(said.filter { $0 == "high: 10 seconds left." }.count, 1, "the time call wasn't said once")
+    }
+
     // MARK: Heard as it shows
 
     /// The well says what it shows: before Start, why the letters are hidden,

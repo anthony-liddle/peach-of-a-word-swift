@@ -2642,6 +2642,7 @@ extension GameModel {
         AccessibilityNotification.Announcement(spoken).post()
         #if DEBUG
         announced.append(text)
+        SpeechLog.shared.posted(spoken)
         #endif
     }
 

@@ -256,6 +256,26 @@ final class TapTheWell: XCTestCase {
         XCTAssertEqual(announced(app), ["Mythic find: tel, 5 points.", "Rare find: aret, 5 points."])
     }
 
+    /// **Each outcome's line goes so that Pick word dimming can't cut it off.**
+    /// Pick word clears the well, so the button VoiceOver is on turns dimmed
+    /// in the same update, and VoiceOver says so, over a line posted at
+    /// default priority: Apple's header gives that as "interruptible if a new
+    /// speech utterance is started". On a phone, "dimmed" was all VoiceOver
+    /// said after Pick word, never the find or the refusal (Antoine, 26
+    /// November). High priority "cannot be interrupted once started". The
+    /// simulator has no VoiceOver, so this holds what is posted, and the
+    /// phone what is heard.
+    func testEachOutcomesLineGoesSoPickWordDimmingCantCutItOff() {
+        let app = launch(["-exposeSpeech", "1"])
+        found("tel", "Mythic", in: app)
+        MarkInTheWell.pick("lyt", in: app)         // not a word
+        MarkInTheWell.pick("tel", in: app)         // found already
+        XCTAssertEqual(PeachRush.speech(app, through: "Already found."),
+                       ["high: Mythic find: tel, 5 points.",
+                        "high: Not in the word list.",
+                        "high: Already found."])
+    }
+
     /// A rejection is heard as it shows when VoiceOver comes back to the well.
     /// It said "No letters picked yet" over "Not in the word list." (vault,
     /// `reports/2026-11-25 Accessibility Labels.md`, finding 1).
