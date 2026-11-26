@@ -277,6 +277,10 @@ final class GameModel {
     /// Waits to open the peach of a word's card at the run's end.
     @ObservationIgnored private var runPeachCard: Task<Void, Never>?
 
+    /// Everything the game says to VoiceOver goes through here, one line at a
+    /// time and none of it cut off. See `say(_:urgent:)`.
+    @ObservationIgnored private let voice = Announcer()
+
     #if DEBUG
     /// Every find beat played since launch, oldest first, so `-exposeFeel 1`
     /// can show a test how many patterns one submit started.
@@ -303,9 +307,10 @@ final class GameModel {
     /// `glinted` is what was asked for. Written by `GlintSweep`.
     var glintsDrawn: [String] = []
 
-    /// Every announcement of the well's line posted since launch, oldest
-    /// first, so `-exposeAnnounced 1` can show a test that a find is said
-    /// once. Posted, not heard: the tree cannot hear VoiceOver.
+    /// Every line handed to `say` since launch, oldest first, so
+    /// `-exposeAnnounced 1` can show a test that a find is said once. Asked
+    /// for, not heard: the tree cannot hear VoiceOver, and `SpeechLog` shows
+    /// when each line was posted and at what priority.
     var announced: [String] = []
 
     /// Every change of the title's peach while the title was up, oldest
@@ -2385,7 +2390,7 @@ extension GameModel {
         storage.saveRunInFlight(current.inFlight)
         refreshRunOffer()
         let time = runSpokenTime(current.remaining)
-        announceRun(resuming ? Vocabulary.runResumedSpoken(time) : Vocabulary.runStartedSpoken(time))
+        say(resuming ? Vocabulary.runResumedSpoken(time) : Vocabulary.runStartedSpoken(time))
         tickRun()
     }
 
@@ -2400,7 +2405,7 @@ extension GameModel {
         run = current
         clear()
         storage.saveRunInFlight(current.inFlight)
-        if spoken { announceRun(Vocabulary.runPaused) }
+        if spoken { say(Vocabulary.runPaused) }
     }
 
     /// The clock ran out, or End was confirmed.
@@ -2431,7 +2436,7 @@ extension GameModel {
         Feel.runEnd()
         sound(.rushEnd)
         let timesUp = Vocabulary.runTimesUpSpoken(words: current.found.count, points: current.points)
-        announceRun(timesUp)
+        say(timesUp)
         openRunPeachCard(after: timesUp)
     }
 
@@ -2624,7 +2629,7 @@ extension GameModel {
                         Feel.runTen()
                         self.sound(.rushTen)
                     }
-                    self.announceRun(Vocabulary.runMarkSpoken(runSpokenTime(Double(mark))), priority: true)
+                    self.say(Vocabulary.runMarkSpoken(runSpokenTime(Double(mark))), urgent: true)
                 }
                 if current.remaining <= 0 {
                     self.endRun(early: false)
@@ -2634,15 +2639,14 @@ extension GameModel {
         }
     }
 
-    /// Tell VoiceOver. The time marks go at high priority, so a find's line
-    /// spoken at the same moment doesn't swallow them.
-    private func announceRun(_ text: String, priority: Bool = false) {
-        var spoken = AttributedString(text)
-        if priority { spoken.accessibilitySpeechAnnouncementPriority = .high }
-        AccessibilityNotification.Announcement(spoken).post()
+    /// Tell VoiceOver: the well's line after Pick word, and a run's start,
+    /// pause, time calls and end. Each is said whole, one after another, so
+    /// Pick word turning dimmed can't cut a find's line off, and a time call
+    /// (`urgent`) landing beside a find is heard too, next. See `Announcer`.
+    func say(_ text: String, urgent: Bool = false) {
+        voice.say(text, urgent: urgent)
         #if DEBUG
         announced.append(text)
-        SpeechLog.shared.posted(spoken)
         #endif
     }
 

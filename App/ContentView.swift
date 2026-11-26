@@ -461,14 +461,14 @@ struct ContentView: View {
         // rejected twice produces an equal value, which is not a change, and a
         // player who cannot see the line is exactly the player who has no way
         // to notice they submitted it again. See `GameModel.feedbackSeq`.
+        //
+        // Said through `model.say`, at high priority, because Pick word clears
+        // the well, and the button VoiceOver is on turns dimmed in the same
+        // update. At default priority VoiceOver said "dimmed" over the line
+        // and the line was lost, on the board and in a run, until 1.4.
         .onChange(of: model.feedbackSeq) {
             guard let line = model.feedback.line else { return }
-            let spoken = AttributedString(line.spoken)
-            AccessibilityNotification.Announcement(spoken).post()
-            #if DEBUG
-            model.announced.append(line.spoken)
-            SpeechLog.shared.posted(spoken)
-            #endif
+            model.say(line.spoken)
         }
         // The calendar of past days.
         //
