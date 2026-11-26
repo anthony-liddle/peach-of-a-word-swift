@@ -304,6 +304,12 @@ struct ContentView: View {
                         .accessibilityIdentifier("DebugAnnounced")
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
                 }
+                // `-exposeSpokenMarks 1` counts the confetti's marks VoiceOver
+                // could land on, so `HiddenFromVoiceOver` can hold it to none.
+                if UserDefaults.standard.bool(forKey: "exposeSpokenMarks") {
+                    SpokenProbe()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+                }
                 // `-exposeReminder 1` prints the switch, whether iOS said no,
                 // and every date last handed to iOS, so `DailyReminder` can
                 // hold the schedule to the days played and to the time.

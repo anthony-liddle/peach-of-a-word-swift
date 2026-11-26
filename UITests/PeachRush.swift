@@ -431,4 +431,68 @@ final class PeachRush: XCTestCase {
         XCTAssertFalse(said.contains { $0.contains("second") && !$0.hasPrefix("10 ") && !$0.hasPrefix("Started") },
                        "the time was said other than at its marks")
     }
+
+    // MARK: Heard as it shows
+
+    /// The well says what it shows: before Start, why the letters are hidden,
+    /// and while paused, that the run is. It said "No letters picked yet" over
+    /// both, so VoiceOver never heard the ready screen's line (vault,
+    /// `reports/2026-11-25 Accessibility Labels.md`, finding 1).
+    func testTheWellSaysWhatItShowsBeforeStartAndWhilePaused() {
+        let app = launch([], title: true)
+        tap(app.buttons["TitleRun"], "the run's button") { app.buttons["RunStart"].waitForExistence(timeout: 5) }
+        let ready = app.descendants(matching: .any)["ComposingWell"].firstMatch
+        XCTAssertEqual(label(ready, "the ready screen's well"), "Letters show when the clock starts.",
+                       "the ready screen's well doesn't say why the letters are hidden")
+        app.terminate()
+
+        let paused = launch(["-timedRun", "paused"])
+        XCTAssertTrue(paused.buttons["RunResume"].waitForExistence(timeout: 60), "the run didn't pause")
+        let well = paused.descendants(matching: .any)["ComposingWell"].firstMatch
+        XCTAssertEqual(label(well, "the paused well"), "Paused.", "the paused well doesn't say the run is paused")
+    }
+
+    /// While the clock runs, a found word is a word, not a button: nothing
+    /// opens mid-run. Each was a button hinted "Shows the definition" that
+    /// did nothing (finding 2).
+    func testARunsWordsAreNotButtonsWhileTheClockRuns() {
+        let app = launch(["-timedRun", "running", "-timedRunFreeze", "40", "-timedRunFindSource", "1"])
+        // `RunFinds` names each word in the list, not a container.
+        let listed = app.descendants(matching: .any).matching(
+            NSPredicate(format: "identifier == 'RunFinds' AND label CONTAINS ', the peach of a word, '"))
+        XCTAssertTrue(listed.firstMatch.waitForExistence(timeout: 60), "the run's one find isn't listed")
+        XCTAssertEqual(app.buttons.matching(identifier: "RunFinds").count, 0,
+                       "a run's word is a button while the clock runs")
+    }
+
+    /// At the result, a word opens its card and closes onto the result: the
+    /// peach of a word its own card, as the result's peach does, and any
+    /// other word its definition, whose way out says Close, not "Back to the
+    /// basket", since it closes onto the result (Antoine, 25 November).
+    func testAResultsWordsOpenTheirCards() {
+        let app = launch(["-timedRun", "over", "-timedRunFillBasket", "1", "-timedRunCardClosed", "1"])
+        XCTAssertTrue(app.staticTexts["RunResultHeading"].waitForExistence(timeout: 60), "no result")
+        let prose = app.staticTexts["DefinitionProse"]
+        // `RunFinds` names each word in the list, not a container.
+        func listed(_ kind: String) -> XCUIElement {
+            app.buttons.matching(NSPredicate(format: "identifier == 'RunFinds' AND label CONTAINS %@", kind)).firstMatch
+        }
+
+        let word = listed(", in the basket, ")
+        tap(word, "a word in the run's list") { prose.waitForExistence(timeout: 5) }
+        XCTAssertTrue(prose.exists, "a word at the result didn't open its card")
+        XCTAssertFalse(app.buttons.matching(NSPredicate(format: "label ==[c] 'Back to the basket'")).firstMatch.exists,
+                       "a word's card from the result says it goes back to the basket")
+        let close = app.buttons.matching(NSPredicate(format: "label ==[c] 'Close'")).firstMatch
+        tap(close, "the card's Close") { !prose.exists }
+        XCTAssertTrue(app.staticTexts["RunResultHeading"].waitForExistence(timeout: 5),
+                      "Close didn't go back to the result")
+
+        let peach = listed(", the peach of a word, ")
+        tap(peach, "the peach of a word in the run's list") {
+            app.staticTexts["RevealWord"].waitForExistence(timeout: 5)
+        }
+        XCTAssertTrue(app.staticTexts["RevealWord"].exists, "the peach of a word at the result didn't open its card")
+        XCTAssertFalse(app.buttons["CardShare"].exists, "the run's peach card has a Share")
+    }
 }

@@ -48,6 +48,10 @@
 # owed to the next screen, and its two sounds played. Shard 4 stays its home:
 # moved to the lightest, shard 1, it would make that one the longest.
 #
+# **And `HiddenFromVoiceOver`,** on 25 November: its 16 is one local run on an
+# iPhone 17 Pro simulator, added to the lightest shard, 2. Replace it the same
+# way.
+#
 # To rebalance, or to change the number of shards, update the seconds and
 # print a new map:
 #
@@ -84,6 +88,7 @@
 2        SoundWithTheRingerOff              10
 2        ShareFromTheCards                  130
 2        PeachRushAtEverySize               50
+2        HiddenFromVoiceOver                16
 3        RackAtLargeText                    347
 3        MarkInTheWell                      179
 3        BackToTheDayYouWereOn              201
